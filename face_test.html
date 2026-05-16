@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BDI — Face Detection Test</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #0f172a; color: #fff; padding: 20px; min-height: 100vh; }
+  h1 { color: #e87722; margin-bottom: 6px; font-size: 20px; }
+  .sub { color: #64748b; font-size: 12px; margin-bottom: 20px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1000px; }
+  @media(max-width:700px){ .grid { grid-template-columns:1fr; } }
+
+  /* Camera */
+  .cam-box { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 4/3; border: 2px solid #1e293b; }
+  .cam-box video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  .cam-box canvas { position: absolute; top:0; left:0; width:100%; height:100%; transform: scaleX(-1); }
+  .cam-label { position: absolute; bottom: 8px; left:0; right:0; text-align:center; font-size:12px; color:rgba(255,255,255,.7); background:rgba(0,0,0,.5); padding:4px; }
+
+  /* Big result */
+  .result-box { border-radius: 12px; padding: 16px; margin-bottom: 12px; font-weight: bold; font-size: 15px; text-align: center; }
+  .r-ok  { background: rgba(34,197,94,.15); border: 2px solid #22c55e; color: #22c55e; }
+  .r-err { background: rgba(239,68,68,.15);  border: 2px solid #ef4444; color: #ef4444; }
+  .r-war { background: rgba(245,158,11,.15); border: 2px solid #f59e0b; color: #f59e0b; }
+  .r-off { background: rgba(100,116,139,.1); border: 2px solid #475569; color: #94a3b8; }
+
+  /* Log */
+  .log { background: #1e293b; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 11px; height: 300px; overflow-y: auto; }
+  .log-ok  { color: #22c55e; }
+  .log-err { color: #ef4444; }
+  .log-war { color: #f59e0b; }
+  .log-inf { color: #94a3b8; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; margin: 5px; transition: .2s; }
+  .btn-o { background: #e87722; color: #fff; }
+  .btn-b { background: #2563eb; color: #fff; }
+  .btn-g { background: #16a34a; color: #fff; }
+  .btn-n { background: #334155; color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* Steps */
+  .step { background: #1e293b; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .step-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+  .step-status { font-size: 14px; font-weight: 600; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+  .badge-ok  { background: #166534; color: #86efac; }
+  .badge-err { background: #7f1d1d; color: #fca5a5; }
+  .badge-war { background: #78350f; color: #fde68a; }
+  .badge-off { background: #1e293b; color: #64748b; }
+
+  .score-bar { height: 8px; background: #0f172a; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+</style>
+</head>
+<body>
+
+<h1>🔍 BDI — Face Detection Diagnostic</h1>
+<p class="sub">Open this page to test if face detection works on your device. No login or enrollment needed.</p>
+
+<div class="grid">
+
+  <!-- LEFT: Camera -->
+  <div>
+    <div class="cam-box">
+      <video id="vid" autoplay playsinline muted></video>
+      <canvas id="cnv"></canvas>
+      <div class="cam-label" id="cam-lbl">Camera off</div>
+    </div>
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;justify-content:center">
+      <button class="btn btn-o" onclick="startTest()">▶ Start Full Test</button>
+      <button class="btn btn-n" onclick="stopTest()">■ Stop</button>
+      <button class="btn btn-b" onclick="singleShot()">📷 Single Shot Test</button>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:11px;color:#64748b;margin-bottom:6px">Detection Confidence</div>
+      <div class="score-bar"><div class="score-fill" id="score-fill" style="width:0%;background:#22c55e"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#475569;margin-top:3px"><span>0%</span><span id="score-val">—</span><span>100%</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Status steps -->
+  <div>
+
+    <div class="step">
+      <div class="step-title">Step 1 — Camera</div>
+      <div class="step-status" id="st-cam">⬜ Not started</div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">Step 2 — AI Model Loading</div>
+      <div class="step-status" id="st-model">⬜ Not started</div>
+      <div id="model-detail" style="font-size:11px;color:#64748b;margin-top:5px"></div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">Step 3 — Face Detection (Tiny — Fast)</div>
+      <div class="step-status" id="st-tiny">⬜ Not started</div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">Step 4 — Face Detection (SSD — Accurate)</div>
+      <div class="step-status" id="st-ssd">⬜ Not started</div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">Step 5 — Face Descriptor (for recognition)</div>
+      <div class="step-status" id="st-desc">⬜ Not started</div>
+    </div>
+
+    <div id="final-result" class="result-box r-off" style="margin-top:6px">Awaiting test…</div>
+
+  </div>
+</div>
+
+<!-- Log -->
+<div style="max-width:1000px;margin-top:16px">
+  <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase">Live Log</div>
+  <div class="log" id="log"><div class="log-inf">Ready. Click "Start Full Test" to begin.</div></div>
+</div>
+
+<!-- Load face-api from vladmandic CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+
+<script>
+const MODEL_URLS = [
+  'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+  'https://unpkg.com/@vladmandic/face-api/model',
+];
+
+let stream = null;
+let looping = false;
+let modelsReady = false;
+
+/* ── Logging ── */
+function log(msg, type='inf') {
+  const el = document.getElementById('log');
+  const d = document.createElement('div');
+  d.className = 'log-'+type;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setStep(id, text, type) {
+  const icons = { ok:'✅', err:'❌', war:'⚠️', spin:'⏳', off:'⬜' };
+  document.getElementById(id).textContent = (icons[type]||'') + ' ' + text;
+  document.getElementById(id).style.color = {ok:'#22c55e', err:'#ef4444', war:'#f59e0b', spin:'#f59e0b', off:'#94a3b8'}[type]||'#fff';
+}
+
+function setFinal(msg, type) {
+  const el = document.getElementById('final-result');
+  el.textContent = msg;
+  el.className = 'result-box r-'+type;
+}
+
+function setScore(pct) {
+  const fill = document.getElementById('score-fill');
+  fill.style.width = pct+'%';
+  fill.style.background = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
+  document.getElementById('score-val').textContent = pct+'%';
+}
+
+/* ── Step 1: Camera ── */
+async function startCamera() {
+  setStep('st-cam','Opening camera…','spin');
+  log('Requesting camera access…');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    const vid = document.getElementById('vid');
+    vid.srcObject = stream;
+    await new Promise(r => { vid.onloadeddata = r; setTimeout(r, 3000); });
+    setStep('st-cam', `Camera OK — ${vid.videoWidth}×${vid.videoHeight}`, 'ok');
+    log(`Camera ready: ${vid.videoWidth}×${vid.videoHeight}`, 'ok');
+    return true;
+  } catch(e) {
+    setStep('st-cam', 'Camera denied — allow camera in browser settings', 'err');
+    log('Camera error: ' + e.message, 'err');
+    return false;
+  }
+}
+
+/* ── Step 2: Load models ── */
+async function loadModels() {
+  if (modelsReady) return true;
+  setStep('st-model','Loading models from CDN…','spin');
+  log('Loading AI models…');
+
+  for (const url of MODEL_URLS) {
+    log(`Trying CDN: ${url}`);
+    document.getElementById('model-detail').textContent = `Trying: ${url}`;
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(url),
+        faceapi.nets.faceLandmark68Net.loadFromUri(url),
+        faceapi.nets.faceRecognitionNet.loadFromUri(url),
+        faceapi.nets.ssdMobilenetv1.loadFromUri(url),
+      ]);
+      modelsReady = true;
+      setStep('st-model', `Models loaded from ${url.includes('jsdelivr') ? 'jsDelivr CDN' : 'unpkg CDN'}`, 'ok');
+      document.getElementById('model-detail').textContent = 'All 4 models: TinyFaceDetector + SSD + Landmarks + Recognition';
+      log('All models loaded successfully!', 'ok');
+      return true;
+    } catch(e) {
+      log(`CDN failed: ${e.message}`, 'war');
+    }
+  }
+
+  setStep('st-model','ALL CDNs FAILED — no internet or CDN blocked','err');
+  log('Model loading failed on all CDNs. Check internet connection.', 'err');
+  return false;
+}
+
+/* ── Step 3: Tiny detection ── */
+async function testTiny(vid) {
+  setStep('st-tiny','Testing TinyFaceDetector…','spin');
+  log('Testing TinyFaceDetector (scoreThreshold: 0.1)…');
+  try {
+    const opts = new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.1, inputSize: 320 });
+    const det = await faceapi.detectSingleFace(vid, opts);
+    if (det) {
+      const score = Math.round(det.score * 100);
+      setStep('st-tiny', `FACE DETECTED — score ${score}%`, 'ok');
+      log(`TinyFaceDetector: face found at ${score}% confidence`, 'ok');
+      setScore(score);
+      return { found: true, score, box: det.box };
+    } else {
+      setStep('st-tiny','No face found (try moving closer + better light)','war');
+      log('TinyFaceDetector: no face — try moving closer or improving lighting', 'war');
+      return { found: false };
+    }
+  } catch(e) {
+    setStep('st-tiny','Error: '+e.message,'err');
+    log('TinyFaceDetector error: '+e.message, 'err');
+    return { found: false, error: e.message };
+  }
+}
+
+/* ── Step 4: SSD detection ── */
+async function testSSD(vid) {
+  setStep('st-ssd','Testing SSD MobileNet…','spin');
+  log('Testing SSD MobileNet (minConfidence: 0.2)…');
+  try {
+    const opts = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 });
+    const det = await faceapi.detectSingleFace(vid, opts);
+    if (det) {
+      const score = Math.round(det.score * 100);
+      setStep('st-ssd', `FACE DETECTED — score ${score}%`, 'ok');
+      log(`SSD: face found at ${score}% confidence`, 'ok');
+      if (score > parseInt(document.getElementById('score-val').textContent||'0')) setScore(score);
+      return { found: true, score, box: det.box };
+    } else {
+      setStep('st-ssd','No face found','war');
+      log('SSD: no face found', 'war');
+      return { found: false };
+    }
+  } catch(e) {
+    setStep('st-ssd','Error: '+e.message,'err');
+    log('SSD error: '+e.message, 'err');
+    return { found: false, error: e.message };
+  }
+}
+
+/* ── Step 5: Full descriptor ── */
+async function testDescriptor(vid) {
+  setStep('st-desc','Extracting face descriptor…','spin');
+  log('Extracting 128-dimension face descriptor…');
+  try {
+    const opts = new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.1, inputSize: 320 });
+    const det = await faceapi.detectSingleFace(vid, opts).withFaceLandmarks().withFaceDescriptor();
+    if (det) {
+      setStep('st-desc', `Descriptor OK — 68 landmarks, 128D vector`, 'ok');
+      log(`Descriptor ready: ${det.descriptor.length}D — recognition will work!`, 'ok');
+      return true;
+    } else {
+      setStep('st-desc','No descriptor — face not detected for full pipeline','war');
+      log('Full pipeline failed — face not detected', 'war');
+      return false;
+    }
+  } catch(e) {
+    setStep('st-desc','Error: '+e.message,'err');
+    log('Descriptor error: '+e.message, 'err');
+    return false;
+  }
+}
+
+/* ── Draw box on canvas ── */
+function drawBox(box, color, label) {
+  const vid = document.getElementById('vid');
+  const canvas = document.getElementById('cnv');
+  if (!vid.videoWidth) return;
+  canvas.width = vid.videoWidth;
+  canvas.height = vid.videoHeight;
+  const sx = canvas.width / (vid.videoWidth || 640);
+  const sy = canvas.height / (vid.videoHeight || 480);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!box) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(box.x * sx, box.y * sy, box.width * sx, box.height * sy);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText(label, box.x * sx, box.y * sy - 6);
+}
+
+/* ── MAIN: Full test ── */
+async function startTest() {
+  if (looping) return;
+  looping = true;
+  setFinal('Running test…', 'war');
+  setScore(0);
+  document.getElementById('log').innerHTML = '';
+
+  log('=== BDI Face Detection Full Test ===');
+
+  // Step 1: Camera
+  if (!stream) {
+    const camOk = await startCamera();
+    if (!camOk) { setFinal('❌ Camera failed — allow camera access', 'err'); looping = false; return; }
+  } else {
+    setStep('st-cam','Camera already running','ok');
+  }
+
+  // Step 2: Models
+  const modOk = await loadModels();
+  if (!modOk) { setFinal('❌ AI models failed to load — check internet', 'err'); looping = false; return; }
+
+  const vid = document.getElementById('vid');
+
+  // Wait a moment for camera to warm up
+  log('Waiting for camera to warm up…');
+  await new Promise(r => setTimeout(r, 1000));
+
+  // Step 3: Tiny
+  const tinyRes = await testTiny(vid);
+  if (tinyRes.box) drawBox(tinyRes.box, '#22c55e', 'TinyDetector ✓');
+
+  // Step 4: SSD
+  const ssdRes = await testSSD(vid);
+  if (ssdRes.box && !tinyRes.box) drawBox(ssdRes.box, '#60a5fa', 'SSD ✓');
+
+  // Step 5: Descriptor
+  const descOk = await testDescriptor(vid);
+
+  // Final verdict
+  const detected = tinyRes.found || ssdRes.found;
+  if (detected && descOk) {
+    setFinal('✅ EVERYTHING WORKS — Face detection + recognition ready!', 'ok');
+    log('=== RESULT: All systems working ===', 'ok');
+    log('If attendance scanner still fails: re-enroll face in face_enroll.html', 'ok');
+    document.getElementById('cam-lbl').textContent = '✓ Face detected — all systems working';
+    startLiveLoop(); // start live preview
+  } else if (detected) {
+    setFinal('⚠ Face detected but descriptor failed — try again', 'war');
+    log('=== RESULT: Detection works, descriptor failed — retry ===', 'war');
+  } else {
+    setFinal('❌ No face detected — see tips below', 'err');
+    log('=== RESULT: Face NOT detected ===', 'err');
+    log('TIPS:', 'war');
+    log('1. Make sure your face fills at least 30% of the frame', 'war');
+    log('2. Face the camera directly — no side angles', 'war');
+    log('3. Improve lighting — sit facing a light source', 'war');
+    log('4. Move 30–60cm from camera (not too far, not too close)', 'war');
+    log('5. Remove glasses/hat if wearing them, then retry', 'war');
+  }
+
+  looping = false;
+}
+
+/* ── Live loop after test passes ── */
+async function startLiveLoop() {
+  if (!stream || !modelsReady) return;
+  const vid = document.getElementById('vid');
+  const canvas = document.getElementById('cnv');
+  const label = document.getElementById('cam-lbl');
+
+  async function loop() {
+    if (!stream) return;
+    try {
+      const opts = new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.1, inputSize: 320 });
+      const det = await faceapi.detectSingleFace(vid, opts);
+      canvas.width = vid.videoWidth || 640;
+      canvas.height = vid.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (det) {
+        const s = Math.round(det.score * 100);
+        setScore(s);
+        const box = det.box;
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 13px Arial';
+        ctx.fillText(`✓ Face ${s}%`, box.x, box.y - 5);
+        label.textContent = `✓ Face detected — ${s}% confidence`;
+      } else {
+        setScore(0);
+        label.textContent = 'No face — step closer or improve lighting';
+      }
+    } catch(e) {}
+    if (stream) setTimeout(loop, 120);
+  }
+  loop();
+}
+
+/* ── Single shot (quick) ── */
+async function singleShot() {
+  const vid = document.getElementById('vid');
+  if (!stream) {
+    log('Starting camera first…', 'inf');
+    const ok = await startCamera();
+    if (!ok) return;
+  }
+  if (!modelsReady) {
+    log('Loading models first…', 'inf');
+    const ok = await loadModels();
+    if (!ok) return;
+  }
+  await new Promise(r => setTimeout(r, 800));
+  log('Running single-shot detection…');
+  const opts = new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.1, inputSize: 320 });
+  const det = await faceapi.detectSingleFace(vid, opts);
+  if (det) {
+    const s = Math.round(det.score * 100);
+    log(`FACE DETECTED — ${s}% confidence`, 'ok');
+    setScore(s);
+    drawBox(det.box, '#22c55e', `✓ ${s}%`);
+    setFinal(`✅ Face detected — ${s}% confidence`, 'ok');
+  } else {
+    log('No face found — try adjusting position and lighting', 'err');
+    setFinal('❌ No face found', 'err');
+  }
+}
+
+/* ── Stop ── */
+function stopTest() {
+  looping = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  document.getElementById('vid').srcObject = null;
+  document.getElementById('cam-lbl').textContent = 'Camera stopped';
+  const ctx = document.getElementById('cnv').getContext('2d');
+  ctx.clearRect(0, 0, 1000, 1000);
+  log('Test stopped.', 'inf');
+}
+</script>
+</body>
+</html>

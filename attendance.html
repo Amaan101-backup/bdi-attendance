@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BDI Attend">
+<meta name="theme-color" content="#e87722">
+<title>BDI Attendance</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="https://bdiuae.com/images/common/bdi_logo.png">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<!-- ═══════════════ LOGIN ═══════════════ -->
+
+<div id="scr-login" class="screen active">
+<div class="login-bg">
+  <div style="display:flex;align-items:center;justify-content:center;padding:24px 16px 0">
+    <div style="display:flex;align-items:center;gap:11px">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png" style="height:36px;object-fit:contain;filter:brightness(1.1)" onerror="this.style.display='none'" alt="BDI">
+      <div style="width:1px;height:24px;background:rgba(255,255,255,.2)"></div>
+      <div style="color:rgba(255,255,255,.65);font-size:11px;line-height:1.4"><strong style="color:#fff;font-size:12px;display:block">Attendance System</strong>Bright Deal International · UAE</div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 16px">
+    <div style="width:100%;max-width:400px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="color:#fff;font-size:17px;font-weight:500;margin-bottom:3px">Sign In</div>
+        <div style="color:rgba(255,255,255,.4);font-size:11px">Choose your role to continue</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <button class="role-card active" id="rc-admin" onclick="setRole('admin')"><i class="ti ti-shield-lock"></i>Admin</button>
+        <button class="role-card" id="rc-sup" onclick="setRole('supervisor')"><i class="ti ti-hard-hat"></i>Supervisor</button>
+        <button class="role-card" id="rc-emp" onclick="setRole('employee')"><i class="ti ti-user"></i>Employee</button>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:var(--rl);padding:16px">
+        <div class="form-g"><label style="color:rgba(255,255,255,.6);font-size:11px">Username / Employee ID</label>
+          <input class="login-input" type="text" id="l-u" placeholder="Enter your username or ID">
+        </div>
+        <div class="form-g" style="margin-bottom:14px"><label style="color:rgba(255,255,255,.6);font-size:11px">Password</label>
+          <input class="login-input" type="password" id="l-p" placeholder="••••••••">
+        </div>
+        <button onclick="doLogin()" class="btn o full big"><i class="ti ti-login"></i> Sign In</button>
+        <div id="l-err" style="color:#fca5a5;font-size:11px;margin-top:8px;text-align:center;display:none"></div>
+      </div>
+      <div id="l-hint" style="color:rgba(255,255,255,.3);font-size:10px;text-align:center;margin-top:10px">Admin: admin / bdi2026 &nbsp;·&nbsp; Supervisor: sup001 / sup001</div>
+    </div>
+  </div>
+  <div style="text-align:center;padding:10px;color:rgba(255,255,255,.2);font-size:10px;border-top:1px solid rgba(255,255,255,.05)">© 2026 Bright Deal International Gen. Cont. · Abu Dhabi, UAE</div>
+</div>
+</div>
+
+
+<!-- ═══════════════ SUPERVISOR SCREEN ═══════════════ -->
+
+<div id="scr-sup" class="screen">
+  <div class="topnav">
+    <div class="logo-wrap">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png" class="logo-img" onerror="this.style.display='none'" alt="BDI">
+      <div class="logo-div"></div>
+      <div class="logo-txt"><strong id="sup-portal-title">Supervisor Portal</strong>Mark Attendance for Employees</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="s-clk" style="color:rgba(255,255,255,.55);font-size:10px;font-family:var(--mono);background:rgba(255,255,255,.07);padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.1)">--:--:--</div>
+      <div style="display:flex;gap:4px">
+        <a href="admin.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-shield-lock" style="font-size:11px"></i> Admin</a>
+        <a href="face_enroll.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-face-id" style="font-size:11px"></i> Enroll</a>
+        <button id="pwa-install-btn" onclick="installPWA()" style="display:none;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;color:#fff;border:1px solid rgba(232,119,34,.6);background:rgba(232,119,34,.25);cursor:pointer;transition:.2s"><i class="ti ti-download" style="font-size:11px"></i> Install App</button>
+      </div>
+      <div id="s-rolebadge" style="background:rgba(232,119,34,.15);border:1px solid rgba(232,119,34,.3);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--orange)"></div>
+      <button onclick="logout()" class="btn sm n"><i class="ti ti-logout"></i> Logout</button>
+    </div>
+  </div>
+  <div class="subnav">
+    <button class="stab active" onclick="sTab('mark')"><i class="ti ti-face-id"></i> Face + Geo Mark</button>
+    <button class="stab" onclick="sTab('enroll')"><i class="ti ti-user-plus"></i> Enrollment</button>
+    <button class="stab" onclick="sTab('bulk')"><i class="ti ti-list-check"></i> Bulk / Manual</button>
+    <button class="stab" onclick="sTab('log')"><i class="ti ti-history"></i> My Log</button>
+  </div>
+  <div class="shell">
+
+    <!-- ATTENDANCE SCANNER (SUPERVISOR) -->
+    <div id="sp-mark" class="page active">
+      <div id="sup-strip" class="sup-strip"></div>
+      <div id="sup-dash" style="margin-bottom:10px"></div>
+
+      <div class="card" style="margin-bottom:15px">
+        <div class="card-lbl"><i class="ti ti-building"></i> 1. Select Active Site</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <select id="s-site-sel" onchange="sSiteChange()" style="flex:1"><option value="">— Choose site to start session —</option></select>
+          <button class="btn" id="s-geo-refresh" onclick="sGeo()" disabled><i class="ti ti-rotate"></i></button>
+        </div>
+        <div id="s-site-info" style="display:none;background:var(--off);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--dg);margin-top:8px;border:1px solid var(--border)"></div>
+      </div>
+
+      <div id="s-geo-panel" class="card" style="display:none;animation:fadeIn 0.3s ease">
+        <div class="card-lbl"><i class="ti ti-map-pin"></i> 2. Location Verification</div>
+        <div class="chk-row"><span class="chk-l">Status</span><span class="cv-m" id="s-gstat">Checking...</span></div>
+        <div class="chk-row"><span class="chk-l">Distance</span><span class="cv-m" id="s-gdist">—</span></div>
+        <div class="chk-row"><span class="chk-l">Zone Check</span><span class="cv-m" id="s-gzone">—</span></div>
+        <div id="s-geo-msg" style="margin-top:10px;padding:10px;border-radius:var(--r);font-size:12px;text-align:center;display:none"></div>
+      </div>
+
+      <!-- AI / Python server status bar -->
+      <div style="border-radius:var(--r);padding:8px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0" id="ai-status-bar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <i class="ti ti-brain" style="font-size:15px;color:#16a34a"></i>
+          <div>
+            <div class="ai-status-lbl" style="font-weight:600;color:#15803d">⏳ Connecting to AI…</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:1px">Python server = best accuracy · Browser AI = fallback</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <button onclick="quickFaceTest()" class="btn sm" style="font-size:10px;padding:3px 10px;background:#2563eb;color:#fff;border:none"><i class="ti ti-scan" style="font-size:10px"></i> Test Camera</button>
+          <button onclick="retryModels()" class="btn sm n" style="font-size:10px;padding:3px 9px"><i class="ti ti-refresh" style="font-size:10px"></i> Retry AI</button>
+        </div>
+      </div>
+      <!-- Quick test result -->
+      <div id="quick-test-result" style="display:none;background:#1e293b;color:#e2e8f0;border-radius:var(--r);padding:12px 16px;margin-bottom:10px;font-size:12px;font-family:var(--mono);line-height:1.6"></div>
+
+      <div id="s-scanner-panel" style="display:none;animation:slideUp 0.4s ease">
+        <div class="card" style="background:#0a1628;color:#fff;border:none;overflow:hidden">
+          <div class="card-lbl" style="color:#e87722"><i class="ti ti-scan"></i> 3. Continuous Attendance Scanner</div>
+          <div class="two-col">
+            <div style="position:relative">
+              <div class="cam-wrap" style="aspect-ratio:4/3;max-width:480px;border-color:#1e293b">
+                <video id="s-vid" autoplay playsinline muted style="transform: scaleX(-1)"></video>
+                <canvas id="s-cnv" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
+                <div class="cam-overlay">
+                  <div class="scanline"></div>
+                  <div id="s-status-box" style="position:absolute;top:15px;left:15px;right:15px;background:rgba(0,0,0,0.7);padding:8px;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:8px;border-left:2px solid #e87722">
+                    <div class="dot-pulse"></div>
+                    <span id="s-scan-status">Waiting for employees...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div id="s-last-match" class="card" style="background:#1e293b;border:1px solid #334155;margin:0;display:none;animation:popIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)">
+                <div style="color:#22c55e;font-size:10px;font-weight:600;margin-bottom:8px">RECENTLY MARKED</div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div id="s-match-av" class="av lg" style="width:40px;height:40px;background:#e87722"></div>
+                  <div>
+                    <div id="s-match-name" style="font-weight:600;color:#fff;font-size:14px">Name</div>
+                    <div id="s-match-id" style="color:#94a3b8;font-size:11px">ID</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card" style="background:#0f172a;border:1px solid #1e293b;margin:0;flex:1;overflow:hidden">
+                <div class="card-lbl" style="color:#64748b;font-size:9px">SESSION LOG</div>
+                <div id="s-session-log" style="font-size:10px;font-family:var(--mono);color:#94a3b8;height:140px;overflow-y:auto;display:flex;flex-direction:column-reverse;padding-right:5px">
+                  <div>Ready for site attendance.</div>
+                </div>
+              </div>
+              <button class="btn full r" onclick="stopScanner()"><i class="ti ti-player-stop"></i> Stop Session</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="s-start-prompt" style="text-align:center;padding:40px 20px;display:none">
+        <div style="font-size:40px;color:var(--ok);margin-bottom:15px"><i class="ti ti-circle-check"></i></div>
+        <h3 style="color:var(--navy);margin-bottom:8px">Location Verified & Ready</h3>
+        <p style="color:var(--gray);font-size:13px;margin-bottom:20px">You are inside the site radius. Start the facial scanner to continue punching employees.</p>
+        <button class="btn o" style="padding:15px 40px;font-size:15px;font-weight:bold" onclick="startScanner()"><i class="ti ti-scan"></i> Launch Facial Attendance</button>
+      </div>
+    </div>
+
+    <!-- ENROLLMENT (SUPERVISOR) -->
+    <div id="sp-enroll" class="page">
+      <div id="sup-strip-enr" class="sup-strip"></div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-face-id"></i> Employee Enrollment</div>
+        <p class="hint" style="margin-bottom:10px">Supervisors can enroll employees assigned to their sites. Capture a high-quality face sample to enable AI recognition.</p>
+        <div class="two-col">
+          <div>
+            <div class="form-g"><label>Employee to Enroll</label>
+              <select id="se-emp-sel" onchange="seEmpChange()"><option value="">— Select employee —</option></select>
+            </div>
+            <div id="se-emp-info" style="margin-top:10px"></div>
+          </div>
+          <div>
+            <div class="cam-wrap" style="aspect-ratio:1/1;max-width:300px;margin:0 auto">
+              <video id="se-vid" autoplay playsinline muted style="transform: scaleX(-1);"></video>
+              <div class="cam-overlay">
+                <div class="w-full h-full border-4 border-dashed border-white/20 rounded-full" style="margin:20px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:10px">
+              <button class="btn n" onclick="startSeCam()" style="flex:1"><i class="ti ti-camera"></i> Start Cam</button>
+              <button class="btn o" id="se-cap-btn" onclick="captureSeEnroll()" disabled style="flex:1"><i class="ti ti-scan"></i> Capture & Save</button>
+            </div>
+            <div id="se-status" style="margin-top:8px;font-size:11px;text-align:center;color:var(--gray)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BULK / MANUAL -->
+    <div id="sp-bulk" class="page">
+      <div id="sup-strip2" class="sup-strip"></div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-building"></i> Select Site for Bulk Marking</div>
+        <select id="b-site-sel" onchange="bSiteChange()"><option value="">— Select site —</option></select>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-list-check"></i> Employee Roster — tap to mark IN</div>
+          <div class="bulk-bar">
+            <span id="b-count">0 employees</span>
+            <button class="btn sm o" onclick="bMarkAll('in')"><i class="ti ti-arrow-down"></i> All IN</button>
+            <button class="btn sm" onclick="bMarkAll('out')"><i class="ti ti-arrow-up"></i> All OUT</button>
+            <button class="btn sm r" onclick="bClear()"><i class="ti ti-refresh"></i> Clear</button>
+          </div>
+          <div id="b-list"><div class="empty"><i class="ti ti-building"></i>Select a site to load employees</div></div>
+        </div>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-history"></i> Bulk Punch Log</div>
+          <div id="b-log"><div class="empty"><i class="ti ti-inbox"></i>No bulk records yet</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MY LOG -->
+    <div id="sp-log" class="page">
+      <div class="stats-row" id="my-stats"></div>
+      <div class="card">
+        <div class="card-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          <span><i class="ti ti-history"></i> Attendance Log — Today</span>
+          <button id="py-sync-btn" style="display:none;background:#3b82f6;color:#fff;border:none;font-size:11px;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:600" onclick="_mergePyRecords().then(()=>{renderMyLog();renderSupDash();renderAStats();})">
+            <i class="ti ti-brand-python"></i> Sync Python Records
+          </button>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site</th><th>Type</th><th>Method</th><th>Time</th></tr></thead>
+          <tbody id="my-log-tbl"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div>
+  <div class="bdi-footer"><span>© 2026 Bright Deal International Gen. Cont. · Abu Dhabi, UAE</span><span id="s-footer-name"></span></div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+<script src="shared.js"></script>
+<script>
+  window.onload = () => {
+    const rca = document.getElementById('rc-admin');
+    const rce = document.getElementById('rc-emp');
+    if (rca) rca.style.display = 'none';
+    if (rce) rce.style.display = 'none';
+    setRole('supervisor');
+  };
+</script>
+</body>
+</html>
