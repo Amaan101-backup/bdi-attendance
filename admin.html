@@ -275,6 +275,34 @@
       </div>
     </div>
 
+      <!-- Supervisor Punch Report -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-lbl"><i class="ti ti-user-check"></i> Supervisor Punch Report
+          <button class="btn sm" onclick="loadSupervisorReport()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:12px">Summary of attendance punches marked by each supervisor.</p>
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+          <div class="form-g" style="margin:0"><label style="font-size:11px">From Date</label>
+            <input type="date" id="sup-rep-from" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
+          </div>
+          <div class="form-g" style="margin:0"><label style="font-size:11px">To Date</label>
+            <input type="date" id="sup-rep-to" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
+          </div>
+          <select id="sup-rep-sup" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;margin-top:16px">
+            <option value="">All Supervisors</option>
+          </select>
+          <button class="btn sm n" onclick="loadSupervisorReport()" style="margin-top:16px"><i class="ti ti-search"></i> Search</button>
+          <button class="btn sm" onclick="exportSupervisorCSV()" style="margin-top:16px;background:#16a34a;border-color:#16a34a;color:#fff"><i class="ti ti-download"></i> Export CSV</button>
+        </div>
+        <!-- Summary cards per supervisor -->
+        <div id="sup-rep-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <!-- Detailed table -->
+        <div id="sup-rep-table" style="max-height:420px;overflow-y:auto">
+          <p style="color:#94a3b8;text-align:center;padding:20px">Select date range and click Search.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- DASHBOARD TAB -->
     <div id="ap-dash" class="page"></div>
 
@@ -468,10 +496,12 @@
   window.onload = async () => {
     curUser = {name:'Admin'}; curRole = 'admin';
     initAdmin();
-    // Set today's date for man hours and live feed
+    // Set today's date for man hours, live feed and supervisor report
     const today = new Date().toISOString().substring(0,10);
     document.getElementById('mh-date').value = today;
     document.getElementById('live-date').value = today;
+    document.getElementById('sup-rep-from').value = today;
+    document.getElementById('sup-rep-to').value   = today;
     // Populate site filter
     populateLiveSiteFilter();
     // Auto-restore supervisors from localStorage cache if Railway was restarted
@@ -878,6 +908,139 @@
         alert('Error: ' + (data.error || 'Unknown error'));
       }
     } catch(e) { alert('Error: ' + e.message); }
+  }
+
+  // ── Supervisor Punch Report ─────────────────────────────────────────────────
+  let _supRepData = []; // cached for CSV export
+
+  async function loadSupervisorReport() {
+    const fromDate = document.getElementById('sup-rep-from').value;
+    const toDate   = document.getElementById('sup-rep-to').value;
+    const supFilter = document.getElementById('sup-rep-sup').value;
+    const cardsEl  = document.getElementById('sup-rep-cards');
+    const tableEl  = document.getElementById('sup-rep-table');
+
+    cardsEl.innerHTML = '';
+    tableEl.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+
+    try {
+      // Fetch all app punches from server
+      const r    = await fetch(`${PY_SERVER}/app/punches`);
+      const data = await r.json();
+      let recs   = data.records || [];
+
+      // Date filtering
+      if (fromDate) recs = recs.filter(r => (r.time || '') >= fromDate);
+      if (toDate)   recs = recs.filter(r => (r.time || '') <= toDate + 'T23:59:59');
+
+      // Supervisor filtering
+      if (supFilter) recs = recs.filter(r => (r.supervisorName || '') === supFilter);
+
+      _supRepData = recs;
+
+      if (recs.length === 0) {
+        tableEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No punches found for the selected period.</p>';
+        return;
+      }
+
+      // Group by supervisor
+      const bySup = {};
+      for (const rec of recs) {
+        const sup = rec.supervisorName || rec.supervisorDeviceId || 'Unknown';
+        if (!bySup[sup]) bySup[sup] = { name: sup, ins: 0, outs: 0, emps: new Set(), records: [] };
+        if (rec.type === 'in')  bySup[sup].ins++;
+        else                    bySup[sup].outs++;
+        if (rec.empName) bySup[sup].emps.add(rec.empUid || rec.empName);
+        bySup[sup].records.push(rec);
+      }
+
+      // Populate supervisor dropdown
+      const sel = document.getElementById('sup-rep-sup');
+      const existing = new Set([...sel.options].map(o => o.value));
+      for (const sup of Object.keys(bySup)) {
+        if (!existing.has(sup)) {
+          const opt = document.createElement('option');
+          opt.value = sup; opt.textContent = sup;
+          sel.appendChild(opt);
+        }
+      }
+
+      // Render summary cards
+      cardsEl.innerHTML = Object.values(bySup).map(s => `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;min-width:180px;flex:1">
+          <div style="font-weight:700;font-size:15px;color:#1e293b;margin-bottom:6px">
+            <i class="ti ti-hard-hat" style="color:#e87722"></i> ${s.name}
+          </div>
+          <div style="display:flex;gap:12px;font-size:13px;margin-bottom:4px">
+            <span style="color:#16a34a;font-weight:700">↓ ${s.ins} IN</span>
+            <span style="color:#ea580c;font-weight:700">↑ ${s.outs} OUT</span>
+          </div>
+          <div style="font-size:11px;color:#64748b">${s.emps.size} employee(s) &bull; ${s.records.length} total punches</div>
+        </div>`).join('');
+
+      // Sort records newest first
+      recs.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+
+      // Render detailed table
+      tableEl.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
+            <tr>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Supervisor</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Employee</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Type</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Site</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Date</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recs.map(rec => {
+              const dt  = rec.time ? new Date(rec.time) : null;
+              const d   = dt ? dt.toLocaleDateString() : '—';
+              const t   = dt ? dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+              const isIn = rec.type === 'in';
+              return `<tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <td style="padding:8px 10px;font-weight:600;color:#e87722">${rec.supervisorName || '—'}</td>
+                <td style="padding:8px 10px;font-weight:600">${rec.empName || '—'}</td>
+                <td style="padding:8px 10px;text-align:center">
+                  <span style="background:${isIn ? '#dcfce7' : '#fff7ed'};color:${isIn ? '#16a34a' : '#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
+                    ${isIn ? '✅ IN' : '👋 OUT'}
+                  </span>
+                </td>
+                <td style="padding:8px 10px;color:#64748b;font-size:12px">${rec.siteName || '—'}</td>
+                <td style="padding:8px 10px;text-align:center;color:#475569;font-size:12px">${d}</td>
+                <td style="padding:8px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      tableEl.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+    }
+  }
+
+  function exportSupervisorCSV() {
+    if (!_supRepData.length) { alert('Load the report first.'); return; }
+    const rows = [['Supervisor','Employee','Employee ID','Type','Site','Date','Time']];
+    for (const rec of _supRepData) {
+      const dt = rec.time ? new Date(rec.time) : null;
+      rows.push([
+        rec.supervisorName || '',
+        rec.empName || '',
+        rec.empUid  || '',
+        rec.type === 'in' ? 'Check IN' : 'Check OUT',
+        rec.siteName || '',
+        dt ? dt.toLocaleDateString() : '',
+        dt ? dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
+      ]);
+    }
+    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = `supervisor_report_${new Date().toISOString().substring(0,10)}.csv`;
+    a.click();
   }
 
   // ── Man Hours Report ────────────────────────────────────────────────────────
