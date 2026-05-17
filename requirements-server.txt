@@ -3,6 +3,5 @@ flask-cors==4.0.1
 numpy==1.26.4
 pillow==10.3.0
 werkzeug==3.0.3
-cmake
-dlib
+dlib-bin
 face_recognition
