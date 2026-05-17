@@ -272,7 +272,7 @@ function initAdmin(){
 }
 
 function aTab(t){
-  ['emp','sups','sites','enroll','term','report','dash','settings'].forEach(k=>{
+  ['emp','sups','sites','enroll','term','report','dash','settings','appsup','manreq'].forEach(k=>{
     const el=document.getElementById('ap-'+k); if(el) el.classList.toggle('active',k===t);
   });
   document.querySelectorAll('#scr-admin .stab').forEach(b=>b.classList.remove('active'));
