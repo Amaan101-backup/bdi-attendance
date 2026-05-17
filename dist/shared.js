@@ -58,7 +58,7 @@ const PY_SERVER = (location.protocol === 'file:')
   ? 'http://localhost:5000'
   : (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? ''
-  : 'https://bdi-attendance-production.up.railway.app';
+  : 'https://bdi-attendance-production-d7e9.up.railway.app';
 let pyServerOnline = false;
 
 async function pyPing() {

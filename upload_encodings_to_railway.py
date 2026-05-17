@@ -14,7 +14,7 @@ import urllib.request
 import urllib.error
 
 # ── Config ────────────────────────────────────────────────────────────────────
-RAILWAY_URL    = 'https://bdi-attendance-production.up.railway.app'
+RAILWAY_URL    = 'https://bdi-attendance-production-d7e9.up.railway.app'
 IMPORT_SECRET  = 'bdi-import-2024'
 ENCODINGS_FILE = os.path.join(os.path.dirname(__file__), 'face_encodings.json')
 # ─────────────────────────────────────────────────────────────────────────────
