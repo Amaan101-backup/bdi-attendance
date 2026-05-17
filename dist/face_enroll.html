@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Enrollment — BDI Attendance</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { background: var(--off); min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── TOP NAV (matches admin/attendance style) ── */
+  .fe-topnav {
+    background: var(--navy);
+    padding: 0 1.1rem;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 2px solid var(--orange);
+  }
+  .fe-logo { display: flex; align-items: center; gap: 11px; }
+  .fe-logo img { height: 32px; object-fit: contain; filter: brightness(1.1); }
+  .fe-logo-div { width: 1px; height: 22px; background: rgba(255,255,255,.2); }
+  .fe-logo-txt { color: rgba(255,255,255,.65); font-size: 11px; line-height: 1.4; }
+  .fe-logo-txt strong { color: #fff; font-size: 12px; display: block; }
+  .fe-nav-links { display: flex; align-items: center; gap: 6px; }
+  .fe-nav-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 500;
+    color: rgba(255,255,255,.75); border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.07); text-decoration: none; transition: .2s;
+  }
+  .fe-nav-link:hover { background: rgba(255,255,255,.15); color: #fff; }
+  .fe-nav-link.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+  /* ── MAIN LAYOUT ── */
+  .fe-shell { max-width: 980px; margin: 0 auto; padding: 20px 16px; width: 100%; flex: 1; }
+  .fe-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+  @media(max-width:700px){ .fe-grid { grid-template-columns: 1fr; } }
+
+  /* ── EMPLOYEE LIST ── */
+  .emp-list-wrap { background: var(--white); border: 1px solid var(--border); border-radius: var(--rl); overflow: hidden; }
+  .emp-list-head { background: var(--navy); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .emp-list-head-title { color: #fff; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .emp-list-body { max-height: calc(100vh - 200px); overflow-y: auto; }
+  .emp-list-search { padding: 10px; border-bottom: 1px solid var(--border); }
+  .emp-list-search input { width: 100%; box-sizing: border-box; }
+  .emp-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .15s;
+  }
+  .emp-row:hover { background: var(--off); }
+  .emp-row.selected { background: #eff6ff; border-left: 3px solid var(--orange); }
+  .emp-row-info { flex: 1; min-width: 0; }
+  .emp-row-name { font-weight: 500; color: var(--navy); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .emp-row-sub { font-size: 10px; color: var(--gray); }
+  .enr-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .enr-dot.yes { background: #22c55e; }
+  .enr-dot.no { background: #d1d5db; }
+
+  /* ── ENROLLMENT PANEL ── */
+  .enr-panel { background: var(--white); border: 1px solid var(--border); border-radius: var(--rl); padding: 20px; }
+  .enr-empty { text-align: center; padding: 60px 20px; color: var(--gray); }
+  .enr-empty i { font-size: 48px; display: block; margin-bottom: 12px; color: var(--border); }
+
+  .enr-profile { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .enr-profile-photo { width: 64px; height: 64px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; font-weight: 600; flex-shrink: 0; overflow: hidden; border: 2px solid var(--border); }
+  .enr-profile-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .enr-profile-name { font-size: 16px; font-weight: 600; color: var(--navy); }
+  .enr-profile-sub { font-size: 11px; color: var(--gray); margin-top: 2px; }
+  .enr-status-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+
+  .cam-wrap { position: relative; background: #0a1628; border-radius: var(--r); overflow: hidden; aspect-ratio: 4/3; border: 2px solid #1e293b; }
+  .cam-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); }
+  .cam-wrap canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; transform: scaleX(-1); }
+
+  .sample-track { display: flex; gap: 6px; margin: 12px 0; }
+  .sample-dot { flex: 1; height: 6px; border-radius: 3px; background: var(--border); transition: background .3s; }
+  .sample-dot.done { background: var(--ok); }
+  .sample-dot.active { background: var(--orange); animation: pulse 1s infinite; }
+
+  .enr-msg { padding: 10px 14px; border-radius: var(--r); font-size: 12px; margin-top: 10px; text-align: center; }
+  .enr-msg.ok { background: rgba(34,197,94,.1); color: #16a34a; border: 1px solid rgba(34,197,94,.2); }
+  .enr-msg.err { background: rgba(239,68,68,.1); color: #dc2626; border: 1px solid rgba(239,68,68,.2); }
+  .enr-msg.info { background: rgba(59,130,246,.1); color: #2563eb; border: 1px solid rgba(59,130,246,.2); }
+  .enr-msg.warn { background: rgba(245,158,11,.1); color: #d97706; border: 1px solid rgba(245,158,11,.2); }
+
+  .stats-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+  .stats-strip .stat { padding: 10px; }
+  .stats-strip .stat-n { font-size: 22px; }
+
+  /* ── FACE MAP ── */
+  .face-quality-bar {
+    max-width: 420px; margin: 0 auto 8px;
+    background: #0a1628; border-radius: var(--r);
+    padding: 7px 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-family: var(--mono); font-size: 10px;
+    border: 1px solid #1e293b;
+  }
+  .fq-region { display: flex; align-items: center; gap: 5px; }
+  .fq-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .fq-label { color: rgba(255,255,255,.6); }
+  .fq-value { color: #fff; font-weight: 500; }
+
+  .map-legend {
+    max-width: 420px; margin: 6px auto 0;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 7px 10px;
+    background: #f8fafc; border: 1px solid var(--border); border-radius: var(--r);
+  }
+  .map-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--dg); }
+  .map-legend-swatch { width: 10px; height: 3px; border-radius: 2px; }
+
+  .map-toggle-btn {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+    color: rgba(255,255,255,.8); font-size: 10px; font-weight: 500;
+    padding: 4px 10px; border-radius: 20px; cursor: pointer; transition: .2s;
+    display: flex; align-items: center; gap: 4px;
+    pointer-events: auto; /* override cam-overlay pointer-events:none */
+  }
+  .map-toggle-btn.on { background: var(--orange); border-color: var(--orange); color: #fff; }
+  .map-toggle-btn:hover { background: rgba(255,255,255,.16); }
+  .map-toggle-btn.on:hover { background: #c9621a; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="fe-topnav">
+  <div class="fe-logo">
+    <img src="https://bdiuae.com/images/common/bdi_logo.png" onerror="this.style.display='none'" alt="BDI">
+    <div class="fe-logo-div"></div>
+    <div class="fe-logo-txt"><strong>Face Enrollment</strong>Biometric Registration Station</div>
+  </div>
+  <div class="fe-nav-links">
+    <a href="admin.html" class="fe-nav-link"><i class="ti ti-shield-lock" style="font-size:11px"></i> Admin Portal</a>
+    <a href="attendance.html" class="fe-nav-link"><i class="ti ti-hard-hat" style="font-size:11px"></i> Supervisor Portal</a>
+    <span class="fe-nav-link active"><i class="ti ti-face-id" style="font-size:11px"></i> Enrollment</span>
+  </div>
+</nav>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="fe-shell">
+
+  <!-- Summary stats strip -->
+  <div class="stats-strip">
+    <div class="stat card"><div class="stat-n" id="fe-total">—</div><div class="stat-l">Total Employees</div></div>
+    <div class="stat card"><div class="stat-n" style="color:var(--ok)" id="fe-enrolled">—</div><div class="stat-l">Face Enrolled</div></div>
+    <div class="stat card"><div class="stat-n" style="color:var(--orange)" id="fe-pending">—</div><div class="stat-l">Not Enrolled</div></div>
+  </div>
+
+  <div class="fe-grid">
+
+    <!-- LEFT: Employee List -->
+    <div class="emp-list-wrap">
+      <div class="emp-list-head">
+        <div class="emp-list-head-title"><i class="ti ti-users" style="font-size:12px"></i> Employees</div>
+        <div id="fe-list-count" style="font-size:10px;color:rgba(255,255,255,.5)">0 total</div>
+      </div>
+      <div class="emp-list-search">
+        <input type="text" placeholder="Search name or ID…" oninput="filterEmpList(this.value)" style="font-size:12px">
+      </div>
+      <div class="emp-list-body" id="fe-emp-list">
+        <div style="padding:20px;text-align:center;color:var(--gray);font-size:12px"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:6px"></i>Loading employees…</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Enrollment Panel -->
+    <div class="enr-panel" id="fe-panel">
+      <div class="enr-empty" id="fe-empty-state">
+        <i class="ti ti-user-scan"></i>
+        <div style="font-size:14px;font-weight:500;color:var(--navy);margin-bottom:6px">Select an Employee</div>
+        <div style="font-size:12px">Choose an employee from the list to enroll or update their face biometric.</div>
+      </div>
+
+      <!-- Profile header (hidden until employee selected) -->
+      <div id="fe-profile" style="display:none">
+        <div class="enr-profile">
+          <div class="enr-profile-photo" id="fe-photo-av"></div>
+          <div style="flex:1">
+            <div class="enr-profile-name" id="fe-emp-name">—</div>
+            <div class="enr-profile-sub" id="fe-emp-sub">—</div>
+            <div class="enr-status-bar" id="fe-enr-status-bar"></div>
+          </div>
+        </div>
+
+        <!-- Camera + canvas -->
+        <div class="cam-wrap" style="max-width:420px;margin:0 auto" id="fe-cam-wrap">
+          <video id="fe-vid" autoplay playsinline muted></video>
+          <canvas id="fe-cnv"></canvas>
+          <div class="cam-overlay">
+            <div class="cn c-tl"></div><div class="cn c-tr"></div>
+            <div class="cn c-bl"></div><div class="cn c-br"></div>
+            <!-- Map toggle button inside camera frame -->
+            <button class="map-toggle-btn on" id="fe-map-toggle" onclick="feToggleMap()" style="position:absolute;top:8px;right:8px;z-index:10">
+              <i class="ti ti-topology-star-3" style="font-size:11px"></i> Face Map
+            </button>
+            <div id="fe-cam-status" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,.7);font-family:var(--mono)">Camera off</div>
+          </div>
+        </div>
+
+        <!-- Real-time face quality bar (shown when camera is on) -->
+        <div class="face-quality-bar" id="fe-quality-bar" style="display:none">
+          <div class="fq-region">
+            <div class="fq-dot" id="fq-status-dot" style="background:#4b5563"></div>
+            <span class="fq-label" id="fq-status-lbl">Waiting for face…</span>
+          </div>
+          <div style="display:flex;gap:12px">
+            <div class="fq-region"><span class="fq-label">Size</span>&nbsp;<span class="fq-value" id="fq-size">—</span></div>
+            <div class="fq-region"><span class="fq-label">Conf</span>&nbsp;<span class="fq-value" id="fq-conf">—</span></div>
+            <div class="fq-region"><span class="fq-label">Pts</span>&nbsp;<span class="fq-value" id="fq-pts">—</span></div>
+          </div>
+        </div>
+
+        <!-- Landmark colour legend -->
+        <div class="map-legend" id="fe-map-legend" style="display:none">
+          <div class="map-legend-item"><div class="map-legend-swatch" style="background:#94a3b8"></div>Jawline</div>
+          <div class="map-legend-item"><div class="map-legend-swatch" style="background:#60a5fa"></div>Eyebrows</div>
+          <div class="map-legend-item"><div class="map-legend-swatch" style="background:#34d399"></div>Eyes</div>
+          <div class="map-legend-item"><div class="map-legend-swatch" style="background:#fbbf24"></div>Nose</div>
+          <div class="map-legend-item"><div class="map-legend-swatch" style="background:#e87722"></div>Mouth</div>
+          <div class="map-legend-item" style="margin-left:auto;color:var(--orange);font-weight:500"><i class="ti ti-info-circle" style="font-size:11px"></i> 68 landmarks</div>
+        </div>
+
+        <!-- Sample progress dots -->
+        <div style="margin:10px auto;max-width:420px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:10px;color:var(--gray)">
+            <span>Capture Progress</span>
+            <span id="fe-sample-count">0 / 3 samples</span>
+          </div>
+          <div class="sample-track">
+            <div class="sample-dot" id="sd-0"></div>
+            <div class="sample-dot" id="sd-1"></div>
+            <div class="sample-dot" id="sd-2"></div>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:8px;max-width:420px;margin:0 auto">
+          <button class="btn n full" id="fe-cam-btn" onclick="feStartCam()">
+            <i class="ti ti-camera"></i> Start Camera
+          </button>
+          <button class="btn o full" id="fe-cap-btn" onclick="feCapture()" disabled>
+            <i class="ti ti-scan"></i> <span id="fe-cap-lbl">Capture Sample 1</span>
+          </button>
+        </div>
+
+        <!-- Result message -->
+        <div id="fe-msg" style="display:none;max-width:420px;margin:0 auto" class="enr-msg info"></div>
+
+        <!-- Reset enrollment button -->
+        <div style="text-align:center;margin-top:14px;max-width:420px;margin-left:auto;margin-right:auto">
+          <button class="btn r sm" id="fe-reset-btn" onclick="feResetEnrollment()" style="display:none">
+            <i class="ti ti-refresh"></i> Clear Enrollment & Re-enroll
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="shared.js"></script>
+<script>
+/* ══════════════════════════════════════════
+   FACE ENROLLMENT PAGE LOGIC
+══════════════════════════════════════════ */
+const ENR_SAMPLES_FE = 3;
+let feStream = null;
+let feSamples = [];
+let feTarget = null;
+let feModelsLoaded = false;
+let feAllEmps = [];
+
+const MODEL_URL_FE = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+
+/* ── Init ── */
+window.onload = () => {
+  setTimeout(() => {
+    feAllEmps = [...EMPS];
+    updateStats();
+    renderEmpList(feAllEmps);
+    loadFaceModels();
+  }, 150);
+};
+
+function updateStats() {
+  const total = EMPS.length;
+  const enrolled = EMPS.filter(e => e.faceReg && e.descriptor).length;
+  document.getElementById('fe-total').textContent = total;
+  document.getElementById('fe-enrolled').textContent = enrolled;
+  document.getElementById('fe-pending').textContent = total - enrolled;
+}
+
+/* ── Load AI Models ── */
+async function loadFaceModels() {
+  if (feModelsLoaded) return;
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL_FE),
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL_FE),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL_FE),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL_FE)
+    ]);
+    feModelsLoaded = true;
+  } catch(e) {
+    console.error('Model load failed', e);
+    feShowMsg('AI models failed to load. Check internet connection.', 'err');
+  }
+}
+
+/* ── Employee List ── */
+function renderEmpList(list) {
+  const el = document.getElementById('fe-emp-list');
+  document.getElementById('fe-list-count').textContent = `${list.length} employee${list.length !== 1 ? 's' : ''}`;
+  if (!list.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px">No employees found</div>';
+    return;
+  }
+  el.innerHTML = list.map(e => {
+    const enrolled = e.faceReg && e.descriptor;
+    const isSelected = feTarget && feTarget.uid === e.uid;
+    return `<div class="emp-row ${isSelected ? 'selected' : ''}" onclick="feSelectEmp('${e.uid}')">
+      <div class="av" style="width:30px;height:30px;font-size:11px;flex-shrink:0">${ini(e.name)}</div>
+      <div class="emp-row-info">
+        <div class="emp-row-name">${e.name}</div>
+        <div class="emp-row-sub">${e.id} · ${e.dept}</div>
+      </div>
+      <div title="${enrolled ? 'Enrolled' : 'Not enrolled'}" class="enr-dot ${enrolled ? 'yes' : 'no'}"></div>
+    </div>`;
+  }).join('');
+}
+
+function filterEmpList(q) {
+  const filtered = EMPS.filter(e =>
+    !q || e.name.toLowerCase().includes(q.toLowerCase()) || e.id.toLowerCase().includes(q.toLowerCase())
+  );
+  renderEmpList(filtered);
+}
+
+/* ── Select Employee ── */
+function feSelectEmp(uid) {
+  // Stop any active camera before switching
+  feStopCam();
+  feSamples = [];
+  feUpdateDots();
+
+  feTarget = EMPS.find(e => e.uid === uid);
+  if (!feTarget) return;
+
+  // Update list highlight
+  renderEmpList(EMPS.filter(e => {
+    const q = document.querySelector('.emp-list-search input').value || '';
+    return !q || e.name.toLowerCase().includes(q.toLowerCase()) || e.id.toLowerCase().includes(q.toLowerCase());
+  }));
+
+  // Show panel
+  document.getElementById('fe-empty-state').style.display = 'none';
+  document.getElementById('fe-profile').style.display = 'block';
+
+  // Profile info
+  document.getElementById('fe-emp-name').textContent = feTarget.name;
+  document.getElementById('fe-emp-sub').textContent = `${feTarget.id} · ${feTarget.dept} · ${feTarget.role}`;
+
+  // Photo avatar
+  const av = document.getElementById('fe-photo-av');
+  if (feTarget.photo) {
+    av.innerHTML = `<img src="${feTarget.photo}" alt="${feTarget.name}">`;
+  } else {
+    av.textContent = ini(feTarget.name);
+    av.style.background = 'var(--navy)';
+  }
+
+  // Status bar
+  const sb = document.getElementById('fe-enr-status-bar');
+  if (feTarget.faceReg && feTarget.descriptor) {
+    sb.innerHTML = `<span class="face-pill-ok"><i class="ti ti-circle-check" style="font-size:10px"></i> Enrolled</span>
+      ${feTarget.enrolledAt ? `<span style="font-size:10px;color:var(--gray)">on ${new Date(feTarget.enrolledAt).toLocaleDateString()}</span>` : ''}
+      ${feTarget.enrolledBy ? `<span style="font-size:10px;color:var(--gray)">by ${feTarget.enrolledBy}</span>` : ''}`;
+    document.getElementById('fe-reset-btn').style.display = 'inline-flex';
+    feShowMsg(`${feTarget.name} already has a face enrolled. You can re-enroll below to update it.`, 'warn');
+  } else {
+    sb.innerHTML = '<span class="face-pill-no"><i class="ti ti-alert-circle" style="font-size:10px"></i> Not Enrolled</span>';
+    document.getElementById('fe-reset-btn').style.display = 'none';
+    feShowMsg('Start the camera then capture 3 samples to enroll this employee.', 'info');
+  }
+
+  // Reset capture button label
+  document.getElementById('fe-cap-lbl').textContent = 'Capture Sample 1';
+  document.getElementById('fe-cap-btn').disabled = true;
+  document.getElementById('fe-cam-btn').disabled = false;
+  document.getElementById('fe-cam-btn').innerHTML = '<i class="ti ti-camera"></i> Start Camera';
+}
+
+/* ── Camera ── */
+async function feStartCam() {
+  if (!feTarget) return;
+  if (!feModelsLoaded) {
+    feShowMsg('AI models still loading… please wait.', 'warn');
+    await loadFaceModels();
+  }
+  try {
+    feStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+    const vid = document.getElementById('fe-vid');
+    vid.srcObject = feStream;
+    document.getElementById('fe-cam-btn').innerHTML = '<i class="ti ti-camera-off"></i> Stop Camera';
+    document.getElementById('fe-cam-btn').onclick = feStopCam;
+    document.getElementById('fe-cam-status').textContent = 'Camera active — position face in frame';
+    document.getElementById('fe-cap-btn').disabled = false;
+    document.getElementById('fe-quality-bar').style.display = 'flex';
+    if (feMapEnabled) document.getElementById('fe-map-legend').style.display = 'flex';
+    feSamples = [];
+    feUpdateDots();
+    // Start live face mapping loop
+    feLiveActive = true;
+    vid.addEventListener('loadeddata', feLiveLoop, { once: true });
+    setTimeout(feLiveLoop, 400); // fallback start
+  } catch(e) {
+    feShowMsg('Camera access denied. Allow camera in browser settings.', 'err');
+  }
+}
+
+function feStopCam() {
+  feLiveActive = false;
+  if (feStream) { feStream.getTracks().forEach(t => t.stop()); feStream = null; }
+  const vid = document.getElementById('fe-vid');
+  if (vid) vid.srcObject = null;
+  const cnv = document.getElementById('fe-cnv');
+  if (cnv) { const ctx = cnv.getContext('2d'); ctx.clearRect(0, 0, cnv.width, cnv.height); }
+  const btn = document.getElementById('fe-cam-btn');
+  if (btn) { btn.innerHTML = '<i class="ti ti-camera"></i> Start Camera'; btn.onclick = feStartCam; }
+  const capBtn = document.getElementById('fe-cap-btn');
+  if (capBtn) capBtn.disabled = true;
+  const camStatus = document.getElementById('fe-cam-status');
+  if (camStatus) camStatus.textContent = 'Camera off';
+  document.getElementById('fe-quality-bar').style.display = 'none';
+  document.getElementById('fe-map-legend').style.display = 'none';
+  feSetQuality('none', 'Camera off', 0, 0, 0);
+}
+
+/* ══════════════════════════════════════════
+   LIVE FACE MAPPING SYSTEM
+══════════════════════════════════════════ */
+let feLiveActive = false;
+let feMapEnabled = true;
+let feCapturing = false; // pause live loop during capture
+
+function feToggleMap() {
+  feMapEnabled = !feMapEnabled;
+  const btn = document.getElementById('fe-map-toggle');
+  const legend = document.getElementById('fe-map-legend');
+  btn.classList.toggle('on', feMapEnabled);
+  btn.innerHTML = `<i class="ti ti-topology-star-3" style="font-size:11px"></i> Face Map`;
+  if (legend) legend.style.display = (feMapEnabled && feStream) ? 'flex' : 'none';
+}
+
+function feSetQuality(type, label, conf, sizePercent, pts) {
+  const dot = document.getElementById('fq-status-dot');
+  const lbl = document.getElementById('fq-status-lbl');
+  const confEl = document.getElementById('fq-conf');
+  const sizeEl = document.getElementById('fq-size');
+  const ptsEl = document.getElementById('fq-pts');
+  const colors = { ok: '#22c55e', warn: '#f59e0b', none: '#4b5563', err: '#ef4444' };
+  if (dot) dot.style.background = colors[type] || '#4b5563';
+  if (lbl) lbl.textContent = label;
+  if (confEl) confEl.textContent = conf ? conf + '%' : '—';
+  if (sizeEl) sizeEl.textContent = sizePercent ? sizePercent + '%' : '—';
+  if (ptsEl) ptsEl.textContent = pts || '—';
+}
+
+async function feLiveLoop() {
+  if (!feLiveActive || !feStream || feCapturing) {
+    if (feLiveActive && !feCapturing) setTimeout(feLiveLoop, 80);
+    return;
+  }
+  const vid = document.getElementById('fe-vid');
+  const canvas = document.getElementById('fe-cnv');
+  if (!vid || !canvas || !vid.videoWidth) {
+    if (feLiveActive) setTimeout(feLiveLoop, 100);
+    return;
+  }
+
+  const ds = { width: vid.videoWidth, height: vid.videoHeight };
+  canvas.width = ds.width;
+  canvas.height = ds.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  try {
+    const det = await faceapi
+      .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.2, inputSize: 320 }))
+      .withFaceLandmarks();
+
+    if (det) {
+      const res = faceapi.resizeResults(det, ds);
+      const box = res.detection.box;
+      const lm = res.landmarks;
+      const conf = Math.round(res.detection.score * 100);
+      const sizePercent = Math.round((box.width * box.height) / (ds.width * ds.height) * 100);
+      const pts = lm.positions.length;
+
+      let qType, qLabel, statusMsg;
+      if (sizePercent < 4) {
+        qType = 'warn'; qLabel = 'Too Far Away';
+        statusMsg = `Step closer — face too small (${conf}% confidence)`;
+        feDrawBox(ctx, box, '#f59e0b', false);
+      } else if (sizePercent > 55) {
+        qType = 'warn'; qLabel = 'Too Close';
+        statusMsg = 'Step back slightly from camera';
+        feDrawBox(ctx, box, '#f59e0b', false);
+      } else {
+        qType = 'ok'; qLabel = `✓ Good Position`;
+        statusMsg = `✓ Face mapped — ${pts} landmarks · ready to capture`;
+        feDrawBox(ctx, box, '#22c55e', true);
+      }
+
+      feSetQuality(qType, qLabel, conf, sizePercent, pts);
+      document.getElementById('fe-cam-status').textContent = statusMsg;
+
+      if (feMapEnabled) feFaceMesh(ctx, lm, ds);
+
+    } else {
+      feSetQuality('none', 'No face detected', 0, 0, 0);
+      document.getElementById('fe-cam-status').textContent = 'No face — center yourself in frame';
+    }
+  } catch(e) { /* silent */ }
+
+  if (feLiveActive) setTimeout(feLiveLoop, 80);
+}
+
+/* Draw glowing face bounding box with corner brackets */
+function feDrawBox(ctx, box, color, glow) {
+  const { x, y, width: w, height: h } = box;
+  const cs = Math.min(w, h) * 0.15; // corner bracket size
+
+  // Glow effect
+  if (glow) {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
+  // Corner brackets only (cleaner than full rect)
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  const corners = [
+    [[x, y + cs], [x, y], [x + cs, y]],           // TL
+    [[x + w - cs, y], [x + w, y], [x + w, y + cs]], // TR
+    [[x, y + h - cs], [x, y + h], [x + cs, y + h]], // BL
+    [[x + w - cs, y + h], [x + w, y + h], [x + w, y + h - cs]], // BR
+  ];
+  corners.forEach(([a, b, c]) => {
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]);
+    ctx.lineTo(b[0], b[1]);
+    ctx.lineTo(c[0], c[1]);
+    ctx.stroke();
+  });
+
+  // Confidence label tag
+  ctx.fillStyle = color;
+  ctx.font = 'bold 11px IBM Plex Mono, monospace';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('BDI · BIOMETRICS', x + 4, y - 4);
+}
+
+/* Draw full 68-point landmark mesh with region colours */
+function feFaceMesh(ctx, lm, ds) {
+  // Region connections
+  const regions = [
+    { pts: lm.getJawOutline(),    color: '#94a3b8', close: false, lw: 1.2 },
+    { pts: lm.getLeftEyeBrow(),   color: '#60a5fa', close: false, lw: 1.5 },
+    { pts: lm.getRightEyeBrow(),  color: '#60a5fa', close: false, lw: 1.5 },
+    { pts: lm.getNose(),          color: '#fbbf24', close: false, lw: 1.2 },
+    { pts: lm.getLeftEye(),       color: '#34d399', close: true,  lw: 1.5 },
+    { pts: lm.getRightEye(),      color: '#34d399', close: true,  lw: 1.5 },
+    { pts: lm.getMouth(),         color: '#e87722', close: true,  lw: 1.5 },
+  ];
+
+  regions.forEach(({ pts, color, close, lw }) => {
+    if (!pts || pts.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    if (close) ctx.closePath();
+    ctx.strokeStyle = color + 'bb';
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  });
+
+  // Draw all 68 landmark dots coloured by region
+  const pts = lm.positions;
+  pts.forEach((p, i) => {
+    const color = feLandmarkColor(i);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 5;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Extra glow on key anchor points: eyes, nose tip, mouth corners
+  const anchors = [36, 39, 42, 45, 30, 48, 54]; // eye corners, nose tip, mouth corners
+  anchors.forEach(i => {
+    if (!pts[i]) return;
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = feLandmarkColor(i);
+    ctx.shadowColor = feLandmarkColor(i);
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+}
+
+function feLandmarkColor(i) {
+  if (i <= 16) return '#94a3b8'; // Jaw
+  if (i <= 21) return '#60a5fa'; // Left eyebrow
+  if (i <= 26) return '#60a5fa'; // Right eyebrow
+  if (i <= 35) return '#fbbf24'; // Nose
+  if (i <= 41) return '#34d399'; // Left eye
+  if (i <= 47) return '#34d399'; // Right eye
+  return '#e87722';               // Mouth
+}
+
+/* ── Capture Sample ── */
+async function feCapture() {
+  if (!feTarget || !feStream || !feModelsLoaded) return;
+  const vid = document.getElementById('fe-vid');
+  const btn = document.getElementById('fe-cap-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Analyzing…';
+  feShowMsg(`Detecting face… sample ${feSamples.length + 1} of ${ENR_SAMPLES_FE}`, 'info');
+
+  // Pause live loop while we run the full descriptor analysis
+  feCapturing = true;
+
+  try {
+    // Try TinyFaceDetector first, fall back to SSD
+    let detection = await faceapi.detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.2, inputSize: 320 })).withFaceLandmarks().withFaceDescriptor();
+    if (!detection) detection = await faceapi.detectSingleFace(vid, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 })).withFaceLandmarks().withFaceDescriptor();
+    if (!detection) {
+      feShowMsg('No face detected. Face the camera directly in good light.', 'err');
+      btn.innerHTML = `<i class="ti ti-scan"></i> <span id="fe-cap-lbl">Retry Sample ${feSamples.length + 1}</span>`;
+      btn.disabled = false;
+      feCapturing = false;
+      setTimeout(feLiveLoop, 50);
+      return;
+    }
+
+    // Flash the canvas green to indicate successful capture
+    const canvas = document.getElementById('fe-cnv');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(34,197,94,0.25)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    feSamples.push(Array.from(detection.descriptor));
+    feUpdateDots();
+
+    if (feSamples.length < ENR_SAMPLES_FE) {
+      const next = feSamples.length + 1;
+      feShowMsg(`✓ Sample ${feSamples.length} captured! Now capture sample ${next} — slightly tilt or adjust your angle.`, 'ok');
+      btn.innerHTML = `<i class="ti ti-scan"></i> <span id="fe-cap-lbl">Capture Sample ${next}</span>`;
+      btn.disabled = false;
+      document.getElementById('fe-cam-status').textContent = `Sample ${feSamples.length}/${ENR_SAMPLES_FE} done — adjust angle slightly`;
+      feCapturing = false;
+      setTimeout(feLiveLoop, 50);
+    } else {
+      // All samples captured — average and save
+      feShowMsg('Processing 3-sample biometric average…', 'info');
+      const avg = new Array(128).fill(0);
+      for (const d of feSamples) { for (let i = 0; i < 128; i++) avg[i] += d[i]; }
+      for (let i = 0; i < 128; i++) avg[i] /= ENR_SAMPLES_FE;
+
+      // Capture photo
+      const photoCanvas = document.createElement('canvas');
+      photoCanvas.width = 160; photoCanvas.height = 160;
+      const pCtx = photoCanvas.getContext('2d');
+      pCtx.scale(-1, 1); pCtx.drawImage(vid, -160, 0, 160, 160);
+      feTarget.photo = photoCanvas.toDataURL('image/jpeg', 0.75);
+
+      feTarget.descriptor = avg;
+      feTarget.descriptors = feSamples.slice(); // store all raw samples for multi-descriptor FaceMatcher
+      feTarget.faceReg = true;
+      feTarget.enrolledAt = new Date().toISOString();
+      feTarget.enrolledBy = 'Enrollment Station';
+      feSamples = [];
+
+      saveData();
+      updateStats();
+      feCapturing = false;
+      feStopCam();
+
+      // Update photo avatar
+      const av = document.getElementById('fe-photo-av');
+      av.innerHTML = `<img src="${feTarget.photo}" alt="${feTarget.name}">`;
+
+      // Update status
+      document.getElementById('fe-enr-status-bar').innerHTML =
+        `<span class="face-pill-ok"><i class="ti ti-circle-check" style="font-size:10px"></i> Enrolled</span>
+         <span style="font-size:10px;color:var(--gray)">just now</span>`;
+      document.getElementById('fe-reset-btn').style.display = 'inline-flex';
+      feShowMsg(`✓ ${feTarget.name} successfully enrolled with a 3-sample biometric average!`, 'ok');
+      document.getElementById('fe-cam-status').textContent = 'Enrollment complete';
+      toast(`Enrolled: ${feTarget.name}`, true);
+      renderEmpList(EMPS);
+      feUpdateDots();
+    }
+  } catch(e) {
+    console.error(e);
+    feCapturing = false;
+    setTimeout(feLiveLoop, 50);
+    feShowMsg('Analysis error. Try again.', 'err');
+    btn.innerHTML = `<i class="ti ti-scan"></i> <span id="fe-cap-lbl">Retry Sample ${feSamples.length + 1}</span>`;
+    btn.disabled = false;
+  }
+}
+
+/* ── Update sample progress dots ── */
+function feUpdateDots() {
+  for (let i = 0; i < ENR_SAMPLES_FE; i++) {
+    const dot = document.getElementById(`sd-${i}`);
+    if (!dot) continue;
+    dot.className = 'sample-dot';
+    if (i < feSamples.length) dot.classList.add('done');
+    else if (i === feSamples.length && feStream) dot.classList.add('active');
+  }
+  const label = document.getElementById('fe-sample-count');
+  if (label) label.textContent = `${feSamples.length} / ${ENR_SAMPLES_FE} samples`;
+}
+
+/* ── Reset enrollment ── */
+function feResetEnrollment() {
+  if (!feTarget) return;
+  if (!confirm(`Clear face enrollment for ${feTarget.name}? They will need to be re-enrolled for face recognition to work.`)) return;
+  feTarget.faceReg = false;
+  feTarget.descriptor = null;
+  feTarget.descriptors = null;
+  feTarget.photo = null;
+  feTarget.enrolledAt = null;
+  feTarget.enrolledBy = null;
+  saveData();
+  updateStats();
+  renderEmpList(EMPS);
+  feSelectEmp(feTarget.uid);
+  toast(`Enrollment cleared for ${feTarget.name}`, false);
+}
+
+/* ── Show message ── */
+function feShowMsg(text, type = 'info') {
+  const el = document.getElementById('fe-msg');
+  el.textContent = text;
+  el.className = `enr-msg ${type}`;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>

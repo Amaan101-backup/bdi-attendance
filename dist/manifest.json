@@ -1,0 +1,47 @@
+{
+  "name": "BDI Attendance System",
+  "short_name": "BDI Attend",
+  "description": "Bright Deal International — Face Recognition Attendance",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a1628",
+  "theme_color": "#e87722",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "https://bdiuae.com/images/common/bdi_logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://bdiuae.com/images/common/bdi_logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Attendance Scanner",
+      "short_name": "Scanner",
+      "url": "/",
+      "description": "Open face attendance scanner"
+    },
+    {
+      "name": "Admin Portal",
+      "short_name": "Admin",
+      "url": "/admin",
+      "description": "Open admin dashboard"
+    },
+    {
+      "name": "Enroll Face",
+      "short_name": "Enroll",
+      "url": "/enroll",
+      "description": "Enroll employee face"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BDI Admin">
+<meta name="theme-color" content="#0a1628">
+<title>BDI Admin Portal</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="https://bdiuae.com/images/common/bdi_logo.png">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<div id="scr-admin" class="screen active">
+
+
+  <div class="topnav">
+    <div class="logo-wrap">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="BDI">
+      <div class="logo-fallback">BDI</div>
+      <div class="logo-div"></div>
+      <div class="logo-txt"><strong>Admin Dashboard</strong>Attendance Management</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="a-clk" style="color:rgba(255,255,255,.55);font-size:10px;font-family:var(--mono);background:rgba(255,255,255,.07);padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.1)">--:--:--</div>
+      <div style="display:flex;gap:4px">
+        <a href="attendance.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-hard-hat" style="font-size:11px"></i> Supervisor</a>
+        <a href="face_enroll.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-face-id" style="font-size:11px"></i> Enroll</a>
+      </div>
+      <div style="background:rgba(232,119,34,.15);border:1px solid rgba(232,119,34,.3);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--orange)"><i class="ti ti-shield-lock" style="font-size:10px"></i> Admin</div>
+      <button onclick="logout()" class="btn sm n"><i class="ti ti-logout"></i> Logout</button>
+    </div>
+  </div>
+  <div class="subnav">
+    <button class="stab active" onclick="aTab('emp')"><i class="ti ti-users"></i> Employees</button>
+    <button class="stab" onclick="aTab('sups')"><i class="ti ti-hard-hat"></i> Supervisors</button>
+    <button class="stab" onclick="aTab('sites')"><i class="ti ti-building"></i> Sites</button>
+    <button class="stab" onclick="aTab('enroll')"><i class="ti ti-face-id"></i> Enrollment</button>
+    <button class="stab" onclick="aTab('term')"><i class="ti ti-device-laptop"></i> Terminal</button>
+    <button class="stab" onclick="aTab('report')"><i class="ti ti-chart-bar"></i> Report</button>
+    <button class="stab" onclick="aTab('dash')"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
+    <button class="stab" onclick="aTab('settings')"><i class="ti ti-settings"></i> Settings</button>
+  </div>
+  <div class="shell">
+
+    <!-- EMPLOYEES TAB -->
+    <div id="ap-emp" class="page active">
+      <div class="stats-row" id="a-stats"></div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Employee to Company</div>
+        <div class="form-row">
+          <div class="form-g"><label>Full Name *</label><input type="text" id="en" placeholder="Ahmed Hassan"></div>
+          <div class="form-g"><label>Employee ID *</label><input type="text" id="ei" placeholder="BDI-0042"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-g"><label>Department</label>
+            <select id="ed"><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option><option>Other</option></select>
+          </div>
+          <div class="form-g"><label>Role / Designation</label><input type="text" id="er" placeholder="Pipeline Engineer"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-g"><label>Mobile</label><input type="text" id="eph" placeholder="+971 50 000 0000"></div>
+          <div class="form-g"><label>Assign Sites (hold Ctrl for multiple)</label><select id="esites" multiple><option value="">Loading…</option></select></div>
+        </div>
+        <div class="form-g"><label>Face Registered?</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="yes" style="width:auto"> Yes — face sample stored</label>
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="no" checked style="width:auto"> No — manual override allowed</label>
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn o" onclick="addEmp()"><i class="ti ti-user-plus"></i> Add Employee</button>
+          <button class="btn" onclick="loadDemo()"><i class="ti ti-download"></i> Load Demo Data (10 employees)</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-list"></i> Company Employee Directory</div>
+        <div class="search-row">
+          <input type="text" id="esrch" placeholder="Search name, ID, role…" oninput="renderEmpTbl()">
+          <select id="edept" onchange="renderEmpTbl()"><option value="">All departments</option><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option></select>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Face</th><th>Today</th><th></th></tr></thead>
+          <tbody id="etbl"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- SUPERVISORS TAB -->
+    <div id="ap-sups" class="page">
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Supervisor / Site Engineer</div>
+        <div class="form-row">
+          <div class="form-g"><label>Full Name *</label><input type="text" id="sn" placeholder="Omar Al Rashidi"></div>
+          <div class="form-g"><label>Login ID *</label><input type="text" id="sid" placeholder="sup001"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-g"><label>Role</label>
+            <select id="srole"><option>Site Supervisor</option><option>Site Engineer</option><option>HSE Officer</option><option>Foreman</option></select>
+          </div>
+          <div class="form-g"><label>Password *</label><input type="password" id="spw" placeholder="Set login password"></div>
+        </div>
+        <div class="form-g"><label>Assigned Sites (hold Ctrl for multiple)</label>
+          <select id="ssites" multiple><option value="">Loading…</option></select>
+          <p class="hint"><i class="ti ti-info-circle" style="font-size:11px"></i> Supervisor can only mark attendance for employees at their assigned sites</p>
+        </div>
+        <button class="btn o" onclick="addSup()" style="margin-top:5px"><i class="ti ti-user-plus"></i> Add Supervisor</button>
+      </div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-list"></i> Supervisors & Site Engineers</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Assigned Sites</th><th>Marked Today</th><th></th></tr></thead>
+          <tbody id="suptbl"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- SITES TAB -->
+    <div id="ap-sites" class="page">
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-circle-plus"></i> Add New Site</div>
+        <div class="form-row">
+          <div class="form-g"><label>Site Name *</label><input type="text" id="sns" placeholder="Al Ain Pipeline Project"></div>
+          <div class="form-g"><label>Site Code *</label><input type="text" id="snc" placeholder="AIN-01"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-g"><label>Location / Address</label><input type="text" id="snl" placeholder="Al Ain, Abu Dhabi"></div>
+          <div class="form-g"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-g"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
+          <div class="form-g"><label>Geo-Zone Radius: <span id="srad-v" style="color:var(--orange);font-weight:500">2.0 km</span></label>
+            <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:6px" id="srad" oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
+            <p class="hint">Distance from site coordinates within which supervisor must be present</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
+          <button class="btn o" onclick="addSite()"><i class="ti ti-circle-plus"></i> Add Site</button>
+          <button class="btn" onclick="useMyLoc()"><i class="ti ti-map-pin"></i> Use My Location as Coords</button>
+        </div>
+        <div id="loc-msg" style="font-size:10px;color:var(--gray);margin-top:5px;display:none"></div>
+      </div>
+      <div id="sites-list"></div>
+    </div>
+
+    <!-- ENROLLMENT TAB (ADMIN/SUP) -->
+    <div id="ap-enroll" class="page">
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-face-id"></i> Biometric Enrollment</div>
+        <div class="two-col">
+          <div>
+            <div class="form-g"><label>Select Employee to Enroll</label>
+              <select id="enr-emp-sel" onchange="enrEmpChange()"><option value="">— Choose employee —</option></select>
+            </div>
+            <div id="enr-emp-info" style="margin-top:10px"></div>
+          </div>
+          <div>
+            <div class="cam-wrap" style="aspect-ratio:1/1;max-width:320px;margin:0 auto">
+              <video id="enr-vid" autoplay playsinline muted style="transform: scaleX(-1);"></video>
+              <canvas id="enr-cnv" style="display:none"></canvas>
+              <div class="cam-overlay">
+                <div class="w-full h-full border-4 border-dashed border-white/20 rounded-full" style="margin:20px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:10px">
+              <button class="btn n" onclick="startEnrCam()" style="flex:1"><i class="ti ti-camera"></i> Start Cam</button>
+              <button class="btn o" id="enr-cap-btn" onclick="captureEnroll()" disabled style="flex:1"><i class="ti ti-scan"></i> Capture Face</button>
+            </div>
+            <div id="enr-status" style="margin-top:8px;font-size:11px;text-align:center;color:var(--gray)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TERMINAL TAB (ADMIN/SUP) -->
+    <div id="ap-term" class="page">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:7px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;font-size:11px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <i class="ti ti-brain" style="font-size:14px;color:#16a34a"></i>
+          <span class="ai-status-lbl" style="font-weight:500;color:#15803d">⏳ Loading AI…</span>
+        </div>
+        <button onclick="retryModels()" class="btn sm n" style="font-size:10px;padding:3px 9px"><i class="ti ti-refresh" style="font-size:11px"></i> Retry AI</button>
+      </div>
+      <div class="card" style="background:#0a1628;color:#fff;border:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+          <div class="card-lbl" style="color:#e87722;margin:0"><i class="ti ti-device-laptop"></i> Kiosk Terminal Mode</div>
+          <div style="font-size:11px;font-family:var(--mono);color:#94a3b8" id="term-clock">--:--:--</div>
+        </div>
+        
+        <div class="two-col">
+          <div style="position:relative">
+            <div class="cam-wrap" style="aspect-ratio:4/3;max-width:480px;border-color:#1e293b">
+              <video id="term-vid" autoplay playsinline muted style="transform: scaleX(-1)"></video>
+              <canvas id="term-cnv" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
+              <div class="cam-overlay">
+                <div id="term-status-box" style="position:absolute;top:20px;left:20px;right:20px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px;border-left:3px solid #e87722">
+                  <div class="dot-pulse"></div>
+                  <span id="term-status">Initializing AI Vision...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card" style="background:#1e293b;border:1px solid #334155;margin:0">
+              <div class="card-lbl" style="color:#fff;font-size:12px">Active Site Connection</div>
+              <select id="term-site-sel" style="background:#0f172a;color:#fff;border-color:#334155"><option value="">— Select Site for this Terminal —</option></select>
+            </div>
+            
+            <div id="term-match-card" class="card" style="background:#1e293b;border:1px solid #334155;margin:0;display:none;animation:slideIn 0.3s ease">
+              <div class="card-lbl" style="color:#22c55e;font-size:12px"><i class="ti ti-circle-check"></i> Identity Verified</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <div id="term-match-av" class="av lg" style="background:#e87722;color:#fff;width:50px;height:50px;font-size:18px"></div>
+                <div>
+                  <div id="term-match-name" style="font-size:16px;font-weight:600;color:#fff">Name</div>
+                  <div id="term-match-id" style="font-size:12px;color:#94a3b8">ID</div>
+                </div>
+              </div>
+              <div style="margin-top:10px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:11px;color:#4ade80;text-align:center">
+                Attendance logged successfully
+              </div>
+            </div>
+            
+            <button class="btn full" onclick="startTerminal()" id="term-start-btn" style="background:#e87722;color:#fff;padding:15px;font-weight:bold"><i class="ti ti-player-play"></i> Launch Terminal Recognition</button>
+            <button class="btn full r" onclick="stopTerminal()" id="term-stop-btn" style="display:none;padding:15px;font-weight:bold"><i class="ti ti-player-stop"></i> Stop Terminal</button>
+            
+            <div class="card" style="background:#0f172a;border:1px solid #1e293b;margin:0;flex:1">
+              <div class="card-lbl" style="color:#64748b;font-size:10px">Live Log</div>
+              <div id="term-log" style="font-size:10px;font-family:var(--mono);color:#94a3b8;height:120px;overflow-y:auto;display:flex;flex-direction:column-reverse">
+                <div>Terminal Ready.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT TAB -->
+    <div id="ap-report" class="page">
+      <div class="stats-row" id="rep-stats"></div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-list"></i> Full Attendance Log</div>
+
+        <!-- Python sync banner -->
+        <div id="py-sync-bar" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <i class="ti ti-brand-python" style="color:#3b82f6;font-size:16px"></i>
+          <span style="font-size:12px;color:#1e40af;flex:1">Python camera records are included in this report automatically when the server is running.</span>
+          <button class="btn sm" onclick="_mergePyRecords().then(()=>{renderReport();renderAStats();})" style="background:#3b82f6;color:#fff;border:none;font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer">
+            <i class="ti ti-refresh"></i> Sync Now
+          </button>
+        </div>
+
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-g"><label>From Date</label><input type="date" id="r-date-from" onchange="renderReport()"></div>
+          <div class="form-g"><label>To Date</label><input type="date" id="r-date-to" onchange="renderReport()"></div>
+        </div>
+        <div class="search-row">
+          <input type="text" id="rsrch" placeholder="Search name or ID…" oninput="renderReport()">
+          <select id="rsiteF" onchange="renderReport()"><option value="">All sites</option></select>
+          <select id="rstatF" onchange="renderReport()"><option value="">All status</option><option value="in">Present</option><option value="out">Checked out</option><option value="absent">Absent</option></select>
+          <button class="btn n" onclick="downloadReport()"><i class="ti ti-download"></i> Export CSV</button>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site</th><th>Punched By</th><th>Method</th><th>Check-in</th><th>Check-out</th><th>Arrival</th><th>Status</th></tr></thead>
+          <tbody id="rtbl"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="ap-dash" class="page"></div>
+
+    <!-- SETTINGS TAB -->
+    <div id="ap-settings" class="page">
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-building"></i> Company Information</div>
+        <div class="form-row">
+          <div class="form-g"><label>Company Full Name</label><input type="text" id="set-company" placeholder="Bright Deal International"></div>
+          <div class="form-g"><label>Short Name / Code</label><input type="text" id="set-short" placeholder="BDI"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-face-id"></i> Face Recognition Settings</div>
+        <div class="form-row">
+          <div class="form-g">
+            <label>Verification Threshold (1:1): <span id="set-threshold-v" style="color:var(--orange);font-weight:500">0.55</span></label>
+            <input type="range" min="0.3" max="0.8" step="0.01" id="set-threshold" oninput="document.getElementById('set-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
+            <p class="hint">Used for supervisor face-verify. Lower = stricter. 0.55 recommended.</p>
+          </div>
+          <div class="form-g">
+            <label>Scanner / Terminal Threshold: <span id="set-scan-threshold-v" style="color:var(--orange);font-weight:500">0.62</span></label>
+            <input type="range" min="0.3" max="0.85" step="0.01" id="set-scan-threshold" oninput="document.getElementById('set-scan-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
+            <p class="hint">Used for auto-identification in scanner &amp; terminal. 0.62 recommended.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-g">
+            <label>Confirm Frames (consecutive)</label>
+            <input type="number" id="set-confirm-frames" min="1" max="10" placeholder="3">
+            <p class="hint">How many consecutive matching frames before auto-punch. 3 recommended.</p>
+          </div>
+          <div class="form-g">
+            <label>Min Face Size: <span id="set-min-face-v" style="color:var(--orange);font-weight:500">4%</span></label>
+            <input type="range" min="1" max="20" step="1" id="set-min-face" oninput="document.getElementById('set-min-face-v').textContent=this.value+'%'" style="accent-color:var(--orange);width:100%;margin-top:6px">
+            <p class="hint">Face must cover this % of frame. Prevents far-away false matches.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-g">
+            <label>Scanner Cooldown (frames)</label>
+            <input type="number" id="set-cooldown" min="10" max="300" placeholder="60">
+            <p class="hint">Frames between auto-punches. Higher = longer gap between marks.</p>
+          </div>
+          <div class="form-g"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-clock"></i> Shift &amp; Time Rules</div>
+        <div class="form-row">
+          <div class="form-g"><label>Shift Start Time</label><input type="time" id="set-shift-start"></div>
+          <div class="form-g"><label>Shift End Time</label><input type="time" id="set-shift-end"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-g"><label>Late Grace Period (minutes)</label><input type="number" id="set-grace" min="0" max="60" placeholder="15"></div>
+          <div class="form-g"><label>Auto-logout After Inactivity (minutes, 0=off)</label><input type="number" id="set-timeout" min="0" max="480" placeholder="30"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-database"></i> Data Backup &amp; Restore</div>
+        <p class="hint" style="margin-bottom:12px">Export a full JSON backup of all data including employees, sites, records and settings. Restore from a previous backup.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn o" onclick="exportJSON()"><i class="ti ti-download"></i> Export Full Backup (JSON)</button>
+          <button class="btn" onclick="downloadReport()"><i class="ti ti-file-spreadsheet"></i> Export CSV Report</button>
+          <label class="btn n" style="cursor:pointer"><i class="ti ti-upload"></i> Import Backup (JSON) <input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn o" onclick="saveSettingsForm()"><i class="ti ti-device-floppy"></i> Save Settings</button>
+        <button class="btn" onclick="initSettings()"><i class="ti ti-refresh"></i> Reset Form</button>
+      </div>
+    </div>
+
+  </div>
+  <div class="bdi-footer"><span>© 2026 Bright Deal International Gen. Cont. · Abu Dhabi, UAE</span><span>Attendance System v2.0 — Admin</span></div>
+</div>
+
+
+
+<div class="modal-backdrop" id="site-modal" onclick="closeSiteModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div class="modal-head-title"><i class="ti ti-building-cog"></i> Edit Site &nbsp;<span class="modal-head-code" id="m-code">—</span></div>
+      <button onclick="closeSiteModal()" class="btn sm" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff"><i class="ti ti-x"></i> Close</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title"><i class="ti ti-info-circle"></i> Site Details</div>
+        <div class="form-row"><div class="form-g"><label>Site Name *</label><input type="text" id="m-name" placeholder="Site name"></div><div class="form-g"><label>Site Code *</label><input type="text" id="m-codeinput" placeholder="ABD-01" style="font-family:var(--mono);text-transform:uppercase"></div></div>
+        <div class="form-g"><label>Location / Address</label><input type="text" id="m-loc" placeholder="e.g. Corniche Road, Abu Dhabi"></div>
+        <div class="form-row"><div class="form-g"><label>Latitude *</label><input type="number" id="m-lat" placeholder="24.4539" step="0.0001"></div><div class="form-g"><label>Longitude *</label><input type="number" id="m-lng" placeholder="54.3773" step="0.0001"></div></div>
+        <div class="form-g"><label>Geo-Zone Radius: <span id="m-rad-v" style="color:var(--orange);font-weight:500">2.0 km</span></label><input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:5px" id="m-rad" oninput="document.getElementById('m-rad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"><p class="hint">Supervisor must be within this radius to mark attendance</p></div>
+        <div style="display:flex;gap:7px;margin-top:4px"><button class="btn sm" onclick="mUseMyLoc()"><i class="ti ti-map-pin"></i> Use My GPS</button><span id="m-loc-msg" style="font-size:10px;color:var(--gray);align-self:center"></span></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title"><i class="ti ti-hard-hat"></i> Assigned Supervisors / Site Engineers</div>
+        <p class="hint" style="margin-bottom:8px">Toggle supervisors who are authorised to mark attendance for this site.</p>
+        <div class="sup-assign-list" id="m-sup-list"></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title"><i class="ti ti-users"></i> Employees at This Site</div>
+        <p class="hint" style="margin-bottom:8px">Only assigned employees appear in the supervisor roster for attendance marking.</p>
+        <div style="display:flex;gap:7px;margin-bottom:7px"><input type="text" id="m-emp-srch" placeholder="Filter employees…" oninput="renderMEmpList()" style="flex:1"><button class="btn sm o" onclick="mAssignAll()"><i class="ti ti-users-plus"></i> All</button><button class="btn sm r" onclick="mRemoveAll()"><i class="ti ti-users-minus"></i> Remove All</button></div>
+        <div class="emp-assign-list" id="m-emp-list"></div>
+        <div style="margin-top:8px;font-size:11px;color:var(--gray)">Total: <span id="m-emp-count">0</span> &nbsp;·&nbsp; Assigned: <span id="m-emp-assigned-count" style="color:var(--ok);font-weight:500">0</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="closeSiteModal()" class="btn"><i class="ti ti-x"></i> Cancel</button>
+      <div style="display:flex;gap:7px"><button onclick="mDeleteSite()" class="btn r"><i class="ti ti-trash"></i> Delete Site</button><button onclick="saveSiteModal()" class="btn o"><i class="ti ti-device-floppy"></i> Save Changes</button></div>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+<script src="shared.js"></script>
+<script>
+  window.onload = () => {
+    curUser = {name:'Admin'}; curRole = 'admin';
+    initAdmin();
+  };
+</script>
+</body>
+</html>
