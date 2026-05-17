@@ -46,6 +46,7 @@
     <button class="stab" onclick="aTab('report')"><i class="ti ti-chart-bar"></i> Report</button>
     <button class="stab" onclick="aTab('dash')"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
     <button class="stab" onclick="aTab('appsup');loadAppSupervisors()"><i class="ti ti-device-mobile"></i> App Supervisors</button>
+    <button class="stab" onclick="aTab('manreq');loadManualRequests()"><i class="ti ti-camera"></i> Manual Requests</button>
     <button class="stab" onclick="aTab('settings')"><i class="ti ti-settings"></i> Settings</button>
   </div>
   <div class="shell">
@@ -301,6 +302,28 @@
       </div>
     </div>
 
+    <!-- MANUAL REQUESTS TAB -->
+    <div id="ap-manreq" class="page">
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-camera"></i> Manual Attendance Requests
+          <button class="btn sm" onclick="loadManualRequests()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:14px">
+          When face scan fails, supervisors submit a photo of the employee. Review and approve or reject each request.
+        </p>
+        <!-- Filter bar -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:12px;font-weight:600;color:#475569">Filter:</label>
+          <button class="btn sm" onclick="loadManualRequests('pending')" id="mr-btn-pending"
+            style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
+          <button class="btn sm n" onclick="loadManualRequests('approved')" id="mr-btn-approved">✅ Approved</button>
+          <button class="btn sm n" onclick="loadManualRequests('rejected')" id="mr-btn-rejected">❌ Rejected</button>
+          <button class="btn sm n" onclick="loadManualRequests('')" id="mr-btn-all">All</button>
+        </div>
+        <div id="manreq-list"><p style="color:#94a3b8;text-align:center;padding:20px">Loading requests...</p></div>
+      </div>
+    </div>
+
     <!-- SETTINGS TAB -->
     <div id="ap-settings" class="page">
       <div class="card">
@@ -420,7 +443,8 @@
     curUser = {name:'Admin'}; curRole = 'admin';
     initAdmin();
     // Set today's date for man hours
-    document.getElementById('mh-date').value = new Date().toISOString().substring(0,10);
+    const today = new Date().toISOString().substring(0,10);
+    document.getElementById('mh-date').value = today;
   };
 
   // ── App Supervisors Management ─────────────────────────────────────────────
@@ -513,6 +537,134 @@
         body: JSON.stringify({deviceId})
       });
       loadAppSupervisors();
+    } catch(e) { alert('Error: ' + e.message); }
+  }
+
+  // ── Manual Attendance Requests ─────────────────────────────────────────────
+  async function loadManualRequests(status = 'pending') {
+    const el = document.getElementById('manreq-list');
+    if (!el) return;
+    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+    // highlight active filter button
+    ['pending','approved','rejected',''].forEach(s => {
+      const btn = document.getElementById(`mr-btn-${s === '' ? 'all' : s}`);
+      if (btn) {
+        const active = s === status;
+        btn.style.background  = active ? '#3b82f6' : '';
+        btn.style.borderColor = active ? '#3b82f6' : '';
+        btn.style.color       = active ? '#fff' : '';
+        btn.className = active ? 'btn sm' : 'btn sm n';
+      }
+    });
+    try {
+      const url = status ? `${PY_SERVER}/manual-requests?status=${status}` : `${PY_SERVER}/manual-requests`;
+      const r    = await fetch(url);
+      const data = await r.json();
+      if (!data.ok || !data.requests || data.requests.length === 0) {
+        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:30px">No ${status || ''} requests found.</p>`;
+        return;
+      }
+      el.innerHTML = data.requests.map(req => {
+        const ts     = req.timestamp ? new Date(req.timestamp).toLocaleString() : 'Unknown time';
+        const isPend = req.status === 'pending';
+        const isApp  = req.status === 'approved';
+        const borderCol = isPend ? '#fed7aa' : isApp ? '#bbf7d0' : '#fecaca';
+        const bgCol     = isPend ? '#fff7ed' : isApp ? '#f0fdf4' : '#fef2f2';
+        const badge     = isPend ? '⏳ Pending' : isApp ? '✅ Approved' : '❌ Rejected';
+        const badgeCol  = isPend ? '#f97316'   : isApp ? '#22c55e'   : '#ef4444';
+        return `
+          <div id="mr-card-${req.id}" style="border:1px solid ${borderCol};border-radius:14px;padding:16px;margin-bottom:14px;background:${bgCol}">
+            <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+              <!-- Photo -->
+              <div style="flex-shrink:0">
+                <img id="mr-img-${req.id}" src="" alt="Loading photo..."
+                  style="width:110px;height:110px;object-fit:cover;border-radius:10px;border:2px solid ${borderCol};cursor:pointer"
+                  onclick="viewFullPhoto('${req.id}')"
+                  onerror="this.style.display='none'">
+                <div id="mr-img-load-${req.id}" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:10px;font-size:11px;color:#94a3b8">
+                  <button class="btn sm n" onclick="loadPhoto('${req.id}')" style="font-size:10px">📷 Load Photo</button>
+                </div>
+              </div>
+              <!-- Details -->
+              <div style="flex:1;min-width:180px">
+                <div style="font-weight:700;font-size:16px;margin-bottom:2px">${req.empName || 'Unknown'}</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:6px">ID: ${req.empUid || '—'}</div>
+                <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                  <span style="background:${req.type === 'in' ? '#dcfce7' : '#fff7ed'};color:${req.type === 'in' ? '#16a34a' : '#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
+                    ${req.type === 'in' ? '📍 CHECK IN' : '👋 CHECK OUT'}
+                  </span>
+                  <span style="background:#f1f5f9;color:${badgeCol};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span>
+                </div>
+                <div style="font-size:12px;color:#475569;line-height:1.7">
+                  🏗️ <strong>${req.siteName || '—'}</strong><br>
+                  👷 Supervisor: ${req.supervisorName || '—'}<br>
+                  🕐 ${ts}
+                </div>
+                ${req.reviewedAt ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">Reviewed: ${new Date(req.reviewedAt).toLocaleString()}</div>` : ''}
+              </div>
+              <!-- Actions -->
+              ${isPend ? `
+              <div style="display:flex;flex-direction:column;gap:8px;min-width:120px">
+                <button onclick="reviewManualRequest('${req.id}','approved')"
+                  style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">
+                  ✅ Approve<br><span style="font-size:10px;font-weight:400">Record attendance</span>
+                </button>
+                <button onclick="reviewManualRequest('${req.id}','rejected')"
+                  style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">
+                  ❌ Reject
+                </button>
+              </div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    } catch(e) {
+      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}<br>Make sure Railway server is running.</p>`;
+    }
+  }
+
+  async function loadPhoto(reqId) {
+    const img     = document.getElementById(`mr-img-${reqId}`);
+    const loadDiv = document.getElementById(`mr-img-load-${reqId}`);
+    try {
+      const r    = await fetch(`${PY_SERVER}/manual-request/${reqId}/photo`);
+      const data = await r.json();
+      if (data.ok && data.photo_b64) {
+        img.src = data.photo_b64;
+        img.style.display = 'block';
+        if (loadDiv) loadDiv.style.display = 'none';
+      }
+    } catch(e) { console.error('loadPhoto error:', e); }
+  }
+
+  function viewFullPhoto(reqId) {
+    const img = document.getElementById(`mr-img-${reqId}`);
+    if (!img || !img.src || img.src === window.location.href) return;
+    const win = window.open('');
+    win.document.write(`<img src="${img.src}" style="max-width:100%;max-height:100vh">`);
+  }
+
+  async function reviewManualRequest(reqId, decision) {
+    const label = decision === 'approved' ? 'approve' : 'reject';
+    if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} this attendance request?`)) return;
+    try {
+      const r    = await fetch(`${PY_SERVER}/manual-request/review`, {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({id: reqId, status: decision, reviewedBy: 'Admin'})
+      });
+      const data = await r.json();
+      if (data.ok) {
+        const card = document.getElementById(`mr-card-${reqId}`);
+        if (card) {
+          const msg = decision === 'approved'
+            ? '✅ Approved — attendance recorded!'
+            : '❌ Rejected';
+          card.innerHTML = `<p style="text-align:center;padding:12px;color:${decision === 'approved' ? '#22c55e' : '#ef4444'};font-weight:700">${msg}</p>`;
+          setTimeout(() => card.remove(), 2000);
+        }
+      } else {
+        alert('Error: ' + (data.error || 'Unknown error'));
+      }
     } catch(e) { alert('Error: ' + e.message); }
   }
 

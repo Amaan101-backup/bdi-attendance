@@ -521,6 +521,124 @@ def get_data_version():
     return jsonify({'ok': True, 'version': app_data.get('version', 1)})
 
 
+# ── Manual Attendance Requests ────────────────────────────────────────────────
+MANUAL_REQS_FILE = os.path.join(DATA_DIR, 'manual_requests.json')
+manual_requests = []
+
+def load_manual_requests():
+    global manual_requests
+    if os.path.exists(MANUAL_REQS_FILE):
+        try:
+            with open(MANUAL_REQS_FILE, 'r') as f:
+                manual_requests = json.load(f)
+        except Exception as e:
+            log.error(f'Failed to load manual_requests: {e}')
+
+def save_manual_requests():
+    try:
+        with open(MANUAL_REQS_FILE, 'w') as f:
+            json.dump(manual_requests, f, indent=2)
+    except Exception as e:
+        log.error(f'Failed to save manual_requests: {e}')
+
+@app.route('/manual-request', methods=['POST'])
+def submit_manual_request():
+    """
+    Supervisor submits a manual attendance request with employee photo.
+    Body: { empUid, empName, type, siteId, siteName, supervisorDeviceId,
+            supervisorName, timestamp, photo_b64 }
+    """
+    import datetime as dt
+    data = request.json
+    req_id = f"MR-{int(dt.datetime.now().timestamp()*1000)}"
+
+    req = {
+        'id':                 req_id,
+        'empUid':             data.get('empUid', ''),
+        'empName':            data.get('empName', ''),
+        'type':               data.get('type', 'in'),
+        'siteId':             data.get('siteId', ''),
+        'siteName':           data.get('siteName', ''),
+        'supervisorDeviceId': data.get('supervisorDeviceId', ''),
+        'supervisorName':     data.get('supervisorName', ''),
+        'timestamp':          data.get('timestamp', dt.datetime.now().isoformat()),
+        'photo_b64':          data.get('photo_b64', ''),
+        'status':             'pending',   # pending | approved | rejected
+        'submittedAt':        dt.datetime.now().isoformat(),
+        'reviewedAt':         None,
+        'reviewNote':         '',
+    }
+    manual_requests.append(req)
+    save_manual_requests()
+    log.info(f'Manual request: {req["empName"]} {req["type"].upper()} by {req["supervisorName"]} → {req_id}')
+    return jsonify({'ok': True, 'requestId': req_id})
+
+@app.route('/manual-requests', methods=['GET'])
+def get_manual_requests():
+    """Admin: get all manual attendance requests."""
+    status_filter = request.args.get('status')   # pending | approved | rejected | all
+    if status_filter and status_filter != 'all':
+        filtered = [r for r in manual_requests if r['status'] == status_filter]
+    else:
+        filtered = manual_requests
+    # Sort newest first, strip large photo for list view
+    result = []
+    for r in reversed(filtered):
+        row = {k: v for k, v in r.items() if k != 'photo_b64'}
+        row['hasPhoto'] = bool(r.get('photo_b64'))
+        result.append(row)
+    return jsonify({'ok': True, 'requests': result, 'count': len(result)})
+
+@app.route('/manual-request/<req_id>/photo', methods=['GET'])
+def get_manual_request_photo(req_id):
+    """Get photo for a specific manual request."""
+    req = next((r for r in manual_requests if r['id'] == req_id), None)
+    if not req:
+        return jsonify({'ok': False, 'error': 'Not found'}), 404
+    return jsonify({'ok': True, 'photo_b64': req.get('photo_b64', '')})
+
+@app.route('/manual-request/review', methods=['POST'])
+def review_manual_request():
+    """
+    Admin approves or rejects a manual attendance request.
+    Body: { id, action ('approve'|'reject'), note }
+    """
+    import datetime as dt
+    data   = request.json
+    req_id = data.get('id')
+    action = data.get('action', 'approve')
+    note   = data.get('note', '')
+
+    req = next((r for r in manual_requests if r['id'] == req_id), None)
+    if not req:
+        return jsonify({'ok': False, 'error': 'Request not found'}), 404
+
+    req['status']     = 'approved' if action == 'approve' else 'rejected'
+    req['reviewedAt'] = dt.datetime.now().isoformat()
+    req['reviewNote'] = note
+
+    # If approved → auto-create attendance punch record
+    if action == 'approve':
+        punch_rec = {
+            'empUid':             req['empUid'],
+            'empName':            req['empName'],
+            'type':               req['type'],
+            'time':               req['timestamp'],
+            'siteId':             req['siteId'],
+            'siteName':           req['siteName'],
+            'supervisorDeviceId': req['supervisorDeviceId'],
+            'supervisorName':     req['supervisorName'],
+            'source':             'manual-approved',
+            'manualRequestId':    req_id,
+        }
+        app_punches.append(punch_rec)
+        save_app_punches()
+
+    save_manual_requests()
+    log.info(f'Manual request {req_id}: {action.upper()} by admin')
+    return jsonify({'ok': True, 'status': req['status']})
+
+
 # ── Supervisor Management ─────────────────────────────────────────────────────
 SUP_FILE = os.path.join(DATA_DIR, 'app_supervisors.json')
 app_supervisors = []   # list of supervisor device registrations
@@ -734,6 +852,7 @@ load_py_recs()
 load_app_data()
 load_supervisors()
 load_app_punches()
+load_manual_requests()
 
 if __name__ == '__main__':
     print("\n" + "="*60)
