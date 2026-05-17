@@ -43,7 +43,16 @@ PORT      = int(os.environ.get('PORT', 5000))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
-CORS(app, origins='*')
+CORS(app, origins='*', supports_credentials=False,
+     allow_headers=['Content-Type', 'Authorization'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    return response
 
 # Trust Cloudflare proxy headers (so camera HTTPS detection works)
 from werkzeug.middleware.proxy_fix import ProxyFix
