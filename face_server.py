@@ -373,7 +373,15 @@ def save_employees():
 
 @app.route('/employees', methods=['GET'])
 def get_employees():
+    global emp_db
     load_employees()
+    # Fallback: if employees.json is empty, pull from app_data.json
+    if not emp_db:
+        fallback = app_data.get('employees', [])
+        if fallback:
+            log.info(f'employees.json empty — using {len(fallback)} from app_data fallback')
+            emp_db = fallback
+            save_employees()   # persist so next call is instant
     return jsonify({'ok': True, 'employees': emp_db, 'count': len(emp_db)})
 
 @app.route('/employees', methods=['POST'])
@@ -383,7 +391,9 @@ def set_employees():
     employees = data.get('employees', [])
     emp_db = employees
     save_employees()
-    log.info(f'Employee list updated: {len(emp_db)} employees synced from HTML')
+    # Also keep app_data in sync so fallback always has fresh data
+    app_data['employees'] = employees
+    log.info(f'Employee list updated: {len(emp_db)} employees synced from admin portal')
     return jsonify({'ok': True, 'count': len(emp_db)})
 
 

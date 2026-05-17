@@ -1946,6 +1946,9 @@ async function _loadFromServer(){
     const r = await fetch(`${PY_SERVER}/data`);
     const d = await r.json();
     if(!d.ok) return;
+
+    const serverEmpty = !d.employees || d.employees.length === 0;
+
     if(d.employees && d.employees.length) EMPS = d.employees;
     if(d.sites     && d.sites.length)     SITES = d.sites;
     if(d.supervisors && d.supervisors.length) SUPS = d.supervisors;
@@ -1957,6 +1960,14 @@ async function _loadFromServer(){
     if(d.settings) Object.assign(SETTINGS, d.settings);
     _serverDataVersion = d.version || 0;
     console.log(`[SYNC] Loaded from server — ${EMPS.length} employees, ${RECS.length} records (v${_serverDataVersion})`);
+
+    // ── Auto-restore: if Railway was restarted and lost data, push from localStorage ──
+    if(serverEmpty && EMPS.length > 0){
+      console.log(`[SYNC] Server empty but localStorage has ${EMPS.length} employees — auto-restoring...`);
+      _pushToServer();          // restore full data to /data
+      _syncEmployeesToPython(); // also restore to /employees for Flutter app
+    }
+
     // Re-render all views
     if(typeof renderAStats==='function') renderAStats();
     if(typeof renderEmpTbl==='function') renderEmpTbl();
