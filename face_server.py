@@ -521,11 +521,219 @@ def get_data_version():
     return jsonify({'ok': True, 'version': app_data.get('version', 1)})
 
 
+# ── Supervisor Management ─────────────────────────────────────────────────────
+SUP_FILE = os.path.join(DATA_DIR, 'app_supervisors.json')
+app_supervisors = []   # list of supervisor device registrations
+
+def load_supervisors():
+    global app_supervisors
+    if os.path.exists(SUP_FILE):
+        try:
+            with open(SUP_FILE, 'r') as f:
+                app_supervisors = json.load(f)
+            log.info(f'Loaded {len(app_supervisors)} supervisor(s)')
+        except Exception as e:
+            log.error(f'Failed to load supervisors: {e}')
+
+def save_supervisors():
+    try:
+        with open(SUP_FILE, 'w') as f:
+            json.dump(app_supervisors, f, indent=2)
+    except Exception as e:
+        log.error(f'Failed to save supervisors: {e}')
+
+@app.route('/supervisor/register', methods=['POST'])
+def supervisor_register():
+    """New supervisor installs app and registers device."""
+    data      = request.json
+    device_id = data.get('deviceId')
+    name      = data.get('name', '').strip()
+    phone     = data.get('phone', '').strip()
+
+    if not device_id:
+        return jsonify({'ok': False, 'error': 'Missing deviceId'}), 400
+
+    # Check if already registered
+    existing = next((s for s in app_supervisors if s['deviceId'] == device_id), None)
+    if existing:
+        return jsonify({'ok': True, 'supervisor': existing, 'isNew': False})
+
+    # Register new supervisor (pending admin approval)
+    sup = {
+        'deviceId':   device_id,
+        'name':       name or 'Pending Name',
+        'phone':      phone,
+        'approved':   False,
+        'canEnroll':  False,
+        'role':       'Supervisor',
+        'sites':      [],
+        'registeredAt': __import__('datetime').datetime.now().isoformat(),
+    }
+    app_supervisors.append(sup)
+    save_supervisors()
+    log.info(f'New supervisor registered: {name} ({device_id})')
+    return jsonify({'ok': True, 'supervisor': sup, 'isNew': True})
+
+@app.route('/supervisor/login', methods=['POST'])
+def supervisor_login():
+    """Supervisor app checks its approval status on launch."""
+    device_id = request.json.get('deviceId')
+    if not device_id:
+        return jsonify({'ok': False, 'error': 'Missing deviceId'}), 400
+    sup = next((s for s in app_supervisors if s['deviceId'] == device_id), None)
+    if not sup:
+        return jsonify({'ok': False, 'error': 'Not registered'})
+    return jsonify({'ok': True, 'supervisor': sup})
+
+@app.route('/supervisor/list', methods=['GET'])
+def supervisor_list():
+    """Admin: get all registered supervisors."""
+    return jsonify({'ok': True, 'supervisors': app_supervisors, 'count': len(app_supervisors)})
+
+@app.route('/supervisor/update', methods=['POST'])
+def supervisor_update():
+    """Admin: approve supervisor, set name, role, sites, enroll permission."""
+    data      = request.json
+    device_id = data.get('deviceId')
+    if not device_id:
+        return jsonify({'ok': False, 'error': 'Missing deviceId'}), 400
+
+    sup = next((s for s in app_supervisors if s['deviceId'] == device_id), None)
+    if not sup:
+        return jsonify({'ok': False, 'error': 'Supervisor not found'})
+
+    # Update fields if provided
+    for field in ['name', 'phone', 'role', 'sites', 'approved', 'canEnroll']:
+        if field in data:
+            sup[field] = data[field]
+
+    save_supervisors()
+    log.info(f'Supervisor updated: {sup["name"]} ({device_id}) approved={sup["approved"]} canEnroll={sup["canEnroll"]}')
+    return jsonify({'ok': True, 'supervisor': sup})
+
+@app.route('/supervisor/delete', methods=['POST'])
+def supervisor_delete():
+    """Admin: remove a supervisor."""
+    global app_supervisors
+    device_id = request.json.get('deviceId')
+    app_supervisors = [s for s in app_supervisors if s['deviceId'] != device_id]
+    save_supervisors()
+    return jsonify({'ok': True})
+
+# ── Attendance Punch (App) ────────────────────────────────────────────────────
+APP_PUNCHES_FILE = os.path.join(DATA_DIR, 'app_punches.json')
+app_punches = []
+
+def load_app_punches():
+    global app_punches
+    if os.path.exists(APP_PUNCHES_FILE):
+        try:
+            with open(APP_PUNCHES_FILE, 'r') as f:
+                app_punches = json.load(f)
+            log.info(f'Loaded {len(app_punches)} app punch record(s)')
+        except Exception as e:
+            log.error(f'Failed to load app_punches: {e}')
+
+def save_app_punches():
+    try:
+        with open(APP_PUNCHES_FILE, 'w') as f:
+            json.dump(app_punches, f, indent=2)
+    except Exception as e:
+        log.error(f'Failed to save app_punches: {e}')
+
+@app.route('/app/punch', methods=['POST'])
+def app_punch():
+    """Flutter app records a CHECK IN or CHECK OUT."""
+    data = request.json
+    emp_uid    = data.get('empUid')
+    emp_name   = data.get('empName', '')
+    punch_type = data.get('type', 'in').lower()   # 'in' or 'out'
+    site_id    = data.get('siteId', '')
+    site_name  = data.get('siteName', '')
+    sup_id     = data.get('supervisorDeviceId', '')
+    sup_name   = data.get('supervisorName', '')
+    timestamp  = data.get('timestamp', __import__('datetime').datetime.now().isoformat())
+
+    if not emp_uid:
+        return jsonify({'ok': False, 'error': 'Missing empUid'}), 400
+
+    rec = {
+        'empUid':             emp_uid,
+        'empName':            emp_name,
+        'type':               punch_type,
+        'time':               timestamp,
+        'siteId':             site_id,
+        'siteName':           site_name,
+        'supervisorDeviceId': sup_id,
+        'supervisorName':     sup_name,
+        'source':             'flutter-app',
+    }
+    app_punches.append(rec)
+    save_app_punches()
+    log.info(f'App punch: {emp_name} → {punch_type.upper()} at {site_name} by {sup_name}')
+    return jsonify({'ok': True, 'record': rec})
+
+@app.route('/app/punches', methods=['GET'])
+def get_app_punches():
+    """Get all Flutter app punch records (with optional date filter)."""
+    date_filter = request.args.get('date')   # YYYY-MM-DD
+    if date_filter:
+        filtered = [r for r in app_punches if r.get('time', '').startswith(date_filter)]
+    else:
+        filtered = app_punches
+    return jsonify({'ok': True, 'records': filtered, 'count': len(filtered)})
+
+@app.route('/app/manhours', methods=['GET'])
+def get_manhours():
+    """Calculate man hours per employee from app punch records."""
+    from datetime import datetime
+    date_filter = request.args.get('date')
+    records = app_punches
+    if date_filter:
+        records = [r for r in records if r.get('time', '').startswith(date_filter)]
+
+    # Group by empUid + date
+    from collections import defaultdict
+    emp_punches = defaultdict(lambda: {'in': [], 'out': []})
+    for r in records:
+        uid = r.get('empUid', '')
+        t   = r.get('type', '')
+        emp_punches[uid][t].append(r)
+
+    results = []
+    for uid, punches in emp_punches.items():
+        ins  = sorted(punches['in'],  key=lambda x: x.get('time', ''))
+        outs = sorted(punches['out'], key=lambda x: x.get('time', ''))
+        total_mins = 0
+        pairs = []
+        for i, in_rec in enumerate(ins):
+            if i < len(outs):
+                try:
+                    t_in  = datetime.fromisoformat(in_rec['time'])
+                    t_out = datetime.fromisoformat(outs[i]['time'])
+                    mins  = max(0, (t_out - t_in).total_seconds() / 60)
+                    total_mins += mins
+                    pairs.append({'in': in_rec['time'], 'out': outs[i]['time'], 'minutes': mins})
+                except Exception:
+                    pass
+        results.append({
+            'empUid':      uid,
+            'empName':     ins[0].get('empName', uid) if ins else uid,
+            'totalMinutes': total_mins,
+            'totalHours':  round(total_mins / 60, 2),
+            'pairs':       pairs,
+        })
+
+    return jsonify({'ok': True, 'manhours': results})
+
+
 # ── Boot ─────────────────────────────────────────────────────────────────────
 load_db()
 load_employees()
 load_py_recs()
 load_app_data()
+load_supervisors()
+load_app_punches()
 
 if __name__ == '__main__':
     print("\n" + "="*60)
