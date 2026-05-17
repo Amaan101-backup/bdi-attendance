@@ -476,9 +476,13 @@
     populateLiveSiteFilter();
     // Auto-restore supervisors from localStorage cache if Railway was restarted
     await restoreSupervisorsIfEmpty();
+    // Auto-restore face encodings from localStorage cache if Railway was restarted
+    await restoreFaceEncodingsIfEmpty();
     // Start live feed auto-refresh
     loadLiveFeed();
     setInterval(loadLiveFeed, 30000); // refresh every 30 seconds
+    // Backup face encodings every 5 minutes
+    setInterval(backupFaceEncodings, 5 * 60 * 1000);
   };
 
   // ── Live Attendance Feed ────────────────────────────────────────────────────
@@ -576,6 +580,51 @@
     } catch(e) {
       el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error loading feed: ${e.message}</p>`;
     }
+  }
+
+  // ── Face Encoding Backup / Restore (survives Railway restarts) ────────────────
+
+  // Download all face encodings from server and save to localStorage
+  async function backupFaceEncodings() {
+    try {
+      const r = await fetch(`${PY_SERVER}/export-encodings?secret=bdi-import-2024`);
+      const d = await r.json();
+      if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
+        localStorage.setItem('bdi_face_encodings_backup', JSON.stringify(d.encodings));
+        localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
+        localStorage.setItem('bdi_face_backup_count', String(Object.keys(d.encodings).length));
+        console.log(`Face encodings backed up: ${Object.keys(d.encodings).length} employee(s)`);
+      }
+    } catch(e) { console.warn('backupFaceEncodings error:', e); }
+  }
+
+  // On startup: if server has 0 enrolled faces, restore from localStorage backup
+  async function restoreFaceEncodingsIfEmpty() {
+    try {
+      const r = await fetch(`${PY_SERVER}/status`);
+      const d = await r.json();
+      if (!d.ok || d.enrolled > 0) {
+        // Server has enrolled faces — take a fresh backup while we're here
+        backupFaceEncodings();
+        return;
+      }
+      // Server empty — try to restore from backup
+      const backupStr = localStorage.getItem('bdi_face_encodings_backup');
+      if (!backupStr) return;
+      const encodings = JSON.parse(backupStr);
+      const count = Object.keys(encodings).length;
+      if (count === 0) return;
+      const res = await fetch(`${PY_SERVER}/import-encodings`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ encodings, secret: 'bdi-import-2024' })
+      });
+      const result = await res.json();
+      if (result.ok) {
+        console.log(`Auto-restored ${count} face encoding(s) to Railway from localStorage backup`);
+        showToast(`✅ Restored ${count} face encoding(s) after server restart`, 'success');
+      }
+    } catch(e) { console.warn('restoreFaceEncodings error:', e); }
   }
 
   // ── App Supervisors Management ─────────────────────────────────────────────

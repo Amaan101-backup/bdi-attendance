@@ -21,7 +21,7 @@ import os
 import io
 import webbrowser
 import threading
-from PIL import Image
+from PIL import Image, ExifTags
 import logging
 
 # Import face_recognition safely
@@ -128,12 +128,30 @@ def save_db():
         log.error(f'Failed to save encodings: {e}')
 
 def b64_to_image(b64_string):
-    """Convert base64 image string to numpy RGB array."""
+    """Convert base64 image string to numpy RGB array.
+    Automatically corrects EXIF rotation (phone cameras often rotate images)."""
     if ',' in b64_string:
         b64_string = b64_string.split(',', 1)[1]
     img_bytes = base64.b64decode(b64_string)
-    img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-    return np.array(img)
+    img = Image.open(io.BytesIO(img_bytes))
+
+    # Apply EXIF rotation so face detector sees upright image
+    try:
+        exif = img._getexif()
+        if exif:
+            for tag, value in exif.items():
+                if ExifTags.TAGS.get(tag) == 'Orientation':
+                    if value == 3:
+                        img = img.rotate(180, expand=True)
+                    elif value == 6:
+                        img = img.rotate(270, expand=True)
+                    elif value == 8:
+                        img = img.rotate(90, expand=True)
+                    break
+    except Exception:
+        pass
+
+    return np.array(img.convert('RGB'))
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
@@ -170,8 +188,15 @@ def enroll():
 
     try:
         img = b64_to_image(img_b64)
-        # Upsample once for small/distant faces
-        encodings = face_recognition.face_encodings(img, num_jitters=2, model='large')
+
+        # Detect face locations first (try progressively more upsampling)
+        locations = face_recognition.face_locations(img, number_of_times_to_upsample=1, model='hog')
+        if not locations:
+            locations = face_recognition.face_locations(img, number_of_times_to_upsample=2, model='hog')
+        if not locations:
+            return jsonify({'ok': False, 'error': 'No face detected — move closer, ensure good lighting, face the camera directly'})
+
+        encodings = face_recognition.face_encodings(img, known_face_locations=locations, num_jitters=2, model='large')
         if not encodings:
             return jsonify({'ok': False, 'error': 'No face detected in image — ensure face is clearly visible'})
 
@@ -196,47 +221,63 @@ def enroll():
 def recognize():
     """
     Identify a face from image.
-    Body: { image_b64, threshold (optional, default 0.5), site_uids (optional list) }
-    Returns best match uid + confidence, or unknown.
+    Body: { image_b64, threshold (optional, default 0.62), site_uids (optional list of site IDs) }
+    Returns: { ok, uid, name, confidence } on match, or { ok, error } on no match.
     """
     data      = request.json
     img_b64   = data.get('image_b64')
-    threshold = float(data.get('threshold', 0.50))   # lower = stricter
-    site_uids = data.get('site_uids')                # optional filter by site employees
+    threshold = float(data.get('threshold', 0.62))  # 0.62 = good balance for real world
+    site_uids = data.get('site_uids')               # list of site IDs to filter employees
 
     if not img_b64:
         return jsonify({'ok': False, 'error': 'Missing image_b64'}), 400
-
     if not FACE_RECOGNITION_AVAILABLE:
-        return jsonify({'ok': False, 'error': 'Face recognition library not available on server'}), 503
-
+        return jsonify({'ok': False, 'error': 'Face recognition not available on server'}), 503
     if not face_db:
-        return jsonify({'ok': True, 'match': None, 'reason': 'No enrolled employees'})
+        return jsonify({'ok': False, 'error': 'No enrolled employees. Enroll faces first.'})
 
     try:
         img = b64_to_image(img_b64)
 
-        # Detect face locations first (more control)
+        # Detect face locations
         locations = face_recognition.face_locations(img, model='hog')
         if not locations:
-            return jsonify({'ok': True, 'match': None, 'reason': 'No face detected'})
+            # Try with upsampling for small/distant faces
+            locations = face_recognition.face_locations(img, number_of_times_to_upsample=2, model='hog')
+        if not locations:
+            return jsonify({'ok': False, 'error': 'no_face'})
 
         encodings = face_recognition.face_encodings(img, locations, num_jitters=1, model='large')
         if not encodings:
-            return jsonify({'ok': True, 'match': None, 'reason': 'No face encoding'})
+            return jsonify({'ok': False, 'error': 'no_face'})
 
         unknown_enc = encodings[0]
 
-        # Filter pool by site if requested
-        pool = {uid: encs for uid, encs in face_db.items()
-                if site_uids is None or uid in site_uids}
+        # Build employee uid → name lookup from emp_db
+        emp_name_map = {}
+        emp_site_map = {}  # uid → list of site ids
+        for emp in emp_db:
+            uid  = emp.get('uid') or emp.get('id', '')
+            name = emp.get('name', uid)
+            site = emp.get('site', '')
+            emp_name_map[uid] = name
+            emp_site_map[uid] = [s.strip() for s in site.split(',') if s.strip()] if site else []
+
+        # Build recognition pool — filter by site if requested
+        if site_uids:
+            # Include employee if ANY of their assigned sites matches a requested site
+            pool = {uid: encs for uid, encs in face_db.items()
+                    if not emp_site_map.get(uid) or   # no site restriction = include always
+                    any(s in site_uids for s in emp_site_map.get(uid, []))}
+        else:
+            pool = dict(face_db)  # no filter — search all enrolled employees
 
         if not pool:
-            return jsonify({'ok': True, 'match': None, 'reason': 'No enrolled employees for this site'})
+            pool = dict(face_db)  # fallback: search everyone if site filter gave empty pool
 
+        # Find best match
         best_uid  = None
         best_dist = float('inf')
-
         for uid, stored_encs in pool.items():
             distances = face_recognition.face_distance(stored_encs, unknown_enc)
             min_dist  = float(np.min(distances))
@@ -244,14 +285,25 @@ def recognize():
                 best_dist = min_dist
                 best_uid  = uid
 
+        confidence = round((1 - best_dist) * 100, 1)
+
         if best_dist <= threshold:
-            confidence = round((1 - best_dist) * 100, 1)
-            log.info(f'Recognised: {best_uid} — dist={best_dist:.3f} conf={confidence}%')
-            return jsonify({'ok': True, 'match': best_uid, 'distance': best_dist, 'confidence': confidence})
+            name = emp_name_map.get(best_uid, best_uid)
+            log.info(f'Recognised: {name} ({best_uid}) dist={best_dist:.3f} conf={confidence}%')
+            return jsonify({
+                'ok':         True,
+                'uid':        best_uid,
+                'name':       name,
+                'confidence': confidence,
+                'distance':   round(best_dist, 3),
+            })
         else:
-            confidence = round((1 - best_dist) * 100, 1)
-            log.info(f'Unknown face — best dist={best_dist:.3f} (threshold={threshold})')
-            return jsonify({'ok': True, 'match': None, 'distance': best_dist, 'confidence': confidence, 'reason': 'Below threshold'})
+            log.info(f'Unknown face — best dist={best_dist:.3f} threshold={threshold}')
+            return jsonify({
+                'ok':    False,
+                'error': f'Face not recognized (confidence {confidence}%). Move closer or re-enroll.',
+                'confidence': confidence,
+            })
 
     except Exception as e:
         log.error(f'Recognize error: {e}')

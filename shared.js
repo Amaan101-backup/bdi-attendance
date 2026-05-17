@@ -1359,6 +1359,10 @@ async function captureSeEnroll() {
         try {
           await pyEnroll(enrTarget.uid, enrTarget.name, vid);
           stat.textContent = `✓ Enrolled — browser + Python server synced`;
+          // Backup encodings to localStorage so they survive Railway restarts
+          if (typeof backupFaceEncodings === 'function') {
+            setTimeout(backupFaceEncodings, 1000); // slight delay so server has saved the file
+          }
         } catch(e) { stat.textContent = `✓ Enrolled (browser only — Python server sync failed)`; }
       } else {
         stat.textContent = `✓ Enrolled with ${ENR_SAMPLES}-sample biometric average`;
