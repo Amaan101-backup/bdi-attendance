@@ -1,20 +1,21 @@
 # BDI Attendance — Python Backend
-# Uses pre-built dlib-bin to avoid long compile times
 
 FROM python:3.10-slim
 
-# Minimal system deps for OpenCV + face_recognition
+# System deps required to compile dlib
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
+    build-essential \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    libgtk-3-dev \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python packages (dlib-bin = pre-built, no compilation needed)
+# Install Python packages — dlib compiles here (takes ~10 mins, cached after first build)
 COPY requirements-server.txt .
 RUN pip install --no-cache-dir -r requirements-server.txt
 
@@ -32,8 +33,6 @@ COPY face_test.html .
 # Create data directory for persistent storage
 RUN mkdir -p /app/data
 
-# Expose port
 EXPOSE 8080
 
-# Run
 CMD ["python", "face_server.py"]
