@@ -51,12 +51,14 @@ window.addEventListener('appinstalled', () => {
    Falls back to browser face-api.js if server is offline
 ══════════════════════════════════════════ */
 // Smart server URL detection:
-// - Served by Flask locally (localhost:5000) → relative URLs
-// - Served via Cloudflare / any web server (https://your-domain.com) → relative URLs
+// - Served locally (localhost) → relative URLs
+// - Served via Cloudflare Pages → call Railway backend
 // - Opened as a local file (file://) → call localhost:5000 directly
 const PY_SERVER = (location.protocol === 'file:')
   ? 'http://localhost:5000'
-  : '';   // relative — works for localhost AND Cloudflare tunnel
+  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? ''
+  : 'https://bdi-attendance-production.up.railway.app';
 let pyServerOnline = false;
 
 async function pyPing() {
