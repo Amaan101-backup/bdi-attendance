@@ -439,15 +439,47 @@
 <div class="toast" id="toast"></div>
 <script src="shared.js"></script>
 <script>
-  window.onload = () => {
+  window.onload = async () => {
     curUser = {name:'Admin'}; curRole = 'admin';
     initAdmin();
     // Set today's date for man hours
     const today = new Date().toISOString().substring(0,10);
     document.getElementById('mh-date').value = today;
+    // Auto-restore supervisors from localStorage cache if Railway was restarted
+    await restoreSupervisorsIfEmpty();
   };
 
   // ── App Supervisors Management ─────────────────────────────────────────────
+
+  // Save supervisors to localStorage for persistence across Railway restarts
+  function cacheSupervisors(list) {
+    try { localStorage.setItem('bdi_supervisors_cache', JSON.stringify(list)); } catch(_) {}
+  }
+
+  // Restore cached supervisors to Railway (called on page load if Railway list is empty)
+  async function restoreSupervisorsIfEmpty() {
+    try {
+      const r    = await fetch(`${PY_SERVER}/supervisor/list`);
+      const data = await r.json();
+      if (data.ok && data.supervisors && data.supervisors.length > 0) return; // Railway has data, nothing to do
+      // Railway is empty — try to restore from localStorage cache
+      const cached = localStorage.getItem('bdi_supervisors_cache');
+      if (!cached) return;
+      const list = JSON.parse(cached);
+      if (!list || list.length === 0) return;
+      // Bulk-restore via single endpoint
+      const res = await fetch(`${PY_SERVER}/supervisor/restore`, {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({supervisors: list})
+      });
+      const result = await res.json();
+      if (result.ok) {
+        console.log(`Auto-restored ${result.restored} supervisor(s) to Railway from cache`);
+      }
+    } catch(e) { console.warn('restoreSupervisors error:', e); }
+  }
+
   async function loadAppSupervisors() {
     const el = document.getElementById('app-sup-list');
     el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
@@ -458,6 +490,8 @@
         el.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No supervisors registered yet.<br>Ask supervisors to install and open the app.</p>';
         return;
       }
+      // Cache the list in localStorage every time we load it
+      cacheSupervisors(data.supervisors);
       el.innerHTML = data.supervisors.map(s => `
         <div style="border:1px solid ${s.approved ? '#bbf7d0' : '#fed7aa'};border-radius:12px;padding:14px;margin-bottom:10px;background:${s.approved ? '#f0fdf4' : '#fff7ed'}">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -522,7 +556,7 @@
       });
       const data = await r.json();
       if (data.ok) {
-        loadAppSupervisors();
+        await loadAppSupervisors(); // also re-caches updated list
         alert(`✅ ${name} updated successfully!`);
       }
     } catch(e) { alert('Error: ' + e.message); }

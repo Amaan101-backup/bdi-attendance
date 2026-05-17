@@ -738,6 +738,31 @@ def supervisor_delete():
     save_supervisors()
     return jsonify({'ok': True})
 
+@app.route('/supervisor/restore', methods=['POST'])
+def supervisor_restore():
+    """Admin: bulk-restore cached supervisors after Railway restart."""
+    global app_supervisors
+    data = request.json or {}
+    incoming = data.get('supervisors', [])
+    restored = 0
+    for s in incoming:
+        device_id = s.get('deviceId')
+        if not device_id:
+            continue
+        # Only add if not already present
+        if not any(x['deviceId'] == device_id for x in app_supervisors):
+            app_supervisors.append(s)
+            restored += 1
+        else:
+            # Update existing with latest approved/canEnroll from cache
+            for x in app_supervisors:
+                if x['deviceId'] == device_id:
+                    x.update({k: v for k, v in s.items() if k != 'deviceId'})
+                    break
+    save_supervisors()
+    log.info(f'Supervisor restore: {restored} new, {len(incoming)-restored} updated')
+    return jsonify({'ok': True, 'restored': restored, 'total': len(app_supervisors)})
+
 # ── Attendance Punch (App) ────────────────────────────────────────────────────
 APP_PUNCHES_FILE = os.path.join(DATA_DIR, 'app_punches.json')
 app_punches = []
