@@ -14,7 +14,6 @@ RUN:
 
 from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
-import face_recognition
 import numpy as np
 import base64
 import json
@@ -24,6 +23,14 @@ import webbrowser
 import threading
 from PIL import Image
 import logging
+
+# Import face_recognition safely
+try:
+    import face_recognition
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f'face_recognition not available: {e}')
+    FACE_RECOGNITION_AVAILABLE = False
 
 # Serve static files from same directory as this script
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -129,7 +136,8 @@ def status():
         'server': 'BDI Face Recognition Server',
         'version': '1.0',
         'enrolled': len(face_db),
-        'employees': list(face_db.keys())
+        'employees': list(face_db.keys()),
+        'face_recognition': FACE_RECOGNITION_AVAILABLE
     })
 
 
@@ -147,6 +155,9 @@ def enroll():
 
     if not uid or not img_b64:
         return jsonify({'ok': False, 'error': 'Missing uid or image_b64'}), 400
+
+    if not FACE_RECOGNITION_AVAILABLE:
+        return jsonify({'ok': False, 'error': 'Face recognition library not available on server'}), 503
 
     try:
         img = b64_to_image(img_b64)
@@ -186,6 +197,9 @@ def recognize():
 
     if not img_b64:
         return jsonify({'ok': False, 'error': 'Missing image_b64'}), 400
+
+    if not FACE_RECOGNITION_AVAILABLE:
+        return jsonify({'ok': False, 'error': 'Face recognition library not available on server'}), 503
 
     if not face_db:
         return jsonify({'ok': True, 'match': None, 'reason': 'No enrolled employees'})
