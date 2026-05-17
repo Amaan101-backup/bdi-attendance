@@ -270,6 +270,46 @@ def verify():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/import-encodings', methods=['POST'])
+def import_encodings():
+    """
+    Bulk-import face encodings from face_encodings.json format.
+    Body: { encodings: { uid: [[...128 floats...], ...], ... }, secret: 'bdi-import' }
+    Used to upload local Python encodings to the cloud server.
+    """
+    data = request.json
+    if data.get('secret') != 'bdi-import-2024':
+        return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
+
+    incoming = data.get('encodings', {})
+    if not incoming:
+        return jsonify({'ok': False, 'error': 'No encodings provided'}), 400
+
+    count_new = 0
+    for uid, encs in incoming.items():
+        numpy_encs = [np.array(e) for e in encs]
+        if uid not in face_db:
+            face_db[uid] = numpy_encs
+            count_new += 1
+        else:
+            # Merge — keep existing + add new ones, cap at 5
+            face_db[uid] = (face_db[uid] + numpy_encs)[-5:]
+
+    save_db()
+    log.info(f'Imported encodings: {len(incoming)} employees ({count_new} new)')
+    return jsonify({'ok': True, 'imported': len(incoming), 'new': count_new, 'total': len(face_db)})
+
+
+@app.route('/export-encodings', methods=['GET'])
+def export_encodings():
+    """Export all face encodings as JSON (for backup/migration)."""
+    secret = request.args.get('secret', '')
+    if secret != 'bdi-import-2024':
+        return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
+    raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
+
+
 @app.route('/delete', methods=['POST'])
 def delete():
     """Remove a person's encodings from the database."""
