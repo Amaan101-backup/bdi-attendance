@@ -51,12 +51,10 @@ window.addEventListener('appinstalled', () => {
    Falls back to browser face-api.js if server is offline
 ══════════════════════════════════════════ */
 // Smart server URL detection:
-// - Served by Flask locally (localhost:5000) → relative URLs
-// - Served via Cloudflare / any web server (https://your-domain.com) → relative URLs
-// - Opened as a local file (file://) → call localhost:5000 directly
-const PY_SERVER = (location.protocol === 'file:')
-  ? 'http://localhost:5000'
-  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+// - Served locally (localhost) → relative URLs
+// - Served via Cloudflare Pages → call Railway backend
+// Always point to Railway (works whether opened as local file or from Netlify)
+const PY_SERVER = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? ''
   : 'https://bdi-attendance-production-d7e9.up.railway.app';
 let pyServerOnline = false;

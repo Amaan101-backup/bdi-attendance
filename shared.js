@@ -53,10 +53,8 @@ window.addEventListener('appinstalled', () => {
 // Smart server URL detection:
 // - Served locally (localhost) → relative URLs
 // - Served via Cloudflare Pages → call Railway backend
-// - Opened as a local file (file://) → call localhost:5000 directly
-const PY_SERVER = (location.protocol === 'file:')
-  ? 'http://localhost:5000'
-  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+// Always point to Railway (works whether opened as local file or from Netlify)
+const PY_SERVER = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? ''
   : 'https://bdi-attendance-production-d7e9.up.railway.app';
 let pyServerOnline = false;
