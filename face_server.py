@@ -58,7 +58,7 @@ def admin_page():
 
 @app.route('/enroll')
 @app.route('/face_enroll.html')
-def enroll():
+def enroll_page():
     return send_from_directory(BASE_DIR, 'face_enroll.html')
 
 @app.route('/test')
