@@ -45,7 +45,7 @@
     <button class="stab" onclick="aTab('term')"><i class="ti ti-device-laptop"></i> Terminal</button>
     <button class="stab" onclick="aTab('report')"><i class="ti ti-chart-bar"></i> Report</button>
     <button class="stab" onclick="aTab('dash')"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
-    <button class="stab" onclick="aTab('appsup');loadAppSupervisors()"><i class="ti ti-device-mobile"></i> App Supervisors</button>
+    <button class="stab" onclick="aTab('appsup');loadAppSupervisors();loadLiveFeed()"><i class="ti ti-device-mobile"></i> App Supervisors</button>
     <button class="stab" onclick="aTab('manreq');loadManualRequests()"><i class="ti ti-camera"></i> Manual Requests</button>
     <button class="stab" onclick="aTab('settings')"><i class="ti ti-settings"></i> Settings</button>
   </div>
@@ -280,6 +280,32 @@
 
     <!-- APP SUPERVISORS TAB -->
     <div id="ap-appsup" class="page">
+
+      <!-- Live Attendance Feed -->
+      <div class="card">
+        <div class="card-lbl"><i class="ti ti-activity"></i> Live Attendance Feed
+          <span id="live-status" style="float:right;font-size:10px;font-weight:400;color:#22c55e;margin-top:4px">
+            <i class="ti ti-circle-filled" style="font-size:8px"></i> Auto-refreshing every 30s
+          </span>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:10px">
+          Real-time punch records from the supervisor app for today.
+        </p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          <input type="date" id="live-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
+          <select id="live-site" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
+            <option value="">All Sites</option>
+          </select>
+          <button class="btn sm" onclick="loadLiveFeed()"><i class="ti ti-refresh"></i> Refresh Now</button>
+        </div>
+        <!-- Stats row -->
+        <div id="live-stats" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
+        <!-- Feed table -->
+        <div id="live-feed" style="max-height:400px;overflow-y:auto">
+          <p style="color:#94a3b8;text-align:center;padding:20px">Loading live feed...</p>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-lbl"><i class="ti ti-device-mobile"></i> App Supervisors
           <button class="btn sm" onclick="loadAppSupervisors()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
@@ -442,12 +468,115 @@
   window.onload = async () => {
     curUser = {name:'Admin'}; curRole = 'admin';
     initAdmin();
-    // Set today's date for man hours
+    // Set today's date for man hours and live feed
     const today = new Date().toISOString().substring(0,10);
     document.getElementById('mh-date').value = today;
+    document.getElementById('live-date').value = today;
+    // Populate site filter
+    populateLiveSiteFilter();
     // Auto-restore supervisors from localStorage cache if Railway was restarted
     await restoreSupervisorsIfEmpty();
+    // Start live feed auto-refresh
+    loadLiveFeed();
+    setInterval(loadLiveFeed, 30000); // refresh every 30 seconds
   };
+
+  // ── Live Attendance Feed ────────────────────────────────────────────────────
+  async function populateLiveSiteFilter() {
+    try {
+      const r    = await fetch(`${PY_SERVER}/data`);
+      const data = await r.json();
+      const sel  = document.getElementById('live-site');
+      (data.sites || []).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id || s.code || s.name;
+        opt.textContent = s.name;
+        sel.appendChild(opt);
+      });
+    } catch(_) {}
+  }
+
+  async function loadLiveFeed() {
+    const el      = document.getElementById('live-feed');
+    const statsEl = document.getElementById('live-stats');
+    const date    = document.getElementById('live-date')?.value || new Date().toISOString().substring(0,10);
+    const siteId  = document.getElementById('live-site')?.value || '';
+    // Update live indicator
+    const liveStatus = document.getElementById('live-status');
+    if (liveStatus) {
+      const t = new Date().toLocaleTimeString();
+      liveStatus.innerHTML = `<i class="ti ti-circle-filled" style="font-size:8px;color:#22c55e"></i> Updated ${t}`;
+    }
+    try {
+      const url  = `${PY_SERVER}/app/punches?date=${date}${siteId ? '&siteId='+siteId : ''}`;
+      const r    = await fetch(url);
+      const data = await r.json();
+      const recs = (data.records || []).filter(rec => !siteId || rec.siteId === siteId);
+
+      if (recs.length === 0) {
+        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No punches recorded on ${date}.</p>`;
+        statsEl.innerHTML = '';
+        return;
+      }
+
+      // Count stats
+      const inCount  = recs.filter(r => r.type === 'in').length;
+      const outCount = recs.filter(r => r.type === 'out').length;
+      const empSet   = new Set(recs.map(r => r.empUid)).size;
+      statsEl.innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#16a34a">${inCount}</div>
+          <div style="color:#64748b;font-size:11px">Check INs</div>
+        </div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#ea580c">${outCount}</div>
+          <div style="color:#64748b;font-size:11px">Check OUTs</div>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#2563eb">${empSet}</div>
+          <div style="color:#64748b;font-size:11px">Employees</div>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#475569">${recs.length}</div>
+          <div style="color:#64748b;font-size:11px">Total Punches</div>
+        </div>`;
+
+      // Sort by time desc (most recent first)
+      recs.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+
+      el.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
+            <tr>
+              <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Employee</th>
+              <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Type</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Site</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Supervisor</th>
+              <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recs.map(rec => {
+              const t = rec.time ? new Date(rec.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+              const isIn = rec.type === 'in';
+              return `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <td style="padding:9px 10px;font-weight:600">${rec.empName || '—'}</td>
+                <td style="padding:9px 10px;text-align:center">
+                  <span style="background:${isIn ? '#dcfce7' : '#fff7ed'};color:${isIn ? '#16a34a' : '#ea580c'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">
+                    ${isIn ? '✅ IN' : '👋 OUT'}
+                  </span>
+                </td>
+                <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.siteName || '—'}</td>
+                <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.supervisorName || '—'}</td>
+                <td style="padding:9px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error loading feed: ${e.message}</p>`;
+    }
+  }
 
   // ── App Supervisors Management ─────────────────────────────────────────────
 
