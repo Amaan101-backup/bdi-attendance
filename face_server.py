@@ -556,12 +556,22 @@ def save_app_data():
 @app.route('/data', methods=['GET'])
 def get_app_data():
     """Device fetches full app state on load."""
-    # Merge Python attendance records into the shared records
+    # Merge ALL attendance sources: app_data records + python cam + flutter app punches
     merged = list(app_data.get('records', []))
     existing_times = {r.get('time') for r in merged}
+
+    # Merge Python camera records
     for pr in py_recs:
         if pr.get('time') not in existing_times:
             merged.append(pr)
+            existing_times.add(pr.get('time'))
+
+    # Merge Flutter app punches (face scan + manual approved)
+    for ap in app_punches:
+        if ap.get('time') not in existing_times:
+            merged.append(ap)
+            existing_times.add(ap.get('time'))
+
     return jsonify({
         'ok': True,
         'employees':   app_data.get('employees', []),
