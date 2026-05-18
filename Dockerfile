@@ -1,29 +1,22 @@
 # BDI Attendance — Python Backend
-# syntax=docker/dockerfile:1.4
+# Uses dlib-bin (pre-compiled wheel) — no C++ compilation needed, fast deploys
 
 FROM python:3.10-slim
 
-# Build deps needed to compile dlib from source
+# Minimal runtime deps only — no build-essential or cmake needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    libx11-dev \
+    libopenblas0 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# ── Parallel compilation: cuts dlib build from ~20 min → ~5 min ──
-ENV MAKEFLAGS="-j4"
-
-# ── Install dependencies FIRST (Docker/Railway caches this layer) ──
-# This layer only re-runs when requirements-server.txt changes.
-# All other file changes (admin.html, face_server.py etc.) skip this step.
+# Install Python dependencies
+# dlib-bin = pre-compiled dlib wheel (~30s) vs dlib from source (~20 min)
 COPY requirements-server.txt .
 RUN pip install --no-cache-dir -r requirements-server.txt
 
-# ── Copy app files (fast — no compilation needed) ──
+# Copy app files
 COPY face_server.py .
 COPY manifest.json .
 COPY sw.js .
