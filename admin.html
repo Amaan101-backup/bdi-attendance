@@ -636,6 +636,7 @@ async function initAdmin() {
   checkServer(); setInterval(checkServer, 60000);
   await loadAll();
   await restoreAppSupsIfEmpty();
+  loadAppSups(); // silently cache supervisors on every admin load
   await restoreFacesIfEmpty();
   // Default dates
   const today = new Date().toISOString().slice(0,10);
@@ -816,14 +817,15 @@ async function delSup(supUid) {
 ══════════════════════════════════════════════════════════════ */
 async function loadAppSups() {
   const el = document.getElementById('appsup-list');
-  el.innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Loading…</div>';
+  if (el) el.innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Loading…</div>';
   try {
     const d = await api('/supervisor/list');
     if (!d.ok || !d.supervisors?.length) {
-      el.innerHTML = '<div class="empty"><i class="ti ti-device-mobile-off"></i>No app supervisors registered yet.<br><small>Ask supervisors to install and open the BDI app.</small></div>'; return;
+      if (el) el.innerHTML = '<div class="empty"><i class="ti ti-device-mobile-off"></i>No app supervisors registered yet.<br><small>Ask supervisors to install and open the BDI app.</small></div>'; return;
     }
-    // Cache for Railway restarts
+    // Always cache — keeps localStorage fresh for Railway restart restores
     localStorage.setItem('bdi_appsups_cache', JSON.stringify(d.supervisors));
+    if (!el) return; // called silently from initAdmin — no UI to update
     el.innerHTML = d.supervisors.map(s => `
       <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
         <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
