@@ -420,9 +420,9 @@ tr:hover td{background:#f8fafc}
             <input id="r-srch" placeholder="Search employee…" oninput="filterReport()">
             <select id="r-site" onchange="filterReport()"><option value="">All Sites</option></select>
             <select id="r-type" onchange="filterReport()">
-              <option value="">All Types</option>
-              <option value="in">Check IN</option>
-              <option value="out">Check OUT</option>
+              <option value="">All Sessions</option>
+              <option value="in">⏳ Still Active (no checkout)</option>
+              <option value="out">✅ Completed (has checkout)</option>
             </select>
             <button class="btn btn-green btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export CSV</button>
           </div>
@@ -436,7 +436,7 @@ tr:hover td{background:#f8fafc}
           <!-- Punch log table -->
           <div id="r-log-view">
             <div class="tw"><table>
-              <thead><tr><th>Employee</th><th>ID</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Source</th><th>GPS</th><th>Time</th></tr></thead>
+              <thead><tr><th>Employee</th><th>ID</th><th>Check In</th><th>Check Out</th><th>Site</th><th>Supervisor</th><th>GPS</th><th>Date</th></tr></thead>
               <tbody id="rep-tbl"></tbody>
             </table></div>
           </div>
@@ -1143,36 +1143,70 @@ async function loadReport() {
   }
 }
 
+/* Pair IN+OUT records → one row per session */
+function pairPunches(records) {
+  const byEmp = {};
+  for (const r of records) {
+    const k = r.empUid || r.uid || '_unk';
+    if (!byEmp[k]) byEmp[k] = { ins: [], outs: [] };
+    if (r.type === 'in')  byEmp[k].ins.push(r);
+    if (r.type === 'out') byEmp[k].outs.push(r);
+  }
+  const pairs = [];
+  for (const emp of Object.values(byEmp)) {
+    const ins  = emp.ins.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const outs = emp.outs.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const usedOuts = new Set();
+    for (const inR of ins) {
+      const outIdx = outs.findIndex((o,i)=>!usedOuts.has(i)&&(o.time||'')>(inR.time||''));
+      if (outIdx >= 0) {
+        usedOuts.add(outIdx);
+        pairs.push({ inR, outR: outs[outIdx] });
+      } else {
+        pairs.push({ inR, outR: null }); // still checked in
+      }
+    }
+  }
+  return pairs.sort((a,b)=>(b.inR.time||'').localeCompare(a.inR.time||''));
+}
+
 function filterReport() {
   const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
   const site = document.getElementById('r-site')?.value||'';
-  const type = document.getElementById('r-type')?.value||'';
+  const type = document.getElementById('r-type')?.value||''; // 'in'=active, 'out'=completed
   const list = _reportRecs.filter(r =>
     (!q || (r.empName||'').toLowerCase().includes(q) || (r.empId||'').toLowerCase().includes(q)) &&
-    (!site || r.siteId===site) &&
-    (!type || r.type===type)
+    (!site || r.siteId===site)
   );
   const tb = document.getElementById('rep-tbl');
-  if (!list.length) { tb.innerHTML=`<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
-  tb.innerHTML = list.map(r => {
-    const t = (r.time||r.timestamp) ? new Date(r.time||r.timestamp).toLocaleString([],{dateStyle:'short',timeStyle:'short'}) : '—';
-    const isIn = r.type==='in';
-    const src = r.source||r.method||'—';
-    const hasGps = r.lat != null && r.lng != null;
-    const gpsCell = hasGps
-      ? `<a href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" style="font-size:10px;color:var(--blue);white-space:nowrap">
-           📍 ${parseFloat(r.lat).toFixed(4)}, ${parseFloat(r.lng).toFixed(4)}
-         </a>`
-      : `<span style="font-size:10px;color:var(--muted)">—</span>`;
+  let pairs = pairPunches(list);
+  // Filter: 'in' = still active (no checkout), 'out' = completed
+  if (type === 'in')  pairs = pairs.filter(p => !p.outR);
+  if (type === 'out') pairs = pairs.filter(p =>  p.outR);
+  if (!pairs.length) { tb.innerHTML=`<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
+
+  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : null;
+  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString([],{month:'short',day:'numeric',year:'2-digit'}) : '—';
+  const gpsLink = r => {
+    if (!r || r.lat==null) return `<span style="font-size:10px;color:var(--muted)">—</span>`;
+    return `<a href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" style="font-size:10px;color:var(--blue);white-space:nowrap">📍 ${parseFloat(r.lat).toFixed(4)},${parseFloat(r.lng).toFixed(4)}</a>`;
+  };
+
+  tb.innerHTML = pairs.map(({inR, outR}) => {
+    const inTime  = fmtTime(inR.time);
+    const outTime = outR ? fmtTime(outR.time) : null;
+    const autoOut = outR?.source === 'auto-checkout';
     return `<tr>
-      <td style="font-weight:600">${esc(r.empName||'—')}</td>
-      <td style="font-size:11px;color:var(--muted)">${esc(r.empId||'—')}</td>
-      <td><span class="bdg ${isIn?'bdg-g':'bdg-o'}">${isIn?'✅ IN':'👋 OUT'}</span></td>
-      <td style="font-size:12px">${esc(r.siteName||'—')}</td>
-      <td style="font-size:12px;color:var(--muted)">${esc(r.supervisorName||'—')}</td>
-      <td><span class="bdg bdg-gy" style="font-size:10px">${esc(src)}</span></td>
-      <td>${gpsCell}</td>
-      <td style="font-weight:600;color:var(--blue);font-size:12px">${esc(t)}</td>
+      <td style="font-weight:600">${esc(inR.empName||'—')}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(inR.empId||'—')}</td>
+      <td><span style="color:#16a34a;font-weight:700">${inTime||'—'}</span></td>
+      <td>${outTime
+        ? `<span style="color:#ea580c;font-weight:700">${outTime}</span>${autoOut?'<span style="font-size:9px;color:var(--muted);margin-left:4px">auto</span>':''}`
+        : '<span style="color:#94a3b8;font-size:12px">⏳ Active</span>'}</td>
+      <td style="font-size:12px">${esc(inR.siteName||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(inR.supervisorName||'—')}</td>
+      <td>${gpsLink(inR)}</td>
+      <td style="font-size:12px;color:var(--blue)">${fmtDate(inR.time)}</td>
     </tr>`;
   }).join('');
 }
@@ -1183,21 +1217,31 @@ function exportCSV() {
   const type = document.getElementById('r-type')?.value||'';
   const list = _reportRecs.filter(r =>
     (!q || (r.empName||'').toLowerCase().includes(q)||(r.empId||'').toLowerCase().includes(q)) &&
-    (!site||r.siteId===site) && (!type||r.type===type)
+    (!site||r.siteId===site)
   );
-  const rows = [['Employee','ID','Type','Site','Supervisor','Source','Latitude','Longitude','GPS Maps Link','Time']];
-  list.forEach(r => {
-    const hasGps = r.lat != null && r.lng != null;
+  let pairs = pairPunches(list);
+  if (type === 'in')  pairs = pairs.filter(p => !p.outR);
+  if (type === 'out') pairs = pairs.filter(p =>  p.outR);
+
+  const fmtISO = iso => iso ? new Date(iso).toLocaleString() : '';
+  const rows = [['Employee','ID','Date','Check In','Check Out','Duration (mins)','Site','Supervisor','Source','GPS (In)','GPS Maps Link']];
+  pairs.forEach(({inR, outR}) => {
+    const hasGps = inR.lat != null;
+    const durMins = (outR && inR.time && outR.time)
+      ? Math.round((new Date(outR.time)-new Date(inR.time))/60000) : '';
     rows.push([
-      r.empName||'', r.empId||'', r.type||'', r.siteName||'',
-      r.supervisorName||'', r.source||r.method||'',
-      hasGps ? r.lat : '', hasGps ? r.lng : '',
-      hasGps ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '',
-      r.time||r.timestamp||''
+      inR.empName||'', inR.empId||'',
+      inR.time ? new Date(inR.time).toLocaleDateString() : '',
+      fmtISO(inR.time), fmtISO(outR?.time),
+      durMins,
+      inR.siteName||'', inR.supervisorName||'',
+      inR.source||'',
+      hasGps ? `${inR.lat},${inR.lng}` : '',
+      hasGps ? `https://maps.google.com/?q=${inR.lat},${inR.lng}` : '',
     ]);
   });
-  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = Object.assign(document.createElement('a'),{href:'data:text/csv;charset=utf-8,'+encodeURIComponent(csv),download:`bdi-attendance-${new Date().toISOString().slice(0,10)}.csv`});
+  const csv = rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{href:'data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv),download:`bdi-attendance-${new Date().toISOString().slice(0,10)}.csv`});
   a.click();
 }
 

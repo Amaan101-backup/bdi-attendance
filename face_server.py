@@ -884,6 +884,34 @@ def app_punch():
     lat = data.get('lat')
     lng = data.get('lng')
 
+    auto_checked_out = False
+
+    # ── Auto-checkout: if new punch is CHECK IN and employee still has an open IN ──
+    if punch_type == 'in':
+        emp_recs = sorted(
+            [p for p in app_punches if p.get('empUid') == emp_uid],
+            key=lambda x: x.get('time', '')
+        )
+        if emp_recs and emp_recs[-1].get('type') == 'in':
+            # Create automatic checkout with same timestamp as the new check-in
+            prev = emp_recs[-1]
+            auto_out = {
+                'empUid':             emp_uid,
+                'empName':            emp_name,
+                'type':               'out',
+                'time':               timestamp,
+                'siteId':             prev.get('siteId', site_id),
+                'siteName':           prev.get('siteName', site_name),
+                'supervisorDeviceId': sup_id,
+                'supervisorName':     sup_name,
+                'source':             'auto-checkout',
+            }
+            if lat is not None: auto_out['lat'] = round(float(lat), 6)
+            if lng is not None: auto_out['lng'] = round(float(lng), 6)
+            app_punches.append(auto_out)
+            auto_checked_out = True
+            log.info(f'Auto-checkout: {emp_name} (was open IN from {prev.get("time","")})')
+
     rec = {
         'empUid':             emp_uid,
         'empName':            emp_name,
@@ -902,7 +930,7 @@ def app_punch():
     save_app_punches()
     loc_str = f' [{lat:.4f},{lng:.4f}]' if lat and lng else ' [no GPS]'
     log.info(f'App punch: {emp_name} → {punch_type.upper()} at {site_name} by {sup_name}{loc_str}')
-    return jsonify({'ok': True, 'record': rec})
+    return jsonify({'ok': True, 'record': rec, 'autoCheckedOut': auto_checked_out})
 
 @app.route('/app/punches', methods=['GET'])
 def get_app_punches():
