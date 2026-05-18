@@ -11,449 +11,710 @@
 <title>BDI Admin Portal</title>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="https://bdiuae.com/images/common/bdi_logo.png">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 <link rel="stylesheet" href="shared.css">
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;background:#f1f5f9}
+
+/* ── Layout Shell ─────────────────────────────────────────── */
+.admin-layout{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.sidebar{
+  width:240px;min-width:240px;height:100vh;
+  background:#0a1628;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  transition:width .25s ease;
+  z-index:200;
+  flex-shrink:0;
+}
+.sidebar.collapsed{width:60px;min-width:60px}
+
+/* Sidebar Brand */
+.sb-brand{
+  display:flex;align-items:center;gap:10px;
+  padding:16px 14px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  min-height:64px;flex-shrink:0;
+}
+.sb-logo{width:34px;height:34px;border-radius:8px;object-fit:contain;flex-shrink:0;background:#fff;padding:3px}
+.sb-logo-fb{width:34px;height:34px;border-radius:8px;background:#e87722;display:none;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
+.sb-txt{overflow:hidden;white-space:nowrap}
+.sb-txt strong{display:block;font-size:13px;color:#fff;font-weight:600;line-height:1.2}
+.sb-txt span{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.3px}
+.sidebar.collapsed .sb-txt{display:none}
+
+/* Sidebar Nav */
+.sb-nav{flex:1;overflow-y:auto;padding:10px 0;scrollbar-width:none}
+.sb-nav::-webkit-scrollbar{display:none}
+
+.nav-section-label{
+  font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:rgba(255,255,255,.3);padding:14px 16px 4px;white-space:nowrap;overflow:hidden;
+}
+.sidebar.collapsed .nav-section-label{visibility:hidden;padding:14px 16px 4px}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  width:100%;padding:9px 14px;
+  background:none;border:none;cursor:pointer;
+  color:rgba(255,255,255,.6);font-size:13px;font-weight:500;
+  text-align:left;border-radius:0;
+  transition:background .15s,color .15s;
+  position:relative;white-space:nowrap;overflow:hidden;
+  border-left:3px solid transparent;
+}
+.nav-item i{font-size:17px;flex-shrink:0;width:20px;text-align:center}
+.nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+.nav-item.active{
+  background:rgba(232,119,34,.15);
+  color:#e87722;
+  border-left-color:#e87722;
+  font-weight:600;
+}
+.nav-item .nav-lbl{overflow:hidden;white-space:nowrap}
+.sidebar.collapsed .nav-item .nav-lbl{display:none}
+.sidebar.collapsed .nav-item{justify-content:center;padding:9px}
+.sidebar.collapsed .nav-item i{width:auto}
+
+/* Sidebar Footer */
+.sb-footer{
+  border-top:1px solid rgba(255,255,255,.08);
+  padding:10px 8px;flex-shrink:0;
+}
+.sb-footer-user{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 6px;border-radius:8px;
+  margin-bottom:6px;
+}
+.sb-av{
+  width:30px;height:30px;border-radius:50%;
+  background:#e87722;color:#fff;font-weight:700;font-size:13px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sb-user-info{overflow:hidden;white-space:nowrap}
+.sb-user-info strong{display:block;font-size:12px;color:#fff;line-height:1.2}
+.sb-user-info span{font-size:10px;color:rgba(255,255,255,.4)}
+.sidebar.collapsed .sb-user-info{display:none}
+.sb-logout{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:7px;border-radius:8px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.6);font-size:12px;font-weight:500;cursor:pointer;
+  transition:background .15s;
+}
+.sb-logout:hover{background:rgba(239,68,68,.2);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+.sb-collapse{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;padding:5px;border-radius:6px;background:none;
+  border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:14px;margin-top:4px;
+  transition:color .15s;
+}
+.sb-collapse:hover{color:rgba(255,255,255,.7)}
+.sidebar.collapsed .sb-logout span{display:none}
+
+/* ── Main Area ────────────────────────────────────────────── */
+.main-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── Top Header ───────────────────────────────────────────── */
+.admin-header{
+  height:56px;min-height:56px;
+  background:#fff;border-bottom:1px solid #e2e8f0;
+  display:flex;align-items:center;padding:0 20px;
+  gap:12px;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.hdr-hamburger{
+  display:none;background:none;border:none;cursor:pointer;
+  color:#475569;font-size:20px;padding:4px;
+}
+.hdr-page-title{
+  font-size:17px;font-weight:700;color:#0f172a;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hdr-page-title .hdr-breadcrumb{
+  font-size:11px;font-weight:400;color:#94a3b8;margin-left:8px;
+}
+.hdr-clock{
+  font-size:11px;font-family:'IBM Plex Mono',monospace;
+  background:#f8fafc;border:1px solid #e2e8f0;
+  padding:4px 10px;border-radius:20px;color:#475569;white-space:nowrap;
+}
+.hdr-links{display:flex;gap:6px}
+.hdr-link{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;
+  color:#475569;border:1px solid #e2e8f0;background:#f8fafc;
+  text-decoration:none;transition:.15s;cursor:pointer;
+}
+.hdr-link:hover{background:#f1f5f9;border-color:#cbd5e1;color:#1e293b}
+.hdr-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
+  background:rgba(232,119,34,.1);border:1px solid rgba(232,119,34,.25);
+  color:#e87722;white-space:nowrap;
+}
+.hdr-status{display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b}
+.hdr-status .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Content Area ─────────────────────────────────────────── */
+.admin-content{
+  flex:1;overflow-y:auto;padding:20px 24px;
+  background:#f1f5f9;
+}
+
+/* ── Page / Tab system (reuse existing .page class) ────────── */
+/* Existing shared.css handles .page / .page.active */
+
+/* ── Stat Cards Row ───────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+.kpi-card{
+  background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+  padding:16px 18px;display:flex;flex-direction:column;gap:4px;
+}
+.kpi-card .kpi-val{font-size:28px;font-weight:700;color:#0f172a;line-height:1}
+.kpi-card .kpi-lbl{font-size:11px;color:#64748b;font-weight:500}
+.kpi-card .kpi-icon{font-size:22px;margin-bottom:4px}
+.kpi-green .kpi-val{color:#16a34a}
+.kpi-blue  .kpi-val{color:#2563eb}
+.kpi-orange.kpi-val{color:#ea580c}
+
+/* ── Mobile overlay ───────────────────────────────────────── */
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;
+}
+.sidebar-overlay.show{display:block}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media(max-width:768px){
+  .sidebar{position:fixed;top:0;left:0;height:100vh;transform:translateX(-100%);transition:transform .25s ease}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .main-wrap{width:100%}
+  .hdr-hamburger{display:flex}
+  .hdr-clock{display:none}
+  .hdr-links{display:none}
+  .admin-content{padding:12px}
+}
+@media(max-width:500px){
+  .hdr-badge{display:none}
+}
+</style>
 </head>
 <body>
-<div id="scr-admin" class="screen active">
 
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeMobileSidebar()"></div>
 
-  <div class="topnav">
-    <div class="logo-wrap">
-      <img src="https://bdiuae.com/images/common/bdi_logo.png" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="BDI">
-      <div class="logo-fallback">BDI</div>
-      <div class="logo-div"></div>
-      <div class="logo-txt"><strong>Admin Dashboard</strong>Attendance Management</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div id="a-clk" style="color:rgba(255,255,255,.55);font-size:10px;font-family:var(--mono);background:rgba(255,255,255,.07);padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.1)">--:--:--</div>
-      <div style="display:flex;gap:4px">
-        <a href="attendance.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-hard-hat" style="font-size:11px"></i> Supervisor</a>
-        <a href="face_enroll.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-face-id" style="font-size:11px"></i> Enroll</a>
+<div class="admin-layout">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Brand -->
+    <div class="sb-brand">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png" class="sb-logo"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="BDI">
+      <div class="sb-logo-fb">BDI</div>
+      <div class="sb-txt">
+        <strong>BDI Admin</strong>
+        <span>Attendance Portal</span>
       </div>
-      <div style="background:rgba(232,119,34,.15);border:1px solid rgba(232,119,34,.3);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--orange)"><i class="ti ti-shield-lock" style="font-size:10px"></i> Admin</div>
-      <button onclick="logout()" class="btn sm n"><i class="ti ti-logout"></i> Logout</button>
     </div>
-  </div>
-  <div class="subnav">
-    <button class="stab active" onclick="aTab('emp')"><i class="ti ti-users"></i> Employees</button>
-    <button class="stab" onclick="aTab('sups')"><i class="ti ti-hard-hat"></i> Supervisors</button>
-    <button class="stab" onclick="aTab('sites')"><i class="ti ti-building"></i> Sites</button>
-    <button class="stab" onclick="aTab('enroll')"><i class="ti ti-face-id"></i> Enrollment</button>
-    <button class="stab" onclick="aTab('term')"><i class="ti ti-device-laptop"></i> Terminal</button>
-    <button class="stab" onclick="aTab('report')"><i class="ti ti-chart-bar"></i> Report</button>
-    <button class="stab" onclick="aTab('dash')"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
-    <button class="stab" onclick="aTab('appsup');loadAppSupervisors();loadLiveFeed()"><i class="ti ti-device-mobile"></i> App Supervisors</button>
-    <button class="stab" onclick="aTab('manreq');loadManualRequests()"><i class="ti ti-camera"></i> Manual Requests</button>
-    <button class="stab" onclick="aTab('settings')"><i class="ti ti-settings"></i> Settings</button>
-  </div>
-  <div class="shell">
 
-    <!-- EMPLOYEES TAB -->
-    <div id="ap-emp" class="page active">
-      <div class="stats-row" id="a-stats"></div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Employee to Company</div>
-        <div class="form-row">
-          <div class="form-g"><label>Full Name *</label><input type="text" id="en" placeholder="Ahmed Hassan"></div>
-          <div class="form-g"><label>Employee ID *</label><input type="text" id="ei" placeholder="BDI-0042"></div>
+    <!-- Navigation -->
+    <nav class="sb-nav">
+
+      <div class="nav-section-label">Overview</div>
+      <button class="nav-item stab" data-tab="dash" onclick="aTab('dash')">
+        <i class="ti ti-layout-dashboard"></i><span class="nav-lbl">Dashboard</span>
+      </button>
+
+      <div class="nav-section-label">People</div>
+      <button class="nav-item stab active" data-tab="emp" onclick="aTab('emp')">
+        <i class="ti ti-users"></i><span class="nav-lbl">Employees</span>
+      </button>
+      <button class="nav-item stab" data-tab="sups" onclick="aTab('sups')">
+        <i class="ti ti-hard-hat"></i><span class="nav-lbl">Supervisors</span>
+      </button>
+      <button class="nav-item stab" data-tab="appsup" onclick="aTab('appsup');loadAppSupervisors();loadLiveFeed()">
+        <i class="ti ti-device-mobile"></i><span class="nav-lbl">App Supervisors</span>
+      </button>
+
+      <div class="nav-section-label">Locations</div>
+      <button class="nav-item stab" data-tab="sites" onclick="aTab('sites')">
+        <i class="ti ti-building"></i><span class="nav-lbl">Sites</span>
+      </button>
+
+      <div class="nav-section-label">Attendance</div>
+      <button class="nav-item stab" data-tab="report" onclick="aTab('report')">
+        <i class="ti ti-chart-bar"></i><span class="nav-lbl">Reports</span>
+      </button>
+      <button class="nav-item stab" data-tab="manreq" onclick="aTab('manreq');loadManualRequests()">
+        <i class="ti ti-camera"></i><span class="nav-lbl">Manual Requests</span>
+      </button>
+
+      <div class="nav-section-label">Biometrics</div>
+      <button class="nav-item stab" data-tab="enroll" onclick="aTab('enroll')">
+        <i class="ti ti-face-id"></i><span class="nav-lbl">Face Enrollment</span>
+      </button>
+      <button class="nav-item stab" data-tab="term" onclick="aTab('term')">
+        <i class="ti ti-device-laptop"></i><span class="nav-lbl">Terminal</span>
+      </button>
+
+      <div class="nav-section-label">System</div>
+      <button class="nav-item stab" data-tab="settings" onclick="aTab('settings')">
+        <i class="ti ti-settings"></i><span class="nav-lbl">Settings</span>
+      </button>
+
+    </nav>
+
+    <!-- Footer -->
+    <div class="sb-footer">
+      <div class="sb-footer-user">
+        <div class="sb-av">A</div>
+        <div class="sb-user-info">
+          <strong>Administrator</strong>
+          <span><i class="ti ti-shield-lock" style="font-size:9px"></i> Full Access</span>
         </div>
-        <div class="form-row">
-          <div class="form-g"><label>Department</label>
-            <select id="ed"><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option><option>Other</option></select>
+      </div>
+      <button class="sb-logout" onclick="logout()">
+        <i class="ti ti-logout"></i><span>Logout</span>
+      </button>
+      <button class="sb-collapse" id="sb-toggle" onclick="toggleSidebar()" title="Collapse sidebar">
+        <i class="ti ti-layout-sidebar-left-collapse" id="sb-toggle-icon"></i>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ══════════════ MAIN AREA ══════════════ -->
+  <div class="main-wrap">
+
+    <!-- Top Header -->
+    <header class="admin-header">
+      <button class="hdr-hamburger" onclick="openMobileSidebar()"><i class="ti ti-menu-2"></i></button>
+      <div class="hdr-page-title" id="page-title">
+        Employees
+        <span class="hdr-breadcrumb" id="page-breadcrumb">Management</span>
+      </div>
+      <div class="hdr-status">
+        <span class="dot" id="server-dot" style="background:#94a3b8"></span>
+        <span id="server-lbl" style="font-size:10px">Connecting…</span>
+      </div>
+      <div id="a-clk" class="hdr-clock">--:--:--</div>
+      <div class="hdr-links">
+        <a href="attendance.html" class="hdr-link"><i class="ti ti-hard-hat"></i> Supervisor App</a>
+        <a href="face_enroll.html" class="hdr-link"><i class="ti ti-face-id"></i> Enroll</a>
+      </div>
+      <div class="hdr-badge"><i class="ti ti-shield-lock" style="font-size:11px"></i> Admin</div>
+    </header>
+
+    <!-- Content -->
+    <main class="admin-content" id="scr-admin">
+
+      <!-- ── EMPLOYEES TAB ─────────────────────────────── -->
+      <div id="ap-emp" class="page active">
+        <div class="stats-row" id="a-stats"></div>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Employee</div>
+          <div class="form-row">
+            <div class="form-g"><label>Full Name *</label><input type="text" id="en" placeholder="Ahmed Hassan"></div>
+            <div class="form-g"><label>Employee ID *</label><input type="text" id="ei" placeholder="BDI-0042"></div>
           </div>
-          <div class="form-g"><label>Role / Designation</label><input type="text" id="er" placeholder="Pipeline Engineer"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Mobile</label><input type="text" id="eph" placeholder="+971 50 000 0000"></div>
-          <div class="form-g"><label>Assign Sites (hold Ctrl for multiple)</label><select id="esites" multiple><option value="">Loading…</option></select></div>
-        </div>
-        <div class="form-g"><label>Face Registered?</label>
-          <div style="display:flex;gap:8px;margin-top:4px">
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="yes" style="width:auto"> Yes — face sample stored</label>
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="no" checked style="width:auto"> No — manual override allowed</label>
-          </div>
-        </div>
-        <div style="display:flex;gap:7px;margin-top:6px;flex-wrap:wrap">
-          <button class="btn o" onclick="addEmp()"><i class="ti ti-user-plus"></i> Add Employee</button>
-          <button class="btn" onclick="loadDemo()"><i class="ti ti-download"></i> Load Demo Data (10 employees)</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-list"></i> Company Employee Directory</div>
-        <div class="search-row">
-          <input type="text" id="esrch" placeholder="Search name, ID, role…" oninput="renderEmpTbl()">
-          <select id="edept" onchange="renderEmpTbl()"><option value="">All departments</option><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option></select>
-        </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Face</th><th>Today</th><th></th></tr></thead>
-          <tbody id="etbl"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <!-- SUPERVISORS TAB -->
-    <div id="ap-sups" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Supervisor / Site Engineer</div>
-        <div class="form-row">
-          <div class="form-g"><label>Full Name *</label><input type="text" id="sn" placeholder="Omar Al Rashidi"></div>
-          <div class="form-g"><label>Login ID *</label><input type="text" id="sid" placeholder="sup001"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Role</label>
-            <select id="srole"><option>Site Supervisor</option><option>Site Engineer</option><option>HSE Officer</option><option>Foreman</option></select>
-          </div>
-          <div class="form-g"><label>Password *</label><input type="password" id="spw" placeholder="Set login password"></div>
-        </div>
-        <div class="form-g"><label>Assigned Sites (hold Ctrl for multiple)</label>
-          <select id="ssites" multiple><option value="">Loading…</option></select>
-          <p class="hint"><i class="ti ti-info-circle" style="font-size:11px"></i> Supervisor can only mark attendance for employees at their assigned sites</p>
-        </div>
-        <button class="btn o" onclick="addSup()" style="margin-top:5px"><i class="ti ti-user-plus"></i> Add Supervisor</button>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-list"></i> Supervisors & Site Engineers</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Assigned Sites</th><th>Marked Today</th><th></th></tr></thead>
-          <tbody id="suptbl"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <!-- SITES TAB -->
-    <div id="ap-sites" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-circle-plus"></i> Add New Site</div>
-        <div class="form-row">
-          <div class="form-g"><label>Site Name *</label><input type="text" id="sns" placeholder="Al Ain Pipeline Project"></div>
-          <div class="form-g"><label>Site Code *</label><input type="text" id="snc" placeholder="AIN-01"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Location / Address</label><input type="text" id="snl" placeholder="Al Ain, Abu Dhabi"></div>
-          <div class="form-g"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
-          <div class="form-g"><label>Geo-Zone Radius: <span id="srad-v" style="color:var(--orange);font-weight:500">2.0 km</span></label>
-            <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:6px" id="srad" oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
-            <p class="hint">Distance from site coordinates within which supervisor must be present</p>
-          </div>
-        </div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
-          <button class="btn o" onclick="addSite()"><i class="ti ti-circle-plus"></i> Add Site</button>
-          <button class="btn" onclick="useMyLoc()"><i class="ti ti-map-pin"></i> Use My Location as Coords</button>
-        </div>
-        <div id="loc-msg" style="font-size:10px;color:var(--gray);margin-top:5px;display:none"></div>
-      </div>
-      <div id="sites-list"></div>
-    </div>
-
-    <!-- ENROLLMENT TAB (ADMIN/SUP) -->
-    <div id="ap-enroll" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-face-id"></i> Biometric Enrollment</div>
-        <div class="two-col">
-          <div>
-            <div class="form-g"><label>Select Employee to Enroll</label>
-              <select id="enr-emp-sel" onchange="enrEmpChange()"><option value="">— Choose employee —</option></select>
+          <div class="form-row">
+            <div class="form-g"><label>Department</label>
+              <select id="ed"><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option><option>Other</option></select>
             </div>
-            <div id="enr-emp-info" style="margin-top:10px"></div>
+            <div class="form-g"><label>Role / Designation</label><input type="text" id="er" placeholder="Pipeline Engineer"></div>
           </div>
-          <div>
-            <div class="cam-wrap" style="aspect-ratio:1/1;max-width:320px;margin:0 auto">
-              <video id="enr-vid" autoplay playsinline muted style="transform: scaleX(-1);"></video>
-              <canvas id="enr-cnv" style="display:none"></canvas>
-              <div class="cam-overlay">
-                <div class="w-full h-full border-4 border-dashed border-white/20 rounded-full" style="margin:20px"></div>
+          <div class="form-row">
+            <div class="form-g"><label>Mobile</label><input type="text" id="eph" placeholder="+971 50 000 0000"></div>
+            <div class="form-g"><label>Assign Sites <small style="color:#94a3b8">(hold Ctrl for multiple)</small></label>
+              <select id="esites" multiple><option value="">Loading…</option></select>
+            </div>
+          </div>
+          <div class="form-g"><label>Face Registered?</label>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="yes" style="width:auto"> Yes — face sample stored</label>
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="no" checked style="width:auto"> No — manual override allowed</label>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn o" onclick="addEmp()"><i class="ti ti-user-plus"></i> Add Employee</button>
+            <button class="btn" onclick="loadDemo()"><i class="ti ti-download"></i> Load Demo Data</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-list"></i> Employee Directory</div>
+          <div class="search-row">
+            <input type="text" id="esrch" placeholder="Search name, ID, role…" oninput="renderEmpTbl()">
+            <select id="edept" onchange="renderEmpTbl()"><option value="">All departments</option><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option></select>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Face</th><th>Today</th><th></th></tr></thead>
+            <tbody id="etbl"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── SUPERVISORS TAB ───────────────────────────── -->
+      <div id="ap-sups" class="page">
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Supervisor / Site Engineer</div>
+          <div class="form-row">
+            <div class="form-g"><label>Full Name *</label><input type="text" id="sn" placeholder="Omar Al Rashidi"></div>
+            <div class="form-g"><label>Login ID *</label><input type="text" id="sid" placeholder="sup001"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-g"><label>Role</label>
+              <select id="srole"><option>Site Supervisor</option><option>Site Engineer</option><option>HSE Officer</option><option>Foreman</option></select>
+            </div>
+            <div class="form-g"><label>Password *</label><input type="password" id="spw" placeholder="Set login password"></div>
+          </div>
+          <div class="form-g"><label>Assigned Sites <small style="color:#94a3b8">(hold Ctrl for multiple)</small></label>
+            <select id="ssites" multiple><option value="">Loading…</option></select>
+            <p class="hint"><i class="ti ti-info-circle" style="font-size:11px"></i> Supervisor can only mark attendance for employees at their assigned sites</p>
+          </div>
+          <button class="btn o" onclick="addSup()" style="margin-top:6px"><i class="ti ti-user-plus"></i> Add Supervisor</button>
+        </div>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-list"></i> Supervisors & Site Engineers</div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Assigned Sites</th><th>Marked Today</th><th></th></tr></thead>
+            <tbody id="suptbl"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── SITES TAB ─────────────────────────────────── -->
+      <div id="ap-sites" class="page">
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-circle-plus"></i> Add New Site</div>
+          <div class="form-row">
+            <div class="form-g"><label>Site Name *</label><input type="text" id="sns" placeholder="Al Ain Pipeline Project"></div>
+            <div class="form-g"><label>Site Code *</label><input type="text" id="snc" placeholder="AIN-01"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-g"><label>Location / Address</label><input type="text" id="snl" placeholder="Al Ain, Abu Dhabi"></div>
+            <div class="form-g"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-g"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
+            <div class="form-g">
+              <label>Geo-Zone Radius: <span id="srad-v" style="color:var(--orange);font-weight:600">2.0 km</span></label>
+              <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:6px" id="srad" oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
+              <p class="hint">Distance from site coordinates within which supervisor must be present</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn o" onclick="addSite()"><i class="ti ti-circle-plus"></i> Add Site</button>
+            <button class="btn" onclick="useMyLoc()"><i class="ti ti-map-pin"></i> Use My Location</button>
+          </div>
+          <div id="loc-msg" style="font-size:10px;color:var(--gray);margin-top:5px;display:none"></div>
+        </div>
+        <div id="sites-list"></div>
+      </div>
+
+      <!-- ── ENROLLMENT TAB ────────────────────────────── -->
+      <div id="ap-enroll" class="page">
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-face-id"></i> Biometric Face Enrollment</div>
+          <div class="two-col">
+            <div>
+              <div class="form-g"><label>Select Employee to Enroll</label>
+                <select id="enr-emp-sel" onchange="enrEmpChange()"><option value="">— Choose employee —</option></select>
+              </div>
+              <div id="enr-emp-info" style="margin-top:10px"></div>
+            </div>
+            <div>
+              <div class="cam-wrap" style="aspect-ratio:1/1;max-width:320px;margin:0 auto">
+                <video id="enr-vid" autoplay playsinline muted style="transform:scaleX(-1)"></video>
+                <canvas id="enr-cnv" style="display:none"></canvas>
+                <div class="cam-overlay">
+                  <div class="w-full h-full border-4 border-dashed border-white/20 rounded-full" style="margin:20px"></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:10px">
+                <button class="btn n" onclick="startEnrCam()" style="flex:1"><i class="ti ti-camera"></i> Start Camera</button>
+                <button class="btn o" id="enr-cap-btn" onclick="captureEnroll()" disabled style="flex:1"><i class="ti ti-scan"></i> Capture Face</button>
+              </div>
+              <div id="enr-status" style="margin-top:8px;font-size:11px;text-align:center;color:var(--gray)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TERMINAL TAB ───────────────────────────────── -->
+      <div id="ap-term" class="page">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;font-size:11px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="ti ti-brain" style="font-size:14px;color:#16a34a"></i>
+            <span class="ai-status-lbl" style="font-weight:600;color:#15803d">⏳ Loading AI…</span>
+          </div>
+          <button onclick="retryModels()" class="btn sm n" style="font-size:10px;padding:3px 9px"><i class="ti ti-refresh" style="font-size:11px"></i> Retry AI</button>
+        </div>
+        <div class="card" style="background:#0a1628;color:#fff;border:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+            <div class="card-lbl" style="color:#e87722;margin:0"><i class="ti ti-device-laptop"></i> Kiosk Terminal Mode</div>
+            <div style="font-size:11px;font-family:var(--mono);color:#94a3b8" id="term-clock">--:--:--</div>
+          </div>
+          <div class="two-col">
+            <div style="position:relative">
+              <div class="cam-wrap" style="aspect-ratio:4/3;max-width:480px;border-color:#1e293b">
+                <video id="term-vid" autoplay playsinline muted style="transform:scaleX(-1)"></video>
+                <canvas id="term-cnv" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
+                <div class="cam-overlay">
+                  <div id="term-status-box" style="position:absolute;top:20px;left:20px;right:20px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px;border-left:3px solid #e87722">
+                    <div class="dot-pulse"></div>
+                    <span id="term-status">Initializing AI Vision...</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div style="display:flex;gap:6px;margin-top:10px">
-              <button class="btn n" onclick="startEnrCam()" style="flex:1"><i class="ti ti-camera"></i> Start Cam</button>
-              <button class="btn o" id="enr-cap-btn" onclick="captureEnroll()" disabled style="flex:1"><i class="ti ti-scan"></i> Capture Face</button>
-            </div>
-            <div id="enr-status" style="margin-top:8px;font-size:11px;text-align:center;color:var(--gray)"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TERMINAL TAB (ADMIN/SUP) -->
-    <div id="ap-term" class="page">
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:7px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;font-size:11px">
-        <div style="display:flex;align-items:center;gap:7px">
-          <i class="ti ti-brain" style="font-size:14px;color:#16a34a"></i>
-          <span class="ai-status-lbl" style="font-weight:500;color:#15803d">⏳ Loading AI…</span>
-        </div>
-        <button onclick="retryModels()" class="btn sm n" style="font-size:10px;padding:3px 9px"><i class="ti ti-refresh" style="font-size:11px"></i> Retry AI</button>
-      </div>
-      <div class="card" style="background:#0a1628;color:#fff;border:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-          <div class="card-lbl" style="color:#e87722;margin:0"><i class="ti ti-device-laptop"></i> Kiosk Terminal Mode</div>
-          <div style="font-size:11px;font-family:var(--mono);color:#94a3b8" id="term-clock">--:--:--</div>
-        </div>
-        
-        <div class="two-col">
-          <div style="position:relative">
-            <div class="cam-wrap" style="aspect-ratio:4/3;max-width:480px;border-color:#1e293b">
-              <video id="term-vid" autoplay playsinline muted style="transform: scaleX(-1)"></video>
-              <canvas id="term-cnv" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
-              <div class="cam-overlay">
-                <div id="term-status-box" style="position:absolute;top:20px;left:20px;right:20px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px;border-left:3px solid #e87722">
-                  <div class="dot-pulse"></div>
-                  <span id="term-status">Initializing AI Vision...</span>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="card" style="background:#1e293b;border:1px solid #334155;margin:0">
+                <div class="card-lbl" style="color:#fff;font-size:12px">Active Site Connection</div>
+                <select id="term-site-sel" style="background:#0f172a;color:#fff;border-color:#334155"><option value="">— Select Site for this Terminal —</option></select>
+              </div>
+              <div id="term-match-card" class="card" style="background:#1e293b;border:1px solid #334155;margin:0;display:none;animation:slideIn 0.3s ease">
+                <div class="card-lbl" style="color:#22c55e;font-size:12px"><i class="ti ti-circle-check"></i> Identity Verified</div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div id="term-match-av" class="av lg" style="background:#e87722;color:#fff;width:50px;height:50px;font-size:18px"></div>
+                  <div>
+                    <div id="term-match-name" style="font-size:16px;font-weight:600;color:#fff">Name</div>
+                    <div id="term-match-id" style="font-size:12px;color:#94a3b8">ID</div>
+                  </div>
+                </div>
+                <div style="margin-top:10px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:11px;color:#4ade80;text-align:center">Attendance logged successfully</div>
+              </div>
+              <button class="btn full" onclick="startTerminal()" id="term-start-btn" style="background:#e87722;color:#fff;padding:15px;font-weight:700"><i class="ti ti-player-play"></i> Launch Terminal Recognition</button>
+              <button class="btn full r" onclick="stopTerminal()" id="term-stop-btn" style="display:none;padding:15px;font-weight:700"><i class="ti ti-player-stop"></i> Stop Terminal</button>
+              <div class="card" style="background:#0f172a;border:1px solid #1e293b;margin:0;flex:1">
+                <div class="card-lbl" style="color:#64748b;font-size:10px">Live Log</div>
+                <div id="term-log" style="font-size:10px;font-family:var(--mono);color:#94a3b8;height:120px;overflow-y:auto;display:flex;flex-direction:column-reverse">
+                  <div>Terminal Ready.</div>
                 </div>
               </div>
             </div>
           </div>
-          
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="card" style="background:#1e293b;border:1px solid #334155;margin:0">
-              <div class="card-lbl" style="color:#fff;font-size:12px">Active Site Connection</div>
-              <select id="term-site-sel" style="background:#0f172a;color:#fff;border-color:#334155"><option value="">— Select Site for this Terminal —</option></select>
+        </div>
+      </div>
+
+      <!-- ── REPORT TAB ─────────────────────────────────── -->
+      <div id="ap-report" class="page">
+        <div class="stats-row" id="rep-stats"></div>
+
+        <!-- Full Attendance Log -->
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-list"></i> Full Attendance Log</div>
+          <div id="py-sync-bar" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <i class="ti ti-brand-python" style="color:#3b82f6;font-size:16px"></i>
+            <span style="font-size:12px;color:#1e40af;flex:1">Python camera records are included in this report automatically.</span>
+            <button class="btn sm" onclick="_mergePyRecords().then(()=>{renderReport();renderAStats();})" style="background:#3b82f6;color:#fff;border:none;font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer">
+              <i class="ti ti-refresh"></i> Sync Now
+            </button>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-g"><label>From Date</label><input type="date" id="r-date-from" onchange="renderReport()"></div>
+            <div class="form-g"><label>To Date</label><input type="date" id="r-date-to" onchange="renderReport()"></div>
+          </div>
+          <div class="search-row">
+            <input type="text" id="rsrch" placeholder="Search name or ID…" oninput="renderReport()">
+            <select id="rsiteF" onchange="renderReport()"><option value="">All sites</option></select>
+            <select id="rstatF" onchange="renderReport()"><option value="">All status</option><option value="in">Present</option><option value="out">Checked out</option><option value="absent">Absent</option></select>
+            <button class="btn n" onclick="downloadReport()"><i class="ti ti-download"></i> Export CSV</button>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site</th><th>Punched By</th><th>Method</th><th>Check-in</th><th>Check-out</th><th>Arrival</th><th>Status</th></tr></thead>
+            <tbody id="rtbl"></tbody>
+          </table></div>
+        </div>
+
+        <!-- Supervisor Punch Report -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-lbl"><i class="ti ti-user-check"></i> Supervisor Punch Report
+            <button class="btn sm" onclick="loadSupervisorReport()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
+          </div>
+          <p style="font-size:12px;color:#64748b;margin-bottom:14px">Attendance punches grouped by the supervisor who recorded them.</p>
+          <div style="display:flex;gap:10px;margin-bottom:14px;align-items:flex-end;flex-wrap:wrap">
+            <div class="form-g" style="margin:0;min-width:140px">
+              <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px">From Date</label>
+              <input type="date" id="sup-rep-from" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;width:100%">
             </div>
-            
-            <div id="term-match-card" class="card" style="background:#1e293b;border:1px solid #334155;margin:0;display:none;animation:slideIn 0.3s ease">
-              <div class="card-lbl" style="color:#22c55e;font-size:12px"><i class="ti ti-circle-check"></i> Identity Verified</div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <div id="term-match-av" class="av lg" style="background:#e87722;color:#fff;width:50px;height:50px;font-size:18px"></div>
-                <div>
-                  <div id="term-match-name" style="font-size:16px;font-weight:600;color:#fff">Name</div>
-                  <div id="term-match-id" style="font-size:12px;color:#94a3b8">ID</div>
-                </div>
-              </div>
-              <div style="margin-top:10px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:11px;color:#4ade80;text-align:center">
-                Attendance logged successfully
-              </div>
+            <div class="form-g" style="margin:0;min-width:140px">
+              <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px">To Date</label>
+              <input type="date" id="sup-rep-to" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;width:100%">
             </div>
-            
-            <button class="btn full" onclick="startTerminal()" id="term-start-btn" style="background:#e87722;color:#fff;padding:15px;font-weight:bold"><i class="ti ti-player-play"></i> Launch Terminal Recognition</button>
-            <button class="btn full r" onclick="stopTerminal()" id="term-stop-btn" style="display:none;padding:15px;font-weight:bold"><i class="ti ti-player-stop"></i> Stop Terminal</button>
-            
-            <div class="card" style="background:#0f172a;border:1px solid #1e293b;margin:0;flex:1">
-              <div class="card-lbl" style="color:#64748b;font-size:10px">Live Log</div>
-              <div id="term-log" style="font-size:10px;font-family:var(--mono);color:#94a3b8;height:120px;overflow-y:auto;display:flex;flex-direction:column-reverse">
-                <div>Terminal Ready.</div>
-              </div>
+            <div class="form-g" style="margin:0;min-width:160px">
+              <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Supervisor</label>
+              <select id="sup-rep-sup" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;width:100%">
+                <option value="">All Supervisors</option>
+              </select>
+            </div>
+            <button class="btn n" onclick="loadSupervisorReport()" style="height:34px"><i class="ti ti-search"></i> Search</button>
+            <button class="btn" onclick="exportSupervisorCSV()" style="height:34px;background:#16a34a;border-color:#16a34a;color:#fff"><i class="ti ti-download"></i> Export CSV</button>
+          </div>
+          <div id="sup-rep-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+          <div id="sup-rep-table" style="max-height:420px;overflow-y:auto">
+            <p style="color:#94a3b8;text-align:center;padding:20px">Select a date range and click Search.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DASHBOARD TAB ──────────────────────────────── -->
+      <div id="ap-dash" class="page"></div>
+
+      <!-- ── APP SUPERVISORS TAB ───────────────────────── -->
+      <div id="ap-appsup" class="page">
+
+        <!-- Live Feed -->
+        <div class="card">
+          <div class="card-lbl">
+            <i class="ti ti-activity"></i> Live Attendance Feed
+            <span id="live-status" style="float:right;font-size:10px;font-weight:400;color:#22c55e;margin-top:4px">
+              <i class="ti ti-circle-filled" style="font-size:8px"></i> Auto-refreshing every 30s
+            </span>
+          </div>
+          <p style="font-size:12px;color:#64748b;margin-bottom:12px">Real-time punch records from the supervisor app.</p>
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+            <input type="date" id="live-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px">
+            <select id="live-site" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px">
+              <option value="">All Sites</option>
+            </select>
+            <button class="btn sm" onclick="loadLiveFeed()"><i class="ti ti-refresh"></i> Refresh Now</button>
+          </div>
+          <div id="live-stats" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
+          <div id="live-feed" style="max-height:400px;overflow-y:auto">
+            <p style="color:#94a3b8;text-align:center;padding:20px">Loading live feed...</p>
+          </div>
+        </div>
+
+        <!-- App Supervisors List -->
+        <div class="card">
+          <div class="card-lbl">
+            <i class="ti ti-device-mobile"></i> Registered App Supervisors
+            <button class="btn sm" onclick="loadAppSupervisors()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
+          </div>
+          <p style="font-size:12px;color:#64748b;margin-bottom:14px">Supervisors who installed the BDI Attendance app. Approve and manage their permissions.</p>
+          <div id="app-sup-list"><p style="color:#94a3b8;text-align:center;padding:20px">Click Refresh to load supervisors...</p></div>
+        </div>
+
+        <!-- Man Hours -->
+        <div class="card">
+          <div class="card-lbl">
+            <i class="ti ti-clock"></i> Man Hours Report
+            <button class="btn sm" onclick="loadManHours()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
+            <input type="date" id="mh-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px">
+            <button class="btn sm" onclick="loadManHours()"><i class="ti ti-search"></i> Search</button>
+          </div>
+          <div id="manhours-list"><p style="color:#94a3b8;text-align:center;padding:20px">Select a date and click Load.</p></div>
+        </div>
+      </div>
+
+      <!-- ── MANUAL REQUESTS TAB ───────────────────────── -->
+      <div id="ap-manreq" class="page">
+        <div class="card">
+          <div class="card-lbl">
+            <i class="ti ti-camera"></i> Manual Attendance Requests
+            <button class="btn sm" onclick="loadManualRequests()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
+          </div>
+          <p style="font-size:12px;color:#64748b;margin-bottom:14px">When face scan fails, supervisors submit a photo for review. Approve or reject each request below.</p>
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:12px;font-weight:600;color:#475569">Filter:</label>
+            <button class="btn sm" onclick="loadManualRequests('pending')" id="mr-btn-pending" style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
+            <button class="btn sm n" onclick="loadManualRequests('approved')" id="mr-btn-approved">✅ Approved</button>
+            <button class="btn sm n" onclick="loadManualRequests('rejected')" id="mr-btn-rejected">❌ Rejected</button>
+            <button class="btn sm n" onclick="loadManualRequests('')" id="mr-btn-all">All</button>
+          </div>
+          <div id="manreq-list"><p style="color:#94a3b8;text-align:center;padding:20px">Loading requests...</p></div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS TAB ───────────────────────────────── -->
+      <div id="ap-settings" class="page">
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-building"></i> Company Information</div>
+          <div class="form-row">
+            <div class="form-g"><label>Company Full Name</label><input type="text" id="set-company" placeholder="Bright Deal International"></div>
+            <div class="form-g"><label>Short Name / Code</label><input type="text" id="set-short" placeholder="BDI"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-face-id"></i> Face Recognition Settings</div>
+          <div class="form-row">
+            <div class="form-g">
+              <label>Verification Threshold (1:1): <span id="set-threshold-v" style="color:var(--orange);font-weight:600">0.55</span></label>
+              <input type="range" min="0.3" max="0.8" step="0.01" id="set-threshold" oninput="document.getElementById('set-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
+              <p class="hint">Used for supervisor face-verify. Lower = stricter. 0.55 recommended.</p>
+            </div>
+            <div class="form-g">
+              <label>Scanner / Terminal Threshold: <span id="set-scan-threshold-v" style="color:var(--orange);font-weight:600">0.62</span></label>
+              <input type="range" min="0.3" max="0.85" step="0.01" id="set-scan-threshold" oninput="document.getElementById('set-scan-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
+              <p class="hint">Used for auto-identification in scanner &amp; terminal. 0.62 recommended.</p>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- REPORT TAB -->
-    <div id="ap-report" class="page">
-      <div class="stats-row" id="rep-stats"></div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-list"></i> Full Attendance Log</div>
-
-        <!-- Python sync banner -->
-        <div id="py-sync-bar" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <i class="ti ti-brand-python" style="color:#3b82f6;font-size:16px"></i>
-          <span style="font-size:12px;color:#1e40af;flex:1">Python camera records are included in this report automatically when the server is running.</span>
-          <button class="btn sm" onclick="_mergePyRecords().then(()=>{renderReport();renderAStats();})" style="background:#3b82f6;color:#fff;border:none;font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer">
-            <i class="ti ti-refresh"></i> Sync Now
-          </button>
-        </div>
-
-        <div class="form-row" style="margin-bottom:8px">
-          <div class="form-g"><label>From Date</label><input type="date" id="r-date-from" onchange="renderReport()"></div>
-          <div class="form-g"><label>To Date</label><input type="date" id="r-date-to" onchange="renderReport()"></div>
-        </div>
-        <div class="search-row">
-          <input type="text" id="rsrch" placeholder="Search name or ID…" oninput="renderReport()">
-          <select id="rsiteF" onchange="renderReport()"><option value="">All sites</option></select>
-          <select id="rstatF" onchange="renderReport()"><option value="">All status</option><option value="in">Present</option><option value="out">Checked out</option><option value="absent">Absent</option></select>
-          <button class="btn n" onclick="downloadReport()"><i class="ti ti-download"></i> Export CSV</button>
-        </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site</th><th>Punched By</th><th>Method</th><th>Check-in</th><th>Check-out</th><th>Arrival</th><th>Status</th></tr></thead>
-          <tbody id="rtbl"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-      <!-- Supervisor Punch Report -->
-      <div class="card" style="margin-top:16px">
-        <div class="card-lbl"><i class="ti ti-user-check"></i> Supervisor Punch Report
-          <button class="btn sm" onclick="loadSupervisorReport()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:12px">Summary of attendance punches marked by each supervisor.</p>
-        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
-          <div class="form-g" style="margin:0"><label style="font-size:11px">From Date</label>
-            <input type="date" id="sup-rep-from" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
+          <div class="form-row">
+            <div class="form-g">
+              <label>Confirm Frames (consecutive)</label>
+              <input type="number" id="set-confirm-frames" min="1" max="10" placeholder="3">
+              <p class="hint">How many consecutive matching frames before auto-punch. 3 recommended.</p>
+            </div>
+            <div class="form-g">
+              <label>Min Face Size: <span id="set-min-face-v" style="color:var(--orange);font-weight:600">4%</span></label>
+              <input type="range" min="1" max="20" step="1" id="set-min-face" oninput="document.getElementById('set-min-face-v').textContent=this.value+'%'" style="accent-color:var(--orange);width:100%;margin-top:6px">
+              <p class="hint">Face must cover this % of frame. Prevents far-away false matches.</p>
+            </div>
           </div>
-          <div class="form-g" style="margin:0"><label style="font-size:11px">To Date</label>
-            <input type="date" id="sup-rep-to" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
-          </div>
-          <select id="sup-rep-sup" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;margin-top:16px">
-            <option value="">All Supervisors</option>
-          </select>
-          <button class="btn sm n" onclick="loadSupervisorReport()" style="margin-top:16px"><i class="ti ti-search"></i> Search</button>
-          <button class="btn sm" onclick="exportSupervisorCSV()" style="margin-top:16px;background:#16a34a;border-color:#16a34a;color:#fff"><i class="ti ti-download"></i> Export CSV</button>
-        </div>
-        <!-- Summary cards per supervisor -->
-        <div id="sup-rep-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
-        <!-- Detailed table -->
-        <div id="sup-rep-table" style="max-height:420px;overflow-y:auto">
-          <p style="color:#94a3b8;text-align:center;padding:20px">Select date range and click Search.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- DASHBOARD TAB -->
-    <div id="ap-dash" class="page"></div>
-
-    <!-- APP SUPERVISORS TAB -->
-    <div id="ap-appsup" class="page">
-
-      <!-- Live Attendance Feed -->
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-activity"></i> Live Attendance Feed
-          <span id="live-status" style="float:right;font-size:10px;font-weight:400;color:#22c55e;margin-top:4px">
-            <i class="ti ti-circle-filled" style="font-size:8px"></i> Auto-refreshing every 30s
-          </span>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:10px">
-          Real-time punch records from the supervisor app for today.
-        </p>
-        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
-          <input type="date" id="live-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
-          <select id="live-site" style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;font-size:12px">
-            <option value="">All Sites</option>
-          </select>
-          <button class="btn sm" onclick="loadLiveFeed()"><i class="ti ti-refresh"></i> Refresh Now</button>
-        </div>
-        <!-- Stats row -->
-        <div id="live-stats" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
-        <!-- Feed table -->
-        <div id="live-feed" style="max-height:400px;overflow-y:auto">
-          <p style="color:#94a3b8;text-align:center;padding:20px">Loading live feed...</p>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-device-mobile"></i> App Supervisors
-          <button class="btn sm" onclick="loadAppSupervisors()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:14px">Supervisors who installed the BDI Attendance app. Approve them and control their permissions.</p>
-        <div id="app-sup-list"><p style="color:#94a3b8;text-align:center;padding:20px">Click Refresh to load supervisors...</p></div>
-      </div>
-
-      <!-- Man Hours Report -->
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-clock"></i> Man Hours Report
-          <button class="btn sm" onclick="loadManHours()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
-        </div>
-        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-          <input type="date" id="mh-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px"
-            value="">
-          <button class="btn sm" onclick="loadManHours()"><i class="ti ti-search"></i> Search</button>
-        </div>
-        <div id="manhours-list"><p style="color:#94a3b8;text-align:center;padding:20px">Select a date and click Load.</p></div>
-      </div>
-    </div>
-
-    <!-- MANUAL REQUESTS TAB -->
-    <div id="ap-manreq" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-camera"></i> Manual Attendance Requests
-          <button class="btn sm" onclick="loadManualRequests()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:14px">
-          When face scan fails, supervisors submit a photo of the employee. Review and approve or reject each request.
-        </p>
-        <!-- Filter bar -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-          <label style="font-size:12px;font-weight:600;color:#475569">Filter:</label>
-          <button class="btn sm" onclick="loadManualRequests('pending')" id="mr-btn-pending"
-            style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
-          <button class="btn sm n" onclick="loadManualRequests('approved')" id="mr-btn-approved">✅ Approved</button>
-          <button class="btn sm n" onclick="loadManualRequests('rejected')" id="mr-btn-rejected">❌ Rejected</button>
-          <button class="btn sm n" onclick="loadManualRequests('')" id="mr-btn-all">All</button>
-        </div>
-        <div id="manreq-list"><p style="color:#94a3b8;text-align:center;padding:20px">Loading requests...</p></div>
-      </div>
-    </div>
-
-    <!-- SETTINGS TAB -->
-    <div id="ap-settings" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-building"></i> Company Information</div>
-        <div class="form-row">
-          <div class="form-g"><label>Company Full Name</label><input type="text" id="set-company" placeholder="Bright Deal International"></div>
-          <div class="form-g"><label>Short Name / Code</label><input type="text" id="set-short" placeholder="BDI"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-face-id"></i> Face Recognition Settings</div>
-        <div class="form-row">
-          <div class="form-g">
-            <label>Verification Threshold (1:1): <span id="set-threshold-v" style="color:var(--orange);font-weight:500">0.55</span></label>
-            <input type="range" min="0.3" max="0.8" step="0.01" id="set-threshold" oninput="document.getElementById('set-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
-            <p class="hint">Used for supervisor face-verify. Lower = stricter. 0.55 recommended.</p>
-          </div>
-          <div class="form-g">
-            <label>Scanner / Terminal Threshold: <span id="set-scan-threshold-v" style="color:var(--orange);font-weight:500">0.62</span></label>
-            <input type="range" min="0.3" max="0.85" step="0.01" id="set-scan-threshold" oninput="document.getElementById('set-scan-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
-            <p class="hint">Used for auto-identification in scanner &amp; terminal. 0.62 recommended.</p>
+          <div class="form-row">
+            <div class="form-g">
+              <label>Scanner Cooldown (frames)</label>
+              <input type="number" id="set-cooldown" min="10" max="300" placeholder="60">
+              <p class="hint">Frames between auto-punches. Higher = longer gap between marks.</p>
+            </div>
+            <div class="form-g"></div>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-g">
-            <label>Confirm Frames (consecutive)</label>
-            <input type="number" id="set-confirm-frames" min="1" max="10" placeholder="3">
-            <p class="hint">How many consecutive matching frames before auto-punch. 3 recommended.</p>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-clock"></i> Shift &amp; Time Rules</div>
+          <div class="form-row">
+            <div class="form-g"><label>Shift Start Time</label><input type="time" id="set-shift-start"></div>
+            <div class="form-g"><label>Shift End Time</label><input type="time" id="set-shift-end"></div>
           </div>
-          <div class="form-g">
-            <label>Min Face Size: <span id="set-min-face-v" style="color:var(--orange);font-weight:500">4%</span></label>
-            <input type="range" min="1" max="20" step="1" id="set-min-face" oninput="document.getElementById('set-min-face-v').textContent=this.value+'%'" style="accent-color:var(--orange);width:100%;margin-top:6px">
-            <p class="hint">Face must cover this % of frame. Prevents far-away false matches.</p>
+          <div class="form-row">
+            <div class="form-g"><label>Late Grace Period (minutes)</label><input type="number" id="set-grace" min="0" max="60" placeholder="15"></div>
+            <div class="form-g"><label>Auto-logout After Inactivity (min, 0=off)</label><input type="number" id="set-timeout" min="0" max="480" placeholder="30"></div>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-g">
-            <label>Scanner Cooldown (frames)</label>
-            <input type="number" id="set-cooldown" min="10" max="300" placeholder="60">
-            <p class="hint">Frames between auto-punches. Higher = longer gap between marks.</p>
+        <div class="card">
+          <div class="card-lbl"><i class="ti ti-database"></i> Data Backup &amp; Restore</div>
+          <p class="hint" style="margin-bottom:12px">Export a full JSON backup of all data including employees, sites, records and settings.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn o" onclick="exportJSON()"><i class="ti ti-download"></i> Export Full Backup (JSON)</button>
+            <button class="btn" onclick="downloadReport()"><i class="ti ti-file-spreadsheet"></i> Export CSV Report</button>
+            <label class="btn n" style="cursor:pointer"><i class="ti ti-upload"></i> Import Backup (JSON) <input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
           </div>
-          <div class="form-g"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn o" onclick="saveSettingsForm()"><i class="ti ti-device-floppy"></i> Save Settings</button>
+          <button class="btn" onclick="initSettings()"><i class="ti ti-refresh"></i> Reset Form</button>
         </div>
       </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-clock"></i> Shift &amp; Time Rules</div>
-        <div class="form-row">
-          <div class="form-g"><label>Shift Start Time</label><input type="time" id="set-shift-start"></div>
-          <div class="form-g"><label>Shift End Time</label><input type="time" id="set-shift-end"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Late Grace Period (minutes)</label><input type="number" id="set-grace" min="0" max="60" placeholder="15"></div>
-          <div class="form-g"><label>Auto-logout After Inactivity (minutes, 0=off)</label><input type="number" id="set-timeout" min="0" max="480" placeholder="30"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-database"></i> Data Backup &amp; Restore</div>
-        <p class="hint" style="margin-bottom:12px">Export a full JSON backup of all data including employees, sites, records and settings. Restore from a previous backup.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn o" onclick="exportJSON()"><i class="ti ti-download"></i> Export Full Backup (JSON)</button>
-          <button class="btn" onclick="downloadReport()"><i class="ti ti-file-spreadsheet"></i> Export CSV Report</button>
-          <label class="btn n" style="cursor:pointer"><i class="ti ti-upload"></i> Import Backup (JSON) <input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn o" onclick="saveSettingsForm()"><i class="ti ti-device-floppy"></i> Save Settings</button>
-        <button class="btn" onclick="initSettings()"><i class="ti ti-refresh"></i> Reset Form</button>
-      </div>
-    </div>
 
-  </div>
-  <div class="bdi-footer"><span>© 2026 Bright Deal International Gen. Cont. · Abu Dhabi, UAE</span><span>Attendance System v2.0 — Admin</span></div>
-</div>
+    </main><!-- /.admin-content -->
+  </div><!-- /.main-wrap -->
+</div><!-- /.admin-layout -->
 
+<!-- Footer (hidden, kept for shared.js compatibility) -->
+<div class="bdi-footer" style="display:none"><span>© 2026 BDI</span></div>
 
-
+<!-- Site Edit Modal -->
 <div class="modal-backdrop" id="site-modal" onclick="closeSiteModal(event)">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-head">
@@ -463,632 +724,597 @@
     <div class="modal-body">
       <div class="modal-section">
         <div class="modal-section-title"><i class="ti ti-info-circle"></i> Site Details</div>
-        <div class="form-row"><div class="form-g"><label>Site Name *</label><input type="text" id="m-name" placeholder="Site name"></div><div class="form-g"><label>Site Code *</label><input type="text" id="m-codeinput" placeholder="ABD-01" style="font-family:var(--mono);text-transform:uppercase"></div></div>
+        <div class="form-row">
+          <div class="form-g"><label>Site Name *</label><input type="text" id="m-name" placeholder="Site name"></div>
+          <div class="form-g"><label>Site Code *</label><input type="text" id="m-codeinput" placeholder="ABD-01" style="font-family:var(--mono);text-transform:uppercase"></div>
+        </div>
         <div class="form-g"><label>Location / Address</label><input type="text" id="m-loc" placeholder="e.g. Corniche Road, Abu Dhabi"></div>
-        <div class="form-row"><div class="form-g"><label>Latitude *</label><input type="number" id="m-lat" placeholder="24.4539" step="0.0001"></div><div class="form-g"><label>Longitude *</label><input type="number" id="m-lng" placeholder="54.3773" step="0.0001"></div></div>
-        <div class="form-g"><label>Geo-Zone Radius: <span id="m-rad-v" style="color:var(--orange);font-weight:500">2.0 km</span></label><input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:5px" id="m-rad" oninput="document.getElementById('m-rad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"><p class="hint">Supervisor must be within this radius to mark attendance</p></div>
-        <div style="display:flex;gap:7px;margin-top:4px"><button class="btn sm" onclick="mUseMyLoc()"><i class="ti ti-map-pin"></i> Use My GPS</button><span id="m-loc-msg" style="font-size:10px;color:var(--gray);align-self:center"></span></div>
+        <div class="form-row">
+          <div class="form-g"><label>Latitude *</label><input type="number" id="m-lat" placeholder="24.4539" step="0.0001"></div>
+          <div class="form-g"><label>Longitude *</label><input type="number" id="m-lng" placeholder="54.3773" step="0.0001"></div>
+        </div>
+        <div class="form-g">
+          <label>Geo-Zone Radius: <span id="m-rad-v" style="color:var(--orange);font-weight:600">2.0 km</span></label>
+          <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:5px" id="m-rad" oninput="document.getElementById('m-rad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
+          <p class="hint">Supervisor must be within this radius to mark attendance</p>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:4px">
+          <button class="btn sm" onclick="mUseMyLoc()"><i class="ti ti-map-pin"></i> Use My GPS</button>
+          <span id="m-loc-msg" style="font-size:10px;color:var(--gray);align-self:center"></span>
+        </div>
       </div>
       <div class="modal-section">
         <div class="modal-section-title"><i class="ti ti-hard-hat"></i> Assigned Supervisors / Site Engineers</div>
-        <p class="hint" style="margin-bottom:8px">Toggle supervisors who are authorised to mark attendance for this site.</p>
+        <p class="hint" style="margin-bottom:8px">Toggle supervisors authorised to mark attendance for this site.</p>
         <div class="sup-assign-list" id="m-sup-list"></div>
       </div>
       <div class="modal-section">
         <div class="modal-section-title"><i class="ti ti-users"></i> Employees at This Site</div>
-        <p class="hint" style="margin-bottom:8px">Only assigned employees appear in the supervisor roster for attendance marking.</p>
-        <div style="display:flex;gap:7px;margin-bottom:7px"><input type="text" id="m-emp-srch" placeholder="Filter employees…" oninput="renderMEmpList()" style="flex:1"><button class="btn sm o" onclick="mAssignAll()"><i class="ti ti-users-plus"></i> All</button><button class="btn sm r" onclick="mRemoveAll()"><i class="ti ti-users-minus"></i> Remove All</button></div>
+        <p class="hint" style="margin-bottom:8px">Only assigned employees appear in the supervisor roster.</p>
+        <div style="display:flex;gap:7px;margin-bottom:7px">
+          <input type="text" id="m-emp-srch" placeholder="Filter employees…" oninput="renderMEmpList()" style="flex:1">
+          <button class="btn sm o" onclick="mAssignAll()"><i class="ti ti-users-plus"></i> All</button>
+          <button class="btn sm r" onclick="mRemoveAll()"><i class="ti ti-users-minus"></i> Remove All</button>
+        </div>
         <div class="emp-assign-list" id="m-emp-list"></div>
         <div style="margin-top:8px;font-size:11px;color:var(--gray)">Total: <span id="m-emp-count">0</span> &nbsp;·&nbsp; Assigned: <span id="m-emp-assigned-count" style="color:var(--ok);font-weight:500">0</span></div>
       </div>
     </div>
     <div class="modal-foot">
       <button onclick="closeSiteModal()" class="btn"><i class="ti ti-x"></i> Cancel</button>
-      <div style="display:flex;gap:7px"><button onclick="mDeleteSite()" class="btn r"><i class="ti ti-trash"></i> Delete Site</button><button onclick="saveSiteModal()" class="btn o"><i class="ti ti-device-floppy"></i> Save Changes</button></div>
+      <div style="display:flex;gap:7px">
+        <button onclick="mDeleteSite()" class="btn r"><i class="ti ti-trash"></i> Delete Site</button>
+        <button onclick="saveSiteModal()" class="btn o"><i class="ti ti-device-floppy"></i> Save Changes</button>
+      </div>
     </div>
   </div>
 </div>
 
-
 <div class="toast" id="toast"></div>
 <script src="shared.js"></script>
 <script>
-  window.onload = async () => {
-    curUser = {name:'Admin'}; curRole = 'admin';
-    initAdmin();
-    // Set today's date for man hours, live feed and supervisor report
-    const today = new Date().toISOString().substring(0,10);
-    document.getElementById('mh-date').value = today;
-    document.getElementById('live-date').value = today;
-    document.getElementById('sup-rep-from').value = today;
-    document.getElementById('sup-rep-to').value   = today;
-    // Populate site filter
-    populateLiveSiteFilter();
-    // Auto-restore supervisors from localStorage cache if Railway was restarted
-    await restoreSupervisorsIfEmpty();
-    // Auto-restore face encodings from localStorage cache if Railway was restarted
-    await restoreFaceEncodingsIfEmpty();
-    // Start live feed auto-refresh
-    loadLiveFeed();
-    setInterval(loadLiveFeed, 30000); // refresh every 30 seconds
-    // Backup face encodings every 5 minutes
-    setInterval(backupFaceEncodings, 5 * 60 * 1000);
-  };
+// ── Page title map ────────────────────────────────────────────
+const PAGE_META = {
+  emp:      {title:'Employees',          sub:'Management'},
+  sups:     {title:'Supervisors',        sub:'Web Portal Supervisors'},
+  sites:    {title:'Sites',              sub:'Geo-fenced Locations'},
+  enroll:   {title:'Face Enrollment',    sub:'Biometric Registration'},
+  term:     {title:'Terminal',           sub:'Kiosk Mode'},
+  report:   {title:'Reports',            sub:'Attendance & Supervisor'},
+  dash:     {title:'Dashboard',          sub:'Overview'},
+  appsup:   {title:'App Supervisors',    sub:'Mobile App · Live Feed · Man Hours'},
+  manreq:   {title:'Manual Requests',    sub:'Review & Approve'},
+  settings: {title:'Settings',           sub:'System Configuration'},
+};
 
-  // ── Live Attendance Feed ────────────────────────────────────────────────────
-  async function populateLiveSiteFilter() {
-    try {
-      const r    = await fetch(`${PY_SERVER}/data`);
-      const data = await r.json();
-      const sel  = document.getElementById('live-site');
-      (data.sites || []).forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id || s.code || s.name;
-        opt.textContent = s.name;
-        sel.appendChild(opt);
-      });
-    } catch(_) {}
-  }
+// ── Override aTab to also update sidebar + header ─────────────
+const _origATab = window.aTab;
+window.aTab = function(t) {
+  _origATab(t);
+  // Update sidebar nav active state
+  document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === t);
+  });
+  // Update header page title
+  const meta = PAGE_META[t] || {title: t, sub: ''};
+  document.getElementById('page-title').textContent   = meta.title;
+  document.getElementById('page-breadcrumb').textContent = meta.sub;
+  // Close mobile sidebar
+  closeMobileSidebar();
+};
 
-  async function loadLiveFeed() {
-    const el      = document.getElementById('live-feed');
-    const statsEl = document.getElementById('live-stats');
-    const date    = document.getElementById('live-date')?.value || new Date().toISOString().substring(0,10);
-    const siteId  = document.getElementById('live-site')?.value || '';
-    // Update live indicator
-    const liveStatus = document.getElementById('live-status');
-    if (liveStatus) {
-      const t = new Date().toLocaleTimeString();
-      liveStatus.innerHTML = `<i class="ti ti-circle-filled" style="font-size:8px;color:#22c55e"></i> Updated ${t}`;
+// ── Sidebar collapse ──────────────────────────────────────────
+let _sidebarCollapsed = false;
+function toggleSidebar() {
+  _sidebarCollapsed = !_sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed', _sidebarCollapsed);
+  const icon = document.getElementById('sb-toggle-icon');
+  icon.className = _sidebarCollapsed
+    ? 'ti ti-layout-sidebar-left-expand'
+    : 'ti ti-layout-sidebar-left-collapse';
+}
+
+// ── Mobile sidebar ────────────────────────────────────────────
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sb-overlay').classList.add('show');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sb-overlay').classList.remove('show');
+}
+
+// ── Server status indicator ───────────────────────────────────
+async function checkServerStatus() {
+  const dot = document.getElementById('server-dot');
+  const lbl = document.getElementById('server-lbl');
+  try {
+    const r = await fetch(`${PY_SERVER}/status`);
+    const d = await r.json();
+    if (d.ok) {
+      dot.style.background = '#22c55e';
+      lbl.textContent = `Server Online · ${d.enrolled || 0} enrolled`;
+    } else {
+      dot.style.background = '#f59e0b'; lbl.textContent = 'Server Error';
     }
-    try {
-      const url  = `${PY_SERVER}/app/punches?date=${date}${siteId ? '&siteId='+siteId : ''}`;
-      const r    = await fetch(url);
-      const data = await r.json();
-      const recs = (data.records || []).filter(rec => !siteId || rec.siteId === siteId);
-
-      if (recs.length === 0) {
-        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No punches recorded on ${date}.</p>`;
-        statsEl.innerHTML = '';
-        return;
-      }
-
-      // Count stats
-      const inCount  = recs.filter(r => r.type === 'in').length;
-      const outCount = recs.filter(r => r.type === 'out').length;
-      const empSet   = new Set(recs.map(r => r.empUid)).size;
-      statsEl.innerHTML = `
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-          <div style="font-size:22px;font-weight:700;color:#16a34a">${inCount}</div>
-          <div style="color:#64748b;font-size:11px">Check INs</div>
-        </div>
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-          <div style="font-size:22px;font-weight:700;color:#ea580c">${outCount}</div>
-          <div style="color:#64748b;font-size:11px">Check OUTs</div>
-        </div>
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-          <div style="font-size:22px;font-weight:700;color:#2563eb">${empSet}</div>
-          <div style="color:#64748b;font-size:11px">Employees</div>
-        </div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-          <div style="font-size:22px;font-weight:700;color:#475569">${recs.length}</div>
-          <div style="color:#64748b;font-size:11px">Total Punches</div>
-        </div>`;
-
-      // Sort by time desc (most recent first)
-      recs.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-
-      el.innerHTML = `
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
-            <tr>
-              <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Employee</th>
-              <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Type</th>
-              <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Site</th>
-              <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Supervisor</th>
-              <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${recs.map(rec => {
-              const t = rec.time ? new Date(rec.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
-              const isIn = rec.type === 'in';
-              return `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                <td style="padding:9px 10px;font-weight:600">${rec.empName || '—'}</td>
-                <td style="padding:9px 10px;text-align:center">
-                  <span style="background:${isIn ? '#dcfce7' : '#fff7ed'};color:${isIn ? '#16a34a' : '#ea580c'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">
-                    ${isIn ? '✅ IN' : '👋 OUT'}
-                  </span>
-                </td>
-                <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.siteName || '—'}</td>
-                <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.supervisorName || '—'}</td>
-                <td style="padding:9px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>`;
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error loading feed: ${e.message}</p>`;
-    }
+  } catch(_) {
+    dot.style.background = '#ef4444'; lbl.textContent = 'Server Offline';
   }
+}
 
-  // ── Face Encoding Backup / Restore (survives Railway restarts) ────────────────
+// ── Init ──────────────────────────────────────────────────────
+window.onload = async () => {
+  curUser = {name:'Admin'}; curRole = 'admin';
+  initAdmin();
+  checkServerStatus();
+  setInterval(checkServerStatus, 60000);
 
-  // Download all face encodings from server and save to localStorage
-  async function backupFaceEncodings() {
-    try {
-      const r = await fetch(`${PY_SERVER}/export-encodings?secret=bdi-import-2024`);
-      const d = await r.json();
-      if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
-        localStorage.setItem('bdi_face_encodings_backup', JSON.stringify(d.encodings));
-        localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
-        localStorage.setItem('bdi_face_backup_count', String(Object.keys(d.encodings).length));
-        console.log(`Face encodings backed up: ${Object.keys(d.encodings).length} employee(s)`);
-      }
-    } catch(e) { console.warn('backupFaceEncodings error:', e); }
-  }
+  // Set today's date defaults
+  const today = new Date().toISOString().substring(0, 10);
+  document.getElementById('mh-date').value      = today;
+  document.getElementById('live-date').value    = today;
+  document.getElementById('sup-rep-from').value = today;
+  document.getElementById('sup-rep-to').value   = today;
 
-  // On startup: if server has 0 enrolled faces, restore from localStorage backup
-  async function restoreFaceEncodingsIfEmpty() {
-    try {
-      const r = await fetch(`${PY_SERVER}/status`);
-      const d = await r.json();
-      if (!d.ok || d.enrolled > 0) {
-        // Server has enrolled faces — take a fresh backup while we're here
-        backupFaceEncodings();
-        return;
-      }
-      // Server empty — try to restore from backup
-      const backupStr = localStorage.getItem('bdi_face_encodings_backup');
-      if (!backupStr) return;
-      const encodings = JSON.parse(backupStr);
-      const count = Object.keys(encodings).length;
-      if (count === 0) return;
-      const res = await fetch(`${PY_SERVER}/import-encodings`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ encodings, secret: 'bdi-import-2024' })
-      });
-      const result = await res.json();
-      if (result.ok) {
-        console.log(`Auto-restored ${count} face encoding(s) to Railway from localStorage backup`);
-        showToast(`✅ Restored ${count} face encoding(s) after server restart`, 'success');
-      }
-    } catch(e) { console.warn('restoreFaceEncodings error:', e); }
-  }
+  populateLiveSiteFilter();
+  await restoreSupervisorsIfEmpty();
+  await restoreFaceEncodingsIfEmpty();
+  loadLiveFeed();
+  setInterval(loadLiveFeed, 30000);
+  setInterval(backupFaceEncodings, 5 * 60 * 1000);
+};
 
-  // ── App Supervisors Management ─────────────────────────────────────────────
-
-  // Save supervisors to localStorage for persistence across Railway restarts
-  function cacheSupervisors(list) {
-    try { localStorage.setItem('bdi_supervisors_cache', JSON.stringify(list)); } catch(_) {}
-  }
-
-  // Restore cached supervisors to Railway (called on page load if Railway list is empty)
-  async function restoreSupervisorsIfEmpty() {
-    try {
-      const r    = await fetch(`${PY_SERVER}/supervisor/list`);
-      const data = await r.json();
-      if (data.ok && data.supervisors && data.supervisors.length > 0) return; // Railway has data, nothing to do
-      // Railway is empty — try to restore from localStorage cache
-      const cached = localStorage.getItem('bdi_supervisors_cache');
-      if (!cached) return;
-      const list = JSON.parse(cached);
-      if (!list || list.length === 0) return;
-      // Bulk-restore via single endpoint
-      const res = await fetch(`${PY_SERVER}/supervisor/restore`, {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({supervisors: list})
-      });
-      const result = await res.json();
-      if (result.ok) {
-        console.log(`Auto-restored ${result.restored} supervisor(s) to Railway from cache`);
-      }
-    } catch(e) { console.warn('restoreSupervisors error:', e); }
-  }
-
-  async function loadAppSupervisors() {
-    const el = document.getElementById('app-sup-list');
-    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-    try {
-      const r = await fetch(`${PY_SERVER}/supervisor/list`);
-      const data = await r.json();
-      if (!data.ok || data.supervisors.length === 0) {
-        el.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No supervisors registered yet.<br>Ask supervisors to install and open the app.</p>';
-        return;
-      }
-      // Cache the list in localStorage every time we load it
-      cacheSupervisors(data.supervisors);
-      el.innerHTML = data.supervisors.map(s => `
-        <div style="border:1px solid ${s.approved ? '#bbf7d0' : '#fed7aa'};border-radius:12px;padding:14px;margin-bottom:10px;background:${s.approved ? '#f0fdf4' : '#fff7ed'}">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <div style="width:42px;height:42px;border-radius:50%;background:${s.approved ? '#22c55e' : '#f97316'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:18px;flex-shrink:0">
-              ${s.name.charAt(0).toUpperCase()}
-            </div>
-            <div style="flex:1;min-width:160px">
-              <div style="font-weight:700;font-size:15px">${s.name}</div>
-              <div style="font-size:12px;color:#64748b">${s.role} &bull; ${s.phone || 'No phone'}</div>
-              <div style="font-size:11px;color:#94a3b8;margin-top:2px">Device: ${s.deviceId}</div>
-              <div style="font-size:11px;color:#94a3b8">Registered: ${s.registeredAt ? new Date(s.registeredAt).toLocaleString() : 'Unknown'}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px;min-width:160px">
-              <!-- Name edit -->
-              <input type="text" value="${s.name}" id="sup-name-${s.deviceId}"
-                style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;width:100%"
-                placeholder="Supervisor name">
-              <!-- Approve toggle -->
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-                <input type="checkbox" ${s.approved ? 'checked' : ''} id="sup-approved-${s.deviceId}"
-                  onchange="updateSupervisor('${s.deviceId}')">
-                <span style="color:${s.approved ? '#22c55e' : '#f97316'};font-weight:600">
-                  ${s.approved ? '✅ Approved' : '⏳ Pending Approval'}
-                </span>
-              </label>
-              <!-- Enroll permission -->
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-                <input type="checkbox" ${s.canEnroll ? 'checked' : ''} id="sup-enroll-${s.deviceId}"
-                  onchange="updateSupervisor('${s.deviceId}')">
-                <span style="color:${s.canEnroll ? '#3b82f6' : '#94a3b8'};font-weight:600">
-                  ${s.canEnroll ? '🎭 Enroll Permission: ON' : '🔒 Enroll Permission: OFF'}
-                </span>
-              </label>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <button class="btn sm" onclick="updateSupervisor('${s.deviceId}')"
-                style="background:#3b82f6;color:#fff;border:none">
-                <i class="ti ti-check"></i> Save
-              </button>
-              <button class="btn sm" onclick="deleteSupervisor('${s.deviceId}')"
-                style="background:#ef4444;color:#fff;border:none">
-                <i class="ti ti-trash"></i> Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}<br>Make sure Railway server is running.</p>`;
-    }
-  }
-
-  async function updateSupervisor(deviceId) {
-    const name      = document.getElementById(`sup-name-${deviceId}`)?.value?.trim() || '';
-    const approved  = document.getElementById(`sup-approved-${deviceId}`)?.checked || false;
-    const canEnroll = document.getElementById(`sup-enroll-${deviceId}`)?.checked || false;
-    try {
-      const r = await fetch(`${PY_SERVER}/supervisor/update`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({deviceId, name, approved, canEnroll})
-      });
-      const data = await r.json();
-      if (data.ok) {
-        await loadAppSupervisors(); // also re-caches updated list
-        alert(`✅ ${name} updated successfully!`);
-      }
-    } catch(e) { alert('Error: ' + e.message); }
-  }
-
-  async function deleteSupervisor(deviceId) {
-    if (!confirm('Remove this supervisor from the system?')) return;
-    try {
-      await fetch(`${PY_SERVER}/supervisor/delete`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({deviceId})
-      });
-      loadAppSupervisors();
-    } catch(e) { alert('Error: ' + e.message); }
-  }
-
-  // ── Manual Attendance Requests ─────────────────────────────────────────────
-  async function loadManualRequests(status = 'pending') {
-    const el = document.getElementById('manreq-list');
-    if (!el) return;
-    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-    // highlight active filter button
-    ['pending','approved','rejected',''].forEach(s => {
-      const btn = document.getElementById(`mr-btn-${s === '' ? 'all' : s}`);
-      if (btn) {
-        const active = s === status;
-        btn.style.background  = active ? '#3b82f6' : '';
-        btn.style.borderColor = active ? '#3b82f6' : '';
-        btn.style.color       = active ? '#fff' : '';
-        btn.className = active ? 'btn sm' : 'btn sm n';
-      }
+// ── Live Attendance Feed ──────────────────────────────────────
+async function populateLiveSiteFilter() {
+  try {
+    const r = await fetch(`${PY_SERVER}/data`);
+    const d = await r.json();
+    const sel = document.getElementById('live-site');
+    (d.sites || []).forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id || s.code || s.name; o.textContent = s.name;
+      sel.appendChild(o);
     });
-    try {
-      const url = status ? `${PY_SERVER}/manual-requests?status=${status}` : `${PY_SERVER}/manual-requests`;
-      const r    = await fetch(url);
-      const data = await r.json();
-      if (!data.ok || !data.requests || data.requests.length === 0) {
-        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:30px">No ${status || ''} requests found.</p>`;
-        return;
-      }
-      el.innerHTML = data.requests.map(req => {
-        const ts     = req.timestamp ? new Date(req.timestamp).toLocaleString() : 'Unknown time';
-        const isPend = req.status === 'pending';
-        const isApp  = req.status === 'approved';
-        const borderCol = isPend ? '#fed7aa' : isApp ? '#bbf7d0' : '#fecaca';
-        const bgCol     = isPend ? '#fff7ed' : isApp ? '#f0fdf4' : '#fef2f2';
-        const badge     = isPend ? '⏳ Pending' : isApp ? '✅ Approved' : '❌ Rejected';
-        const badgeCol  = isPend ? '#f97316'   : isApp ? '#22c55e'   : '#ef4444';
-        return `
-          <div id="mr-card-${req.id}" style="border:1px solid ${borderCol};border-radius:14px;padding:16px;margin-bottom:14px;background:${bgCol}">
-            <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
-              <!-- Photo -->
-              <div style="flex-shrink:0">
-                <img id="mr-img-${req.id}" src="" alt="Loading photo..."
-                  style="width:110px;height:110px;object-fit:cover;border-radius:10px;border:2px solid ${borderCol};cursor:pointer"
-                  onclick="viewFullPhoto('${req.id}')"
-                  onerror="this.style.display='none'">
-                <div id="mr-img-load-${req.id}" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:10px;font-size:11px;color:#94a3b8">
-                  <button class="btn sm n" onclick="loadPhoto('${req.id}')" style="font-size:10px">📷 Load Photo</button>
-                </div>
-              </div>
-              <!-- Details -->
-              <div style="flex:1;min-width:180px">
-                <div style="font-weight:700;font-size:16px;margin-bottom:2px">${req.empName || 'Unknown'}</div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:6px">ID: ${req.empUid || '—'}</div>
-                <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                  <span style="background:${req.type === 'in' ? '#dcfce7' : '#fff7ed'};color:${req.type === 'in' ? '#16a34a' : '#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
-                    ${req.type === 'in' ? '📍 CHECK IN' : '👋 CHECK OUT'}
-                  </span>
-                  <span style="background:#f1f5f9;color:${badgeCol};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span>
-                </div>
-                <div style="font-size:12px;color:#475569;line-height:1.7">
-                  🏗️ <strong>${req.siteName || '—'}</strong><br>
-                  👷 Supervisor: ${req.supervisorName || '—'}<br>
-                  🕐 ${ts}
-                </div>
-                ${req.reviewedAt ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">Reviewed: ${new Date(req.reviewedAt).toLocaleString()}</div>` : ''}
-              </div>
-              <!-- Actions -->
-              ${isPend ? `
-              <div style="display:flex;flex-direction:column;gap:8px;min-width:120px">
-                <button onclick="reviewManualRequest('${req.id}','approved')"
-                  style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">
-                  ✅ Approve<br><span style="font-size:10px;font-weight:400">Record attendance</span>
-                </button>
-                <button onclick="reviewManualRequest('${req.id}','rejected')"
-                  style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">
-                  ❌ Reject
-                </button>
-              </div>` : ''}
-            </div>
-          </div>`;
-      }).join('');
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}<br>Make sure Railway server is running.</p>`;
+  } catch(_) {}
+}
+
+async function loadLiveFeed() {
+  const el      = document.getElementById('live-feed');
+  const statsEl = document.getElementById('live-stats');
+  const date    = document.getElementById('live-date')?.value || new Date().toISOString().substring(0,10);
+  const siteId  = document.getElementById('live-site')?.value || '';
+  const liveStatus = document.getElementById('live-status');
+  if (liveStatus) {
+    liveStatus.innerHTML = `<i class="ti ti-circle-filled" style="font-size:8px;color:#22c55e"></i> Updated ${new Date().toLocaleTimeString()}`;
+  }
+  try {
+    const url  = `${PY_SERVER}/app/punches?date=${date}${siteId ? '&siteId='+siteId : ''}`;
+    const r    = await fetch(url);
+    const data = await r.json();
+    const recs = (data.records || []).filter(rec => !siteId || rec.siteId === siteId);
+    if (recs.length === 0) {
+      el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No punches recorded on ${date}.</p>`;
+      statsEl.innerHTML = ''; return;
     }
+    const inCount  = recs.filter(r => r.type === 'in').length;
+    const outCount = recs.filter(r => r.type === 'out').length;
+    const empSet   = new Set(recs.map(r => r.empUid)).size;
+    statsEl.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#16a34a">${inCount}</div><div style="color:#64748b;font-size:11px">Check INs</div>
+      </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#ea580c">${outCount}</div><div style="color:#64748b;font-size:11px">Check OUTs</div>
+      </div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#2563eb">${empSet}</div><div style="color:#64748b;font-size:11px">Employees</div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#475569">${recs.length}</div><div style="color:#64748b;font-size:11px">Total Punches</div>
+      </div>`;
+    recs.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
+          <tr>
+            <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Employee</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Type</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Site</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Supervisor</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${recs.map(rec => {
+            const t = rec.time ? new Date(rec.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+            const isIn = rec.type === 'in';
+            return `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+              <td style="padding:9px 10px;font-weight:600">${rec.empName||'—'}</td>
+              <td style="padding:9px 10px;text-align:center">
+                <span style="background:${isIn?'#dcfce7':'#fff7ed'};color:${isIn?'#16a34a':'#ea580c'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${isIn?'✅ IN':'👋 OUT'}</span>
+              </td>
+              <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.siteName||'—'}</td>
+              <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.supervisorName||'—'}</td>
+              <td style="padding:9px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
   }
+}
 
-  async function loadPhoto(reqId) {
-    const img     = document.getElementById(`mr-img-${reqId}`);
-    const loadDiv = document.getElementById(`mr-img-load-${reqId}`);
-    try {
-      const r    = await fetch(`${PY_SERVER}/manual-request/${reqId}/photo`);
-      const data = await r.json();
-      if (data.ok && data.photo_b64) {
-        img.src = data.photo_b64;
-        img.style.display = 'block';
-        if (loadDiv) loadDiv.style.display = 'none';
-      }
-    } catch(e) { console.error('loadPhoto error:', e); }
-  }
+// ── Face Encoding Backup / Restore ────────────────────────────
+async function backupFaceEncodings() {
+  try {
+    const r = await fetch(`${PY_SERVER}/export-encodings?secret=bdi-import-2024`);
+    const d = await r.json();
+    if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
+      localStorage.setItem('bdi_face_encodings_backup', JSON.stringify(d.encodings));
+      localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
+      localStorage.setItem('bdi_face_backup_count', String(Object.keys(d.encodings).length));
+    }
+  } catch(e) {}
+}
 
-  function viewFullPhoto(reqId) {
-    const img = document.getElementById(`mr-img-${reqId}`);
-    if (!img || !img.src || img.src === window.location.href) return;
-    const win = window.open('');
-    win.document.write(`<img src="${img.src}" style="max-width:100%;max-height:100vh">`);
-  }
+async function restoreFaceEncodingsIfEmpty() {
+  try {
+    const r = await fetch(`${PY_SERVER}/status`);
+    const d = await r.json();
+    if (!d.ok || d.enrolled > 0) { backupFaceEncodings(); return; }
+    const backupStr = localStorage.getItem('bdi_face_encodings_backup');
+    if (!backupStr) return;
+    const encodings = JSON.parse(backupStr);
+    const count = Object.keys(encodings).length;
+    if (count === 0) return;
+    const res = await fetch(`${PY_SERVER}/import-encodings`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({encodings, secret:'bdi-import-2024'})
+    });
+    const result = await res.json();
+    if (result.ok) toast(`✅ Restored ${count} face encoding(s) after server restart`);
+  } catch(e) {}
+}
 
-  async function reviewManualRequest(reqId, decision) {
-    const label = decision === 'approved' ? 'approve' : 'reject';
-    if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} this attendance request?`)) return;
-    try {
-      const r    = await fetch(`${PY_SERVER}/manual-request/review`, {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({id: reqId, status: decision, reviewedBy: 'Admin'})
-      });
-      const data = await r.json();
-      if (data.ok) {
-        const card = document.getElementById(`mr-card-${reqId}`);
-        if (card) {
-          const msg = decision === 'approved'
-            ? '✅ Approved — attendance recorded!'
-            : '❌ Rejected';
-          card.innerHTML = `<p style="text-align:center;padding:12px;color:${decision === 'approved' ? '#22c55e' : '#ef4444'};font-weight:700">${msg}</p>`;
-          setTimeout(() => card.remove(), 2000);
-        }
-      } else {
-        alert('Error: ' + (data.error || 'Unknown error'));
-      }
-    } catch(e) { alert('Error: ' + e.message); }
-  }
+// ── Supervisor Cache / Restore ────────────────────────────────
+function cacheSupervisors(list) {
+  try { localStorage.setItem('bdi_supervisors_cache', JSON.stringify(list)); } catch(_) {}
+}
 
-  // ── Supervisor Punch Report ─────────────────────────────────────────────────
-  let _supRepData = []; // cached for CSV export
+async function restoreSupervisorsIfEmpty() {
+  try {
+    const r = await fetch(`${PY_SERVER}/supervisor/list`);
+    const d = await r.json();
+    if (d.ok && d.supervisors && d.supervisors.length > 0) return;
+    const cached = localStorage.getItem('bdi_supervisors_cache');
+    if (!cached) return;
+    const list = JSON.parse(cached);
+    if (!list || list.length === 0) return;
+    const res = await fetch(`${PY_SERVER}/supervisor/restore`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({supervisors:list})
+    });
+    const result = await res.json();
+    if (result.ok) console.log(`Restored ${result.restored} supervisor(s)`);
+  } catch(e) {}
+}
 
-  async function loadSupervisorReport() {
-    const fromDate = document.getElementById('sup-rep-from').value;
-    const toDate   = document.getElementById('sup-rep-to').value;
-    const supFilter = document.getElementById('sup-rep-sup').value;
-    const cardsEl  = document.getElementById('sup-rep-cards');
-    const tableEl  = document.getElementById('sup-rep-table');
-
-    cardsEl.innerHTML = '';
-    tableEl.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-
-    try {
-      // Fetch all app punches from server
-      const r    = await fetch(`${PY_SERVER}/app/punches`);
-      const data = await r.json();
-      let recs   = data.records || [];
-
-      // Date filtering
-      if (fromDate) recs = recs.filter(r => (r.time || '') >= fromDate);
-      if (toDate)   recs = recs.filter(r => (r.time || '') <= toDate + 'T23:59:59');
-
-      // Supervisor filtering
-      if (supFilter) recs = recs.filter(r => (r.supervisorName || '') === supFilter);
-
-      _supRepData = recs;
-
-      if (recs.length === 0) {
-        tableEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No punches found for the selected period.</p>';
-        return;
-      }
-
-      // Group by supervisor
-      const bySup = {};
-      for (const rec of recs) {
-        const sup = rec.supervisorName || rec.supervisorDeviceId || 'Unknown';
-        if (!bySup[sup]) bySup[sup] = { name: sup, ins: 0, outs: 0, emps: new Set(), records: [] };
-        if (rec.type === 'in')  bySup[sup].ins++;
-        else                    bySup[sup].outs++;
-        if (rec.empName) bySup[sup].emps.add(rec.empUid || rec.empName);
-        bySup[sup].records.push(rec);
-      }
-
-      // Populate supervisor dropdown
-      const sel = document.getElementById('sup-rep-sup');
-      const existing = new Set([...sel.options].map(o => o.value));
-      for (const sup of Object.keys(bySup)) {
-        if (!existing.has(sup)) {
-          const opt = document.createElement('option');
-          opt.value = sup; opt.textContent = sup;
-          sel.appendChild(opt);
-        }
-      }
-
-      // Render summary cards
-      cardsEl.innerHTML = Object.values(bySup).map(s => `
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;min-width:180px;flex:1">
-          <div style="font-weight:700;font-size:15px;color:#1e293b;margin-bottom:6px">
-            <i class="ti ti-hard-hat" style="color:#e87722"></i> ${s.name}
+// ── App Supervisors ───────────────────────────────────────────
+async function loadAppSupervisors() {
+  const el = document.getElementById('app-sup-list');
+  el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+  try {
+    const r = await fetch(`${PY_SERVER}/supervisor/list`);
+    const data = await r.json();
+    if (!data.ok || data.supervisors.length === 0) {
+      el.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No supervisors registered yet.<br>Ask supervisors to install and open the app.</p>';
+      return;
+    }
+    cacheSupervisors(data.supervisors);
+    el.innerHTML = data.supervisors.map(s => `
+      <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="width:42px;height:42px;border-radius:50%;background:${s.approved?'#22c55e':'#f97316'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:18px;flex-shrink:0">
+            ${s.name.charAt(0).toUpperCase()}
           </div>
-          <div style="display:flex;gap:12px;font-size:13px;margin-bottom:4px">
-            <span style="color:#16a34a;font-weight:700">↓ ${s.ins} IN</span>
-            <span style="color:#ea580c;font-weight:700">↑ ${s.outs} OUT</span>
+          <div style="flex:1;min-width:160px">
+            <div style="font-weight:700;font-size:15px">${s.name}</div>
+            <div style="font-size:12px;color:#64748b">${s.role} · ${s.phone||'No phone'}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">Device: ${s.deviceId}</div>
+            <div style="font-size:11px;color:#94a3b8">Registered: ${s.registeredAt?new Date(s.registeredAt).toLocaleString():'Unknown'}</div>
           </div>
-          <div style="font-size:11px;color:#64748b">${s.emps.size} employee(s) &bull; ${s.records.length} total punches</div>
-        </div>`).join('');
-
-      // Sort records newest first
-      recs.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-
-      // Render detailed table
-      tableEl.innerHTML = `
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
-            <tr>
-              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Supervisor</th>
-              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Employee</th>
-              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Type</th>
-              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Site</th>
-              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Date</th>
-              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${recs.map(rec => {
-              const dt  = rec.time ? new Date(rec.time) : null;
-              const d   = dt ? dt.toLocaleDateString() : '—';
-              const t   = dt ? dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
-              const isIn = rec.type === 'in';
-              return `<tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                <td style="padding:8px 10px;font-weight:600;color:#e87722">${rec.supervisorName || '—'}</td>
-                <td style="padding:8px 10px;font-weight:600">${rec.empName || '—'}</td>
-                <td style="padding:8px 10px;text-align:center">
-                  <span style="background:${isIn ? '#dcfce7' : '#fff7ed'};color:${isIn ? '#16a34a' : '#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
-                    ${isIn ? '✅ IN' : '👋 OUT'}
-                  </span>
-                </td>
-                <td style="padding:8px 10px;color:#64748b;font-size:12px">${rec.siteName || '—'}</td>
-                <td style="padding:8px 10px;text-align:center;color:#475569;font-size:12px">${d}</td>
-                <td style="padding:8px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>`;
-    } catch(e) {
-      tableEl.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
-    }
-  }
-
-  function exportSupervisorCSV() {
-    if (!_supRepData.length) { alert('Load the report first.'); return; }
-    const rows = [['Supervisor','Employee','Employee ID','Type','Site','Date','Time']];
-    for (const rec of _supRepData) {
-      const dt = rec.time ? new Date(rec.time) : null;
-      rows.push([
-        rec.supervisorName || '',
-        rec.empName || '',
-        rec.empUid  || '',
-        rec.type === 'in' ? 'Check IN' : 'Check OUT',
-        rec.siteName || '',
-        dt ? dt.toLocaleDateString() : '',
-        dt ? dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
-      ]);
-    }
-    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a    = document.createElement('a');
-    a.href     = URL.createObjectURL(blob);
-    a.download = `supervisor_report_${new Date().toISOString().substring(0,10)}.csv`;
-    a.click();
-  }
-
-  // ── Man Hours Report ────────────────────────────────────────────────────────
-  async function loadManHours() {
-    const date = document.getElementById('mh-date').value;
-    const el   = document.getElementById('manhours-list');
-    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-    try {
-      const r    = await fetch(`${PY_SERVER}/app/manhours?date=${date}`);
-      const data = await r.json();
-      if (!data.ok || data.manhours.length === 0) {
-        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No records found for ${date}.</p>`;
-        return;
-      }
-      const totalHours = data.manhours.reduce((s, e) => s + e.totalHours, 0);
-      el.innerHTML = `
-        <div style="background:#eff6ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
-          <strong>${data.manhours.length} employees</strong> &bull;
-          Total: <strong>${totalHours.toFixed(1)} man-hours</strong> on ${date}
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:160px">
+            <input type="text" value="${s.name}" id="sup-name-${s.deviceId}" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;width:100%" placeholder="Supervisor name">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+              <input type="checkbox" ${s.approved?'checked':''} id="sup-approved-${s.deviceId}" onchange="updateSupervisor('${s.deviceId}')">
+              <span style="color:${s.approved?'#22c55e':'#f97316'};font-weight:600">${s.approved?'✅ Approved':'⏳ Pending Approval'}</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+              <input type="checkbox" ${s.canEnroll?'checked':''} id="sup-enroll-${s.deviceId}" onchange="updateSupervisor('${s.deviceId}')">
+              <span style="color:${s.canEnroll?'#3b82f6':'#94a3b8'};font-weight:600">${s.canEnroll?'🎭 Enroll: ON':'🔒 Enroll: OFF'}</span>
+            </label>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn sm" onclick="updateSupervisor('${s.deviceId}')" style="background:#3b82f6;color:#fff;border:none"><i class="ti ti-check"></i> Save</button>
+            <button class="btn sm" onclick="deleteSupervisor('${s.deviceId}')" style="background:#ef4444;color:#fff;border:none"><i class="ti ti-trash"></i> Remove</button>
+          </div>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr style="background:#f8fafc">
-            <th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0">Employee</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check IN</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check OUT</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Hours</th>
-          </tr></thead>
-          <tbody>
-            ${data.manhours.map(emp => `
-              <tr style="border-bottom:1px solid #f1f5f9">
-                <td style="padding:8px;font-weight:600">${emp.empName}</td>
-                <td style="padding:8px;text-align:center;color:#22c55e">
-                  ${emp.pairs.map(p => new Date(p.in).toLocaleTimeString()).join('<br>') || '—'}
-                </td>
-                <td style="padding:8px;text-align:center;color:#f97316">
-                  ${emp.pairs.map(p => p.out ? new Date(p.out).toLocaleTimeString() : '—').join('<br>') || '—'}
-                </td>
-                <td style="padding:8px;text-align:center;font-weight:700;color:#3b82f6">
-                  ${emp.totalHours.toFixed(2)}h
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>`;
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
-    }
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
   }
+}
+
+async function updateSupervisor(deviceId) {
+  const name      = document.getElementById(`sup-name-${deviceId}`)?.value?.trim() || '';
+  const approved  = document.getElementById(`sup-approved-${deviceId}`)?.checked || false;
+  const canEnroll = document.getElementById(`sup-enroll-${deviceId}`)?.checked || false;
+  try {
+    const r = await fetch(`${PY_SERVER}/supervisor/update`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({deviceId, name, approved, canEnroll})
+    });
+    const d = await r.json();
+    if (d.ok) { await loadAppSupervisors(); toast(`✅ ${name} updated`); }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function deleteSupervisor(deviceId) {
+  if (!confirm('Remove this supervisor?')) return;
+  try {
+    await fetch(`${PY_SERVER}/supervisor/delete`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({deviceId})
+    });
+    loadAppSupervisors();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Manual Requests ───────────────────────────────────────────
+async function loadManualRequests(status = 'pending') {
+  const el = document.getElementById('manreq-list');
+  if (!el) return;
+  el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+  ['pending','approved','rejected',''].forEach(s => {
+    const btn = document.getElementById(`mr-btn-${s===''?'all':s}`);
+    if (btn) {
+      const active = s === status;
+      btn.style.background  = active ? '#3b82f6' : '';
+      btn.style.borderColor = active ? '#3b82f6' : '';
+      btn.style.color       = active ? '#fff' : '';
+      btn.className = active ? 'btn sm' : 'btn sm n';
+    }
+  });
+  try {
+    const url  = status ? `${PY_SERVER}/manual-requests?status=${status}` : `${PY_SERVER}/manual-requests`;
+    const r    = await fetch(url);
+    const data = await r.json();
+    if (!data.ok || !data.requests || data.requests.length === 0) {
+      el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:30px">No ${status||''} requests found.</p>`;
+      return;
+    }
+    el.innerHTML = data.requests.map(req => {
+      const ts     = req.timestamp ? new Date(req.timestamp).toLocaleString() : 'Unknown';
+      const isPend = req.status === 'pending';
+      const isApp  = req.status === 'approved';
+      const borderCol = isPend?'#fed7aa':isApp?'#bbf7d0':'#fecaca';
+      const bgCol     = isPend?'#fff7ed':isApp?'#f0fdf4':'#fef2f2';
+      const badge     = isPend?'⏳ Pending':isApp?'✅ Approved':'❌ Rejected';
+      const badgeCol  = isPend?'#f97316':isApp?'#22c55e':'#ef4444';
+      return `
+        <div id="mr-card-${req.id}" style="border:1px solid ${borderCol};border-radius:14px;padding:16px;margin-bottom:14px;background:${bgCol}">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+            <div style="flex-shrink:0">
+              <img id="mr-img-${req.id}" src="" alt="" style="width:110px;height:110px;object-fit:cover;border-radius:10px;border:2px solid ${borderCol};cursor:pointer;display:none" onclick="viewFullPhoto('${req.id}')">
+              <div id="mr-img-load-${req.id}" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:10px;font-size:11px;color:#94a3b8">
+                <button class="btn sm n" onclick="loadPhoto('${req.id}')" style="font-size:10px">📷 Load Photo</button>
+              </div>
+            </div>
+            <div style="flex:1;min-width:180px">
+              <div style="font-weight:700;font-size:16px;margin-bottom:2px">${req.empName||'Unknown'}</div>
+              <div style="font-size:12px;color:#64748b;margin-bottom:6px">ID: ${req.empUid||'—'}</div>
+              <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                <span style="background:${req.type==='in'?'#dcfce7':'#fff7ed'};color:${req.type==='in'?'#16a34a':'#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
+                  ${req.type==='in'?'📍 CHECK IN':'👋 CHECK OUT'}
+                </span>
+                <span style="background:#f1f5f9;color:${badgeCol};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span>
+              </div>
+              <div style="font-size:12px;color:#475569;line-height:1.8">
+                🏗️ <strong>${req.siteName||'—'}</strong><br>
+                👷 ${req.supervisorName||'—'}<br>
+                🕐 ${ts}
+              </div>
+              ${req.reviewedAt?`<div style="font-size:11px;color:#94a3b8;margin-top:4px">Reviewed: ${new Date(req.reviewedAt).toLocaleString()}</div>`:''}
+            </div>
+            ${isPend?`
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:120px">
+              <button onclick="reviewManualRequest('${req.id}','approved')" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">✅ Approve<br><span style="font-size:10px;font-weight:400">Record attendance</span></button>
+              <button onclick="reviewManualRequest('${req.id}','rejected')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">❌ Reject</button>
+            </div>`:''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+  }
+}
+
+async function loadPhoto(reqId) {
+  const img = document.getElementById(`mr-img-${reqId}`);
+  const div = document.getElementById(`mr-img-load-${reqId}`);
+  try {
+    const r = await fetch(`${PY_SERVER}/manual-request/${reqId}/photo`);
+    const d = await r.json();
+    if (d.ok && d.photo_b64) { img.src = d.photo_b64; img.style.display='block'; if(div) div.style.display='none'; }
+  } catch(e) {}
+}
+
+function viewFullPhoto(reqId) {
+  const img = document.getElementById(`mr-img-${reqId}`);
+  if (!img || !img.src || img.src === window.location.href) return;
+  const win = window.open('');
+  win.document.write(`<img src="${img.src}" style="max-width:100%;max-height:100vh">`);
+}
+
+async function reviewManualRequest(reqId, decision) {
+  if (!confirm(`${decision === 'approved' ? 'Approve' : 'Reject'} this request?`)) return;
+  try {
+    const r = await fetch(`${PY_SERVER}/manual-request/review`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id:reqId, status:decision, reviewedBy:'Admin'})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const card = document.getElementById(`mr-card-${reqId}`);
+      if (card) {
+        card.innerHTML = `<p style="text-align:center;padding:12px;color:${decision==='approved'?'#22c55e':'#ef4444'};font-weight:700">${decision==='approved'?'✅ Approved — attendance recorded!':'❌ Rejected'}</p>`;
+        setTimeout(() => card.remove(), 2000);
+      }
+    } else { alert('Error: ' + (d.error||'Unknown')); }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Supervisor Punch Report ───────────────────────────────────
+let _supRepData = [];
+
+async function loadSupervisorReport() {
+  const fromDate  = document.getElementById('sup-rep-from').value;
+  const toDate    = document.getElementById('sup-rep-to').value;
+  const supFilter = document.getElementById('sup-rep-sup').value;
+  const cardsEl   = document.getElementById('sup-rep-cards');
+  const tableEl   = document.getElementById('sup-rep-table');
+  cardsEl.innerHTML = '';
+  tableEl.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+  try {
+    const r    = await fetch(`${PY_SERVER}/app/punches`);
+    const data = await r.json();
+    let recs   = data.records || [];
+    if (fromDate) recs = recs.filter(r => (r.time||'') >= fromDate);
+    if (toDate)   recs = recs.filter(r => (r.time||'') <= toDate+'T23:59:59');
+    if (supFilter) recs = recs.filter(r => (r.supervisorName||'') === supFilter);
+    _supRepData = recs;
+    if (recs.length === 0) {
+      tableEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No punches found for the selected period.</p>';
+      return;
+    }
+    const bySup = {};
+    for (const rec of recs) {
+      const sup = rec.supervisorName || rec.supervisorDeviceId || 'Unknown';
+      if (!bySup[sup]) bySup[sup] = {name:sup, ins:0, outs:0, emps:new Set(), records:[]};
+      if (rec.type==='in') bySup[sup].ins++; else bySup[sup].outs++;
+      if (rec.empName) bySup[sup].emps.add(rec.empUid||rec.empName);
+      bySup[sup].records.push(rec);
+    }
+    // Populate dropdown
+    const sel = document.getElementById('sup-rep-sup');
+    const existing = new Set([...sel.options].map(o => o.value));
+    for (const sup of Object.keys(bySup)) {
+      if (!existing.has(sup)) { const o=document.createElement('option'); o.value=sup; o.textContent=sup; sel.appendChild(o); }
+    }
+    // Summary cards
+    cardsEl.innerHTML = Object.values(bySup).map(s => `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;min-width:180px;flex:1">
+        <div style="font-weight:700;font-size:15px;color:#1e293b;margin-bottom:6px"><i class="ti ti-hard-hat" style="color:#e87722"></i> ${s.name}</div>
+        <div style="display:flex;gap:12px;font-size:13px;margin-bottom:4px">
+          <span style="color:#16a34a;font-weight:700">↓ ${s.ins} IN</span>
+          <span style="color:#ea580c;font-weight:700">↑ ${s.outs} OUT</span>
+        </div>
+        <div style="font-size:11px;color:#64748b">${s.emps.size} employee(s) · ${s.records.length} total punches</div>
+      </div>`).join('');
+    // Table
+    recs.sort((a, b) => (b.time||'').localeCompare(a.time||''));
+    tableEl.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
+          <tr>
+            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Supervisor</th>
+            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Employee</th>
+            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Type</th>
+            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Site</th>
+            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Date</th>
+            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${recs.map(rec => {
+            const dt = rec.time ? new Date(rec.time) : null;
+            const d  = dt ? dt.toLocaleDateString() : '—';
+            const t  = dt ? dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+            const isIn = rec.type === 'in';
+            return `<tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+              <td style="padding:8px 10px;font-weight:600;color:#e87722">${rec.supervisorName||'—'}</td>
+              <td style="padding:8px 10px;font-weight:600">${rec.empName||'—'}</td>
+              <td style="padding:8px 10px;text-align:center">
+                <span style="background:${isIn?'#dcfce7':'#fff7ed'};color:${isIn?'#16a34a':'#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${isIn?'✅ IN':'👋 OUT'}</span>
+              </td>
+              <td style="padding:8px 10px;color:#64748b;font-size:12px">${rec.siteName||'—'}</td>
+              <td style="padding:8px 10px;text-align:center;color:#475569;font-size:12px">${d}</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    tableEl.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+  }
+}
+
+function exportSupervisorCSV() {
+  if (!_supRepData.length) { alert('Load the report first.'); return; }
+  const rows = [['Supervisor','Employee','Employee ID','Type','Site','Date','Time']];
+  for (const rec of _supRepData) {
+    const dt = rec.time ? new Date(rec.time) : null;
+    rows.push([rec.supervisorName||'', rec.empName||'', rec.empUid||'',
+      rec.type==='in'?'Check IN':'Check OUT', rec.siteName||'',
+      dt?dt.toLocaleDateString():'', dt?dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''
+    ]);
+  }
+  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a    = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `supervisor_report_${new Date().toISOString().substring(0,10)}.csv`;
+  a.click();
+}
+
+// ── Man Hours ─────────────────────────────────────────────────
+async function loadManHours() {
+  const date = document.getElementById('mh-date').value;
+  const el   = document.getElementById('manhours-list');
+  el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+  try {
+    const r    = await fetch(`${PY_SERVER}/app/manhours?date=${date}`);
+    const data = await r.json();
+    if (!data.ok || data.manhours.length === 0) {
+      el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No records found for ${date}.</p>`;
+      return;
+    }
+    const totalHours = data.manhours.reduce((s, e) => s + e.totalHours, 0);
+    el.innerHTML = `
+      <div style="background:#eff6ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+        <strong>${data.manhours.length} employees</strong> · Total: <strong>${totalHours.toFixed(1)} man-hours</strong> on ${date}
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f8fafc">
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0">Employee</th>
+          <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check IN</th>
+          <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check OUT</th>
+          <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Hours</th>
+        </tr></thead>
+        <tbody>
+          ${data.manhours.map(emp => `
+            <tr style="border-bottom:1px solid #f1f5f9">
+              <td style="padding:8px;font-weight:600">${emp.empName}</td>
+              <td style="padding:8px;text-align:center;color:#22c55e">${emp.pairs.map(p=>new Date(p.in).toLocaleTimeString()).join('<br>')||'—'}</td>
+              <td style="padding:8px;text-align:center;color:#f97316">${emp.pairs.map(p=>p.out?new Date(p.out).toLocaleTimeString():'—').join('<br>')||'—'}</td>
+              <td style="padding:8px;text-align:center;font-weight:700;color:#3b82f6">${emp.totalHours.toFixed(2)}h</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+  }
+}
 </script>
 </body>
 </html>
