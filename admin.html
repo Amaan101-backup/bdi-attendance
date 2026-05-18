@@ -2,1223 +2,1218 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BDI Admin">
-<meta name="theme-color" content="#0a1628">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BDI Admin Portal</title>
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="https://bdiuae.com/images/common/bdi_logo.png">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-<link rel="stylesheet" href="shared.css">
 <style>
-/* ── Reset & Base ─────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;background:#f1f5f9}
+html,body{height:100%;font-family:'Inter',sans-serif;overflow:hidden}
+:root{
+  --or:#e87722;--navy:#0f172a;--sl:#1e293b;
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--light:#f8fafc;
+  --green:#16a34a;--red:#ef4444;--blue:#2563eb;
+}
 
-/* ── Layout Shell ─────────────────────────────────────────── */
-.admin-layout{display:flex;height:100vh;overflow:hidden}
+/* ══ LOGIN ══════════════════════════════════════════════════════ */
+#scr-login{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);
+  display:flex;align-items:center;justify-content:center;z-index:999;
+}
+.lbox{
+  background:#1e293b;border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;padding:40px;width:340px;
+  box-shadow:0 25px 60px rgba(0,0,0,.5);
+}
+.lbox-logo{text-align:center;margin-bottom:28px}
+.lbox-logo img{width:56px;height:56px;border-radius:12px;background:#fff;padding:4px}
+.lbox-logo h1{color:#fff;font-size:20px;font-weight:800;margin-top:10px}
+.lbox-logo p{color:rgba(255,255,255,.35);font-size:11px;margin-top:2px}
+.lf{margin-bottom:12px}
+.lf label{display:block;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;margin-bottom:6px;letter-spacing:.3px}
+.lf input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 14px;color:#fff;font-size:14px}
+.lf input:focus{outline:none;border-color:var(--or);background:rgba(255,255,255,.08)}
+.lbtn{width:100%;padding:12px;background:var(--or);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+.lbtn:hover{background:#d06518}
+.lerr{color:#fca5a5;font-size:12px;margin-top:10px;text-align:center;display:none}
 
-/* ── Sidebar ──────────────────────────────────────────────── */
+/* ══ LAYOUT ═════════════════════════════════════════════════════ */
+#scr-admin{display:none;height:100vh}
+#scr-admin.show{display:flex}
 .sidebar{
-  width:240px;min-width:240px;height:100vh;
-  background:#0a1628;
-  display:flex;flex-direction:column;
-  overflow:hidden;
-  transition:width .25s ease;
-  z-index:200;
-  flex-shrink:0;
+  width:220px;min-width:220px;height:100vh;
+  background:var(--navy);display:flex;flex-direction:column;
+  flex-shrink:0;overflow:hidden;
 }
-.sidebar.collapsed{width:60px;min-width:60px}
-
-/* Sidebar Brand */
 .sb-brand{
-  display:flex;align-items:center;gap:10px;
-  padding:16px 14px 14px;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  min-height:64px;flex-shrink:0;
+  padding:16px 14px 13px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;gap:9px;min-height:60px;
 }
-.sb-logo{width:34px;height:34px;border-radius:8px;object-fit:contain;flex-shrink:0;background:#fff;padding:3px}
-.sb-logo-fb{width:34px;height:34px;border-radius:8px;background:#e87722;display:none;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
-.sb-txt{overflow:hidden;white-space:nowrap}
-.sb-txt strong{display:block;font-size:13px;color:#fff;font-weight:600;line-height:1.2}
-.sb-txt span{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.3px}
-.sidebar.collapsed .sb-txt{display:none}
-
-/* Sidebar Nav */
-.sb-nav{flex:1;overflow-y:auto;padding:10px 0;scrollbar-width:none}
+.sb-brand img{width:32px;height:32px;border-radius:8px;background:#fff;padding:3px;flex-shrink:0}
+.sb-brand-fb{width:32px;height:32px;border-radius:8px;background:var(--or);color:#fff;font-weight:800;font-size:13px;display:none;align-items:center;justify-content:center;flex-shrink:0}
+.sb-brand-txt strong{display:block;color:#fff;font-size:13px;font-weight:700}
+.sb-brand-txt span{color:rgba(255,255,255,.3);font-size:10px}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0;scrollbar-width:none}
 .sb-nav::-webkit-scrollbar{display:none}
+.sb-sec{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,.22);padding:12px 15px 4px}
+.nb{
+  display:flex;align-items:center;gap:9px;
+  width:100%;padding:9px 15px;
+  background:none;border:none;border-left:3px solid transparent;
+  cursor:pointer;color:rgba(255,255,255,.5);font-size:12.5px;font-weight:500;text-align:left;
+  transition:all .15s;
+}
+.nb i{font-size:16px;width:18px;text-align:center;flex-shrink:0}
+.nb:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.85)}
+.nb.on{background:rgba(232,119,34,.14);color:var(--or);border-left-color:var(--or);font-weight:600}
+.sb-foot{border-top:1px solid rgba(255,255,255,.07);padding:10px}
+.sb-user{display:flex;align-items:center;gap:8px;padding:7px 6px;margin-bottom:7px}
+.sb-av{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-user-info strong{display:block;color:#fff;font-size:12px}
+.sb-user-info span{color:rgba(255,255,255,.3);font-size:10px}
+.sb-logout{width:100%;padding:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:7px;color:rgba(255,255,255,.45);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.sb-logout:hover{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.3)}
 
-.nav-section-label{
-  font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
-  color:rgba(255,255,255,.3);padding:14px 16px 4px;white-space:nowrap;overflow:hidden;
+/* ══ MAIN ════════════════════════════════════════════════════════ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{
+  height:54px;min-height:54px;background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);flex-shrink:0;
 }
-.sidebar.collapsed .nav-section-label{visibility:hidden;padding:14px 16px 4px}
+.topbar-title{font-size:15px;font-weight:700;color:var(--text);flex:1}
+.topbar-title small{font-size:11px;font-weight:400;color:var(--muted);margin-left:7px}
+.srv-dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;animation:pls 2s infinite;flex-shrink:0}
+@keyframes pls{0%,100%{opacity:1}50%{opacity:.35}}
+.srv-lbl{font-size:11px;color:var(--muted);white-space:nowrap}
+.topbar-badge{background:rgba(232,119,34,.1);border:1px solid rgba(232,119,34,.25);color:var(--or);font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;white-space:nowrap}
+.content{flex:1;overflow-y:auto;padding:20px 22px;background:var(--bg)}
 
-.nav-item{
-  display:flex;align-items:center;gap:10px;
-  width:100%;padding:9px 14px;
-  background:none;border:none;cursor:pointer;
-  color:rgba(255,255,255,.6);font-size:13px;font-weight:500;
-  text-align:left;border-radius:0;
-  transition:background .15s,color .15s;
-  position:relative;white-space:nowrap;overflow:hidden;
-  border-left:3px solid transparent;
-}
-.nav-item i{font-size:17px;flex-shrink:0;width:20px;text-align:center}
-.nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
-.nav-item.active{
-  background:rgba(232,119,34,.15);
-  color:#e87722;
-  border-left-color:#e87722;
-  font-weight:600;
-}
-.nav-item .nav-lbl{overflow:hidden;white-space:nowrap}
-.sidebar.collapsed .nav-item .nav-lbl{display:none}
-.sidebar.collapsed .nav-item{justify-content:center;padding:9px}
-.sidebar.collapsed .nav-item i{width:auto}
+/* ══ PAGE TABS ═══════════════════════════════════════════════════ */
+.pg{display:none}.pg.on{display:block}
 
-/* Sidebar Footer */
-.sb-footer{
-  border-top:1px solid rgba(255,255,255,.08);
-  padding:10px 8px;flex-shrink:0;
-}
-.sb-footer-user{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 6px;border-radius:8px;
-  margin-bottom:6px;
-}
-.sb-av{
-  width:30px;height:30px;border-radius:50%;
-  background:#e87722;color:#fff;font-weight:700;font-size:13px;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-}
-.sb-user-info{overflow:hidden;white-space:nowrap}
-.sb-user-info strong{display:block;font-size:12px;color:#fff;line-height:1.2}
-.sb-user-info span{font-size:10px;color:rgba(255,255,255,.4)}
-.sidebar.collapsed .sb-user-info{display:none}
-.sb-logout{
-  display:flex;align-items:center;justify-content:center;gap:6px;
-  width:100%;padding:7px;border-radius:8px;
-  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
-  color:rgba(255,255,255,.6);font-size:12px;font-weight:500;cursor:pointer;
-  transition:background .15s;
-}
-.sb-logout:hover{background:rgba(239,68,68,.2);color:#fca5a5;border-color:rgba(239,68,68,.3)}
-.sb-collapse{
-  display:flex;align-items:center;justify-content:center;
-  width:100%;padding:5px;border-radius:6px;background:none;
-  border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:14px;margin-top:4px;
-  transition:color .15s;
-}
-.sb-collapse:hover{color:rgba(255,255,255,.7)}
-.sidebar.collapsed .sb-logout span{display:none}
+/* ══ CARDS ═══════════════════════════════════════════════════════ */
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:18px 20px;margin-bottom:14px}
+.ct{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.ct i{color:var(--or);font-size:16px}
+.ct .ct-action{margin-left:auto}
 
-/* ── Main Area ────────────────────────────────────────────── */
-.main-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+/* ══ KPI ROW ═════════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:13px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 18px}
+.kpi-v{font-size:28px;font-weight:800;color:var(--text);line-height:1}
+.kpi-l{font-size:11px;color:var(--muted);margin-top:5px;font-weight:500}
+.g .kpi-v{color:var(--green)}.b .kpi-v{color:var(--blue)}.o .kpi-v{color:var(--or)}.r .kpi-v{color:var(--red)}
 
-/* ── Top Header ───────────────────────────────────────────── */
-.admin-header{
-  height:56px;min-height:56px;
-  background:#fff;border-bottom:1px solid #e2e8f0;
-  display:flex;align-items:center;padding:0 20px;
-  gap:12px;flex-shrink:0;
-  box-shadow:0 1px 3px rgba(0,0,0,.04);
-}
-.hdr-hamburger{
-  display:none;background:none;border:none;cursor:pointer;
-  color:#475569;font-size:20px;padding:4px;
-}
-.hdr-page-title{
-  font-size:17px;font-weight:700;color:#0f172a;flex:1;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.hdr-page-title .hdr-breadcrumb{
-  font-size:11px;font-weight:400;color:#94a3b8;margin-left:8px;
-}
-.hdr-clock{
-  font-size:11px;font-family:'IBM Plex Mono',monospace;
-  background:#f8fafc;border:1px solid #e2e8f0;
-  padding:4px 10px;border-radius:20px;color:#475569;white-space:nowrap;
-}
-.hdr-links{display:flex;gap:6px}
-.hdr-link{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;
-  color:#475569;border:1px solid #e2e8f0;background:#f8fafc;
-  text-decoration:none;transition:.15s;cursor:pointer;
-}
-.hdr-link:hover{background:#f1f5f9;border-color:#cbd5e1;color:#1e293b}
-.hdr-badge{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
-  background:rgba(232,119,34,.1);border:1px solid rgba(232,119,34,.25);
-  color:#e87722;white-space:nowrap;
-}
-.hdr-status{display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b}
-.hdr-status .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* ══ FORM ════════════════════════════════════════════════════════ */
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.2px}
+.fg input,.fg select{border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;color:var(--text);background:var(--light)}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--or);background:#fff}
+select[multiple]{height:78px}
+.hint{font-size:10px;color:var(--muted);margin-top:3px}
 
-/* ── Content Area ─────────────────────────────────────────── */
-.admin-content{
-  flex:1;overflow-y:auto;padding:20px 24px;
-  background:#f1f5f9;
-}
+/* ══ BUTTONS ═════════════════════════════════════════════════════ */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid;transition:all .15s;font-family:inherit}
+.btn-or{background:var(--or);border-color:var(--or);color:#fff}.btn-or:hover{background:#d06518}
+.btn-gray{background:var(--light);border-color:var(--border);color:var(--text)}.btn-gray:hover{background:var(--border)}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff}.btn-green:hover{background:#15803d}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff}.btn-red:hover{background:#dc2626}
+.btn-blue{background:var(--blue);border-color:var(--blue);color:#fff}.btn-blue:hover{background:#1d4ed8}
+.btn-sm{padding:5px 9px;font-size:11px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 
-/* ── Page / Tab system (reuse existing .page class) ────────── */
-/* Existing shared.css handles .page / .page.active */
+/* ══ TABLE ═══════════════════════════════════════════════════════ */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:9px 11px;text-align:left;border-bottom:2px solid var(--border);font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;background:var(--light)}
+td{padding:10px 11px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
 
-/* ── Stat Cards Row ───────────────────────────────────────── */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
-.kpi-card{
-  background:#fff;border:1px solid #e2e8f0;border-radius:12px;
-  padding:16px 18px;display:flex;flex-direction:column;gap:4px;
-}
-.kpi-card .kpi-val{font-size:28px;font-weight:700;color:#0f172a;line-height:1}
-.kpi-card .kpi-lbl{font-size:11px;color:#64748b;font-weight:500}
-.kpi-card .kpi-icon{font-size:22px;margin-bottom:4px}
-.kpi-green .kpi-val{color:#16a34a}
-.kpi-blue  .kpi-val{color:#2563eb}
-.kpi-orange.kpi-val{color:#ea580c}
+/* ══ BADGES ══════════════════════════════════════════════════════ */
+.bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.bdg-g{background:#dcfce7;color:#16a34a}.bdg-o{background:#fff7ed;color:#ea580c}
+.bdg-gy{background:#f1f5f9;color:var(--muted)}.bdg-b{background:#eff6ff;color:var(--blue)}
+.bdg-r{background:#fef2f2;color:var(--red)}.bdg-or{background:rgba(232,119,34,.1);color:var(--or)}
 
-/* ── Mobile overlay ───────────────────────────────────────── */
-.sidebar-overlay{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;
-}
-.sidebar-overlay.show{display:block}
+/* ══ SEARCH ══════════════════════════════════════════════════════ */
+.sr{display:flex;gap:8px;margin-bottom:13px;flex-wrap:wrap}
+.sr input,.sr select{border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12.5px;color:var(--text);background:#fff}
+.sr input{flex:1;min-width:160px}
 
-/* ── Responsive ───────────────────────────────────────────── */
-@media(max-width:768px){
-  .sidebar{position:fixed;top:0;left:0;height:100vh;transform:translateX(-100%);transition:transform .25s ease}
-  .sidebar.mobile-open{transform:translateX(0)}
-  .main-wrap{width:100%}
-  .hdr-hamburger{display:flex}
-  .hdr-clock{display:none}
-  .hdr-links{display:none}
-  .admin-content{padding:12px}
-}
-@media(max-width:500px){
-  .hdr-badge{display:none}
+/* ══ EMPTY ═══════════════════════════════════════════════════════ */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty i{font-size:44px;display:block;margin-bottom:10px;opacity:.35}
+
+/* ══ TOAST ═══════════════════════════════════════════════════════ */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;border-left:4px solid var(--or);display:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:300px}
+
+/* ══ MODAL ═══════════════════════════════════════════════════════ */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-bg.show{display:flex}
+.modal-box{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-head h3{font-size:15px;font-weight:700;color:var(--text)}
+
+/* ══ PHOTO PREVIEW ═══════════════════════════════════════════════ */
+.photo-prev{max-width:100%;max-height:280px;border-radius:10px;margin-top:10px;display:block}
+
+/* ══ RESPONSIVE ══════════════════════════════════════════════════ */
+@media(max-width:680px){
+  .sidebar{position:fixed;left:-220px;top:0;height:100vh;z-index:300;transition:left .25s}
+  .sidebar.mob-open{left:0}
+  .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:299}
+  .mob-overlay.show{display:block}
+  .topbar-badge{display:none}
+  .fr{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<div class="sidebar-overlay" id="sb-overlay" onclick="closeMobileSidebar()"></div>
+<!-- ══════════════ LOGIN ══════════════════════════════════════════ -->
+<div id="scr-login">
+  <div class="lbox">
+    <div class="lbox-logo">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png"
+           onerror="this.style.display='none'" alt="BDI">
+      <h1>BDI Admin</h1>
+      <p>Attendance Management Portal</p>
+    </div>
+    <div class="lf">
+      <label>Username</label>
+      <input type="text" id="l-user" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="lf">
+      <label>Password</label>
+      <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="lbtn" onclick="doLogin()"><i class="ti ti-login"></i> Sign In</button>
+    <div class="lerr" id="l-err">Incorrect username or password</div>
+  </div>
+</div>
 
-<div class="admin-layout">
+<!-- ══════════════ ADMIN ══════════════════════════════════════════ -->
+<div class="mob-overlay" id="mob-overlay" onclick="closeMob()"></div>
+<div id="scr-admin">
 
-  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
-
-    <!-- Brand -->
     <div class="sb-brand">
-      <img src="https://bdiuae.com/images/common/bdi_logo.png" class="sb-logo"
+      <img src="https://bdiuae.com/images/common/bdi_logo.png"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="BDI">
-      <div class="sb-logo-fb">BDI</div>
-      <div class="sb-txt">
+      <div class="sb-brand-fb">BDI</div>
+      <div class="sb-brand-txt">
         <strong>BDI Admin</strong>
         <span>Attendance Portal</span>
       </div>
     </div>
-
-    <!-- Navigation -->
     <nav class="sb-nav">
+      <div class="sb-sec">Overview</div>
+      <button class="nb on" data-pg="dash" onclick="go('dash')"><i class="ti ti-layout-dashboard"></i>Dashboard</button>
 
-      <div class="nav-section-label">Overview</div>
-      <button class="nav-item stab" data-tab="dash" onclick="aTab('dash')">
-        <i class="ti ti-layout-dashboard"></i><span class="nav-lbl">Dashboard</span>
-      </button>
+      <div class="sb-sec">People</div>
+      <button class="nb" data-pg="emp" onclick="go('emp')"><i class="ti ti-users"></i>Employees</button>
+      <button class="nb" data-pg="sups" onclick="go('sups')"><i class="ti ti-hard-hat"></i>Supervisors</button>
+      <button class="nb" data-pg="appsup" onclick="go('appsup');loadAppSups()"><i class="ti ti-device-mobile"></i>App Supervisors</button>
 
-      <div class="nav-section-label">People</div>
-      <button class="nav-item stab active" data-tab="emp" onclick="aTab('emp')">
-        <i class="ti ti-users"></i><span class="nav-lbl">Employees</span>
-      </button>
-      <button class="nav-item stab" data-tab="sups" onclick="aTab('sups')">
-        <i class="ti ti-hard-hat"></i><span class="nav-lbl">Supervisors</span>
-      </button>
-      <button class="nav-item stab" data-tab="appsup" onclick="aTab('appsup');loadAppSupervisors();loadLiveFeed()">
-        <i class="ti ti-device-mobile"></i><span class="nav-lbl">App Supervisors</span>
-      </button>
+      <div class="sb-sec">Locations</div>
+      <button class="nb" data-pg="sites" onclick="go('sites')"><i class="ti ti-building"></i>Sites</button>
 
-      <div class="nav-section-label">Locations</div>
-      <button class="nav-item stab" data-tab="sites" onclick="aTab('sites')">
-        <i class="ti ti-building"></i><span class="nav-lbl">Sites</span>
-      </button>
+      <div class="sb-sec">Attendance</div>
+      <button class="nb" data-pg="report" onclick="go('report');loadReport()"><i class="ti ti-chart-bar"></i>Reports</button>
+      <button class="nb" data-pg="manreq" onclick="go('manreq');loadManReqs()"><i class="ti ti-camera"></i>Manual Requests</button>
 
-      <div class="nav-section-label">Attendance</div>
-      <button class="nav-item stab" data-tab="report" onclick="aTab('report')">
-        <i class="ti ti-chart-bar"></i><span class="nav-lbl">Reports</span>
-      </button>
-      <button class="nav-item stab" data-tab="manreq" onclick="aTab('manreq');loadManualRequests()">
-        <i class="ti ti-camera"></i><span class="nav-lbl">Manual Requests</span>
-      </button>
-
-      <div class="nav-section-label">System</div>
-      <button class="nav-item stab" data-tab="settings" onclick="aTab('settings')">
-        <i class="ti ti-settings"></i><span class="nav-lbl">Settings</span>
-      </button>
-
+      <div class="sb-sec">System</div>
+      <button class="nb" data-pg="settings" onclick="go('settings')"><i class="ti ti-settings"></i>Settings</button>
     </nav>
-
-    <!-- Footer -->
-    <div class="sb-footer">
-      <div class="sb-footer-user">
+    <div class="sb-foot">
+      <div class="sb-user">
         <div class="sb-av">A</div>
         <div class="sb-user-info">
           <strong>Administrator</strong>
-          <span><i class="ti ti-shield-lock" style="font-size:9px"></i> Full Access</span>
+          <span>Full Access</span>
         </div>
       </div>
-      <button class="sb-logout" onclick="logout()">
-        <i class="ti ti-logout"></i><span>Logout</span>
-      </button>
-      <button class="sb-collapse" id="sb-toggle" onclick="toggleSidebar()" title="Collapse sidebar">
-        <i class="ti ti-layout-sidebar-left-collapse" id="sb-toggle-icon"></i>
-      </button>
+      <button class="sb-logout" onclick="logout()"><i class="ti ti-logout"></i> Logout</button>
     </div>
-
   </aside>
 
-  <!-- ══════════════ MAIN AREA ══════════════ -->
-  <div class="main-wrap">
-
-    <!-- Top Header -->
-    <header class="admin-header">
-      <button class="hdr-hamburger" onclick="openMobileSidebar()"><i class="ti ti-menu-2"></i></button>
-      <div class="hdr-page-title" id="page-title">
-        Employees
-        <span class="hdr-breadcrumb" id="page-breadcrumb">Management</span>
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title" id="pg-title">Dashboard <small id="pg-sub">Overview</small></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="srv-dot" id="srv-dot"></div>
+        <span class="srv-lbl" id="srv-lbl">Connecting…</span>
       </div>
-      <div class="hdr-status">
-        <span class="dot" id="server-dot" style="background:#94a3b8"></span>
-        <span id="server-lbl" style="font-size:10px">Connecting…</span>
-      </div>
-      <div id="a-clk" class="hdr-clock">--:--:--</div>
-      <div class="hdr-badge"><i class="ti ti-shield-lock" style="font-size:11px"></i> Admin</div>
+      <div class="topbar-badge"><i class="ti ti-shield-lock" style="font-size:11px"></i> Admin</div>
     </header>
 
-    <!-- Content -->
-    <main class="admin-content" id="scr-admin">
+    <main class="content">
 
-      <!-- ── EMPLOYEES TAB ─────────────────────────────── -->
-      <div id="ap-emp" class="page active">
-        <div class="stats-row" id="a-stats"></div>
+      <!-- ── DASHBOARD ─────────────────────────────── -->
+      <div class="pg on" id="pg-dash">
+        <div class="kpi-row" id="dash-kpi">
+          <div class="kpi"><div class="kpi-v" id="d-emps">–</div><div class="kpi-l">Total Employees</div></div>
+          <div class="kpi g"><div class="kpi-v" id="d-present">–</div><div class="kpi-l">Present Today</div></div>
+          <div class="kpi b"><div class="kpi-v" id="d-sites">–</div><div class="kpi-l">Active Sites</div></div>
+          <div class="kpi o"><div class="kpi-v" id="d-sups">–</div><div class="kpi-l">Supervisors</div></div>
+          <div class="kpi r"><div class="kpi-v" id="d-pending">–</div><div class="kpi-l">Pending Requests</div></div>
+        </div>
         <div class="card">
-          <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Employee</div>
-          <div class="form-row">
-            <div class="form-g"><label>Full Name *</label><input type="text" id="en" placeholder="Ahmed Hassan"></div>
-            <div class="form-g"><label>Employee ID *</label><input type="text" id="ei" placeholder="BDI-0042"></div>
+          <div class="ct"><i class="ti ti-activity"></i>Today's Punches</div>
+          <div id="dash-punches"><div class="empty"><i class="ti ti-clock"></i>Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ── EMPLOYEES ─────────────────────────────── -->
+      <div class="pg" id="pg-emp">
+        <div class="card">
+          <div class="ct"><i class="ti ti-user-plus"></i>Add Employee</div>
+          <div class="fr">
+            <div class="fg"><label>Full Name *</label><input id="en" placeholder="Ahmed Hassan"></div>
+            <div class="fg"><label>Employee ID *</label><input id="ei" placeholder="BDI-0042"></div>
           </div>
-          <div class="form-row">
-            <div class="form-g"><label>Department</label>
-              <select id="ed"><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option><option>Other</option></select>
+          <div class="fr">
+            <div class="fg"><label>Department</label>
+              <select id="ed">
+                <option>Engineering</option><option>Operations</option>
+                <option>HSE</option><option>Mechanical</option>
+                <option>Admin</option><option>Other</option>
+              </select>
             </div>
-            <div class="form-g"><label>Role / Designation</label><input type="text" id="er" placeholder="Pipeline Engineer"></div>
+            <div class="fg"><label>Role / Designation</label><input id="er" placeholder="Pipeline Engineer"></div>
           </div>
-          <div class="form-row">
-            <div class="form-g"><label>Mobile</label><input type="text" id="eph" placeholder="+971 50 000 0000"></div>
-            <div class="form-g"><label>Assign Sites <small style="color:#94a3b8">(hold Ctrl for multiple)</small></label>
-              <select id="esites" multiple><option value="">Loading…</option></select>
+          <div class="fr">
+            <div class="fg"><label>Mobile</label><input id="eph" placeholder="+971 50 000 0000"></div>
+            <div class="fg"><label>Assign Sites <span class="hint">(hold Ctrl for multiple)</span></label>
+              <select id="esites" multiple></select>
             </div>
           </div>
-          <div class="form-g"><label>Face Registered?</label>
-            <div style="display:flex;gap:8px;margin-top:4px">
-              <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="yes" style="width:auto"> Yes — face sample stored</label>
-              <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="no" checked style="width:auto"> No — manual override allowed</label>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <button class="btn o" onclick="addEmp()"><i class="ti ti-user-plus"></i> Add Employee</button>
-            <button class="btn" onclick="loadDemo()"><i class="ti ti-download"></i> Load Demo Data</button>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="addEmp()"><i class="ti ti-user-plus"></i>Add Employee</button>
           </div>
         </div>
         <div class="card">
-          <div class="card-lbl"><i class="ti ti-list"></i> Employee Directory</div>
-          <div class="search-row">
-            <input type="text" id="esrch" placeholder="Search name, ID, role…" oninput="renderEmpTbl()">
-            <select id="edept" onchange="renderEmpTbl()"><option value="">All departments</option><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option></select>
+          <div class="ct"><i class="ti ti-list"></i>Employee Directory
+            <span class="ct-action" style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
           </div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Face</th><th>Today</th><th></th></tr></thead>
-            <tbody id="etbl"></tbody>
+          <div class="sr">
+            <input id="emp-srch" placeholder="Search name, ID, role…" oninput="renderEmps()">
+            <select id="emp-dept" onchange="renderEmps()">
+              <option value="">All Departments</option>
+              <option>Engineering</option><option>Operations</option>
+              <option>HSE</option><option>Mechanical</option><option>Admin</option>
+            </select>
+          </div>
+          <div class="tw"><table>
+            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th></th></tr></thead>
+            <tbody id="emp-tbl"></tbody>
           </table></div>
         </div>
       </div>
 
-      <!-- ── SUPERVISORS TAB ───────────────────────────── -->
-      <div id="ap-sups" class="page">
+      <!-- ── SUPERVISORS ───────────────────────────── -->
+      <div class="pg" id="pg-sups">
         <div class="card">
-          <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Supervisor / Site Engineer</div>
-          <div class="form-row">
-            <div class="form-g"><label>Full Name *</label><input type="text" id="sn" placeholder="Omar Al Rashidi"></div>
-            <div class="form-g"><label>Login ID *</label><input type="text" id="sid" placeholder="sup001"></div>
+          <div class="ct"><i class="ti ti-user-plus"></i>Add Web Portal Supervisor</div>
+          <div class="fr">
+            <div class="fg"><label>Full Name *</label><input id="sn" placeholder="Omar Al Rashidi"></div>
+            <div class="fg"><label>Login ID *</label><input id="sid" placeholder="sup001"></div>
           </div>
-          <div class="form-row">
-            <div class="form-g"><label>Role</label>
-              <select id="srole"><option>Site Supervisor</option><option>Site Engineer</option><option>HSE Officer</option><option>Foreman</option></select>
+          <div class="fr">
+            <div class="fg"><label>Role</label>
+              <select id="srole">
+                <option>Site Supervisor</option><option>Site Engineer</option>
+                <option>HSE Officer</option><option>Foreman</option>
+              </select>
             </div>
-            <div class="form-g"><label>Password *</label><input type="password" id="spw" placeholder="Set login password"></div>
+            <div class="fg"><label>Password *</label><input type="password" id="spw" placeholder="Set password"></div>
           </div>
-          <div class="form-g"><label>Assigned Sites <small style="color:#94a3b8">(hold Ctrl for multiple)</small></label>
-            <select id="ssites" multiple><option value="">Loading…</option></select>
-            <p class="hint"><i class="ti ti-info-circle" style="font-size:11px"></i> Supervisor can only mark attendance for employees at their assigned sites</p>
+          <div class="fg" style="margin-bottom:11px"><label>Assigned Sites <span class="hint">(hold Ctrl for multiple)</span></label>
+            <select id="ssites" multiple></select>
           </div>
-          <button class="btn o" onclick="addSup()" style="margin-top:6px"><i class="ti ti-user-plus"></i> Add Supervisor</button>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="addSup()"><i class="ti ti-user-plus"></i>Add Supervisor</button>
+          </div>
         </div>
         <div class="card">
-          <div class="card-lbl"><i class="ti ti-list"></i> Supervisors & Site Engineers</div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Assigned Sites</th><th>Marked Today</th><th></th></tr></thead>
-            <tbody id="suptbl"></tbody>
+          <div class="ct"><i class="ti ti-list"></i>Web Portal Supervisors</div>
+          <div class="tw"><table>
+            <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Sites</th><th></th></tr></thead>
+            <tbody id="sup-tbl"></tbody>
           </table></div>
         </div>
       </div>
 
-      <!-- ── SITES TAB ─────────────────────────────────── -->
-      <div id="ap-sites" class="page">
+      <!-- ── APP SUPERVISORS ───────────────────────── -->
+      <div class="pg" id="pg-appsup">
         <div class="card">
-          <div class="card-lbl"><i class="ti ti-circle-plus"></i> Add New Site</div>
-          <div class="form-row">
-            <div class="form-g"><label>Site Name *</label><input type="text" id="sns" placeholder="Al Ain Pipeline Project"></div>
-            <div class="form-g"><label>Site Code *</label><input type="text" id="snc" placeholder="AIN-01"></div>
+          <div class="ct"><i class="ti ti-device-mobile"></i>Registered App Supervisors
+            <span class="ct-action"><button class="btn btn-gray btn-sm" onclick="loadAppSups()"><i class="ti ti-refresh"></i>Refresh</button></span>
           </div>
-          <div class="form-row">
-            <div class="form-g"><label>Location / Address</label><input type="text" id="snl" placeholder="Al Ain, Abu Dhabi"></div>
-            <div class="form-g"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Supervisors who installed the BDI app. Approve to allow attendance marking.</p>
+          <div id="appsup-list"><div class="empty"><i class="ti ti-device-mobile"></i>Click Refresh to load</div></div>
+        </div>
+      </div>
+
+      <!-- ── SITES ─────────────────────────────────── -->
+      <div class="pg" id="pg-sites">
+        <div class="card">
+          <div class="ct"><i class="ti ti-circle-plus"></i>Add New Site</div>
+          <div class="fr">
+            <div class="fg"><label>Site Name *</label><input id="sns" placeholder="Al Ain Pipeline Project"></div>
+            <div class="fg"><label>Site Code *</label><input id="snc" placeholder="AIN-01"></div>
           </div>
-          <div class="form-row">
-            <div class="form-g"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
-            <div class="form-g">
-              <label>Geo-Zone Radius: <span id="srad-v" style="color:var(--orange);font-weight:600">2.0 km</span></label>
-              <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:6px" id="srad" oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
-              <p class="hint">Distance from site coordinates within which supervisor must be present</p>
+          <div class="fr">
+            <div class="fg"><label>Location / Address</label><input id="snl" placeholder="Al Ain, Abu Dhabi"></div>
+            <div class="fg"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
+            <div class="fg">
+              <label>Geo-Zone Radius: <span id="srad-v" style="color:var(--or);font-weight:700">2.0 km</span></label>
+              <input type="range" min="0.5" max="20" step="0.5" value="2" id="srad"
+                     oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"
+                     style="accent-color:var(--or);width:100%;margin-top:6px">
+              <p class="hint">Distance from site coordinates where attendance can be marked</p>
             </div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-            <button class="btn o" onclick="addSite()"><i class="ti ti-circle-plus"></i> Add Site</button>
-            <button class="btn" onclick="useMyLoc()"><i class="ti ti-map-pin"></i> Use My Location</button>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="addSite()"><i class="ti ti-circle-plus"></i>Add Site</button>
+            <button class="btn btn-gray" onclick="useMyLoc()"><i class="ti ti-map-pin"></i>Use My GPS</button>
           </div>
-          <div id="loc-msg" style="font-size:10px;color:var(--gray);margin-top:5px;display:none"></div>
+          <div id="loc-msg" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
         </div>
         <div id="sites-list"></div>
       </div>
 
-      <!-- Enrollment moved to dedicated /enroll page -->
-
-      <!-- Terminal moved to dedicated kiosk page -->
-
-      <!-- ── REPORT TAB ─────────────────────────────────── -->
-      <div id="ap-report" class="page">
-        <div class="stats-row" id="rep-stats"></div>
-
-        <!-- Full Attendance Log -->
+      <!-- ── REPORTS ────────────────────────────────── -->
+      <div class="pg" id="pg-report">
         <div class="card">
-          <div class="card-lbl"><i class="ti ti-list"></i> Full Attendance Log</div>
-          <div id="py-sync-bar" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <i class="ti ti-brand-python" style="color:#3b82f6;font-size:16px"></i>
-            <span style="font-size:12px;color:#1e40af;flex:1">Python camera records are included in this report automatically.</span>
-            <button class="btn sm" onclick="_mergePyRecords().then(()=>{renderReport();renderAStats();})" style="background:#3b82f6;color:#fff;border:none;font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer">
-              <i class="ti ti-refresh"></i> Sync Now
-            </button>
+          <div class="ct"><i class="ti ti-chart-bar"></i>Attendance Report</div>
+          <div class="fr" style="margin-bottom:12px">
+            <div class="fg"><label>From Date</label><input type="date" id="r-from" onchange="loadReport()"></div>
+            <div class="fg"><label>To Date</label><input type="date" id="r-to" onchange="loadReport()"></div>
           </div>
-          <div class="form-row" style="margin-bottom:8px">
-            <div class="form-g"><label>From Date</label><input type="date" id="r-date-from" onchange="renderReport()"></div>
-            <div class="form-g"><label>To Date</label><input type="date" id="r-date-to" onchange="renderReport()"></div>
+          <div class="sr">
+            <input id="r-srch" placeholder="Search employee…" oninput="filterReport()">
+            <select id="r-site" onchange="filterReport()"><option value="">All Sites</option></select>
+            <select id="r-type" onchange="filterReport()">
+              <option value="">All Types</option>
+              <option value="in">Check IN</option>
+              <option value="out">Check OUT</option>
+            </select>
+            <button class="btn btn-green btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export CSV</button>
           </div>
-          <div class="search-row">
-            <input type="text" id="rsrch" placeholder="Search name or ID…" oninput="renderReport()">
-            <select id="rsiteF" onchange="renderReport()"><option value="">All sites</option></select>
-            <select id="rstatF" onchange="renderReport()"><option value="">All status</option><option value="in">Present</option><option value="out">Checked out</option><option value="absent">Absent</option></select>
-            <button class="btn n" onclick="downloadReport()"><i class="ti ti-download"></i> Export CSV</button>
-          </div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site</th><th>Punched By</th><th>Method</th><th>Check-in</th><th>Check-out</th><th>Arrival</th><th>Status</th></tr></thead>
-            <tbody id="rtbl"></tbody>
+          <div id="rep-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div class="tw"><table>
+            <thead><tr><th>Employee</th><th>ID</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Source</th><th>Time</th></tr></thead>
+            <tbody id="rep-tbl"></tbody>
           </table></div>
         </div>
+      </div>
 
-        <!-- Supervisor Punch Report -->
-        <div class="card" style="margin-top:16px">
-          <div class="card-lbl"><i class="ti ti-user-check"></i> Supervisor Punch Report
-            <button class="btn sm" onclick="loadSupervisorReport()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
+      <!-- ── MANUAL REQUESTS ────────────────────────── -->
+      <div class="pg" id="pg-manreq">
+        <div class="card">
+          <div class="ct"><i class="ti ti-camera"></i>Manual Attendance Requests
+            <span class="ct-action"><button class="btn btn-gray btn-sm" onclick="loadManReqs()"><i class="ti ti-refresh"></i>Refresh</button></span>
           </div>
-          <p style="font-size:12px;color:#64748b;margin-bottom:14px">Attendance punches grouped by the supervisor who recorded them.</p>
-          <div style="display:flex;gap:10px;margin-bottom:14px;align-items:flex-end;flex-wrap:wrap">
-            <div class="form-g" style="margin:0;min-width:140px">
-              <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px">From Date</label>
-              <input type="date" id="sup-rep-from" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;width:100%">
-            </div>
-            <div class="form-g" style="margin:0;min-width:140px">
-              <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px">To Date</label>
-              <input type="date" id="sup-rep-to" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;width:100%">
-            </div>
-            <div class="form-g" style="margin:0;min-width:160px">
-              <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Supervisor</label>
-              <select id="sup-rep-sup" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;width:100%">
-                <option value="">All Supervisors</option>
-              </select>
-            </div>
-            <button class="btn n" onclick="loadSupervisorReport()" style="height:34px"><i class="ti ti-search"></i> Search</button>
-            <button class="btn" onclick="exportSupervisorCSV()" style="height:34px;background:#16a34a;border-color:#16a34a;color:#fff"><i class="ti ti-download"></i> Export CSV</button>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">When face scan fails, supervisors submit a photo. Approve or reject below.</p>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-sm" id="mr-all" onclick="loadManReqs('')" style="background:#f1f5f9;border-color:#e2e8f0;color:var(--text)">All</button>
+            <button class="btn btn-sm" id="mr-pend" onclick="loadManReqs('pending')" style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
+            <button class="btn btn-sm" id="mr-appr" onclick="loadManReqs('approved')" style="background:#f1f5f9;border-color:#e2e8f0;color:var(--text)">✅ Approved</button>
+            <button class="btn btn-sm" id="mr-rej" onclick="loadManReqs('rejected')" style="background:#f1f5f9;border-color:#e2e8f0;color:var(--text)">❌ Rejected</button>
           </div>
-          <div id="sup-rep-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
-          <div id="sup-rep-table" style="max-height:420px;overflow-y:auto">
-            <p style="color:#94a3b8;text-align:center;padding:20px">Select a date range and click Search.</p>
-          </div>
+          <div id="manreq-list"><div class="empty"><i class="ti ti-camera-off"></i>Loading requests…</div></div>
         </div>
       </div>
 
-      <!-- ── DASHBOARD TAB ──────────────────────────────── -->
-      <div id="ap-dash" class="page"></div>
-
-      <!-- ── APP SUPERVISORS TAB ───────────────────────── -->
-      <div id="ap-appsup" class="page">
-
-        <!-- Live Feed -->
+      <!-- ── SETTINGS ───────────────────────────────── -->
+      <div class="pg" id="pg-settings">
         <div class="card">
-          <div class="card-lbl">
-            <i class="ti ti-activity"></i> Live Attendance Feed
-            <span id="live-status" style="float:right;font-size:10px;font-weight:400;color:#22c55e;margin-top:4px">
-              <i class="ti ti-circle-filled" style="font-size:8px"></i> Auto-refreshing every 30s
-            </span>
+          <div class="ct"><i class="ti ti-face-id"></i>Face Encoding Backup</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            Railway wipes server data on every redeploy. Use these buttons to backup face data to your browser and restore after restart.
+          </p>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="backupFaces()"><i class="ti ti-download"></i>Backup Face Data Now</button>
+            <button class="btn btn-blue" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore to Server</button>
           </div>
-          <p style="font-size:12px;color:#64748b;margin-bottom:12px">Real-time punch records from the supervisor app.</p>
-          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
-            <input type="date" id="live-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px">
-            <select id="live-site" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px">
-              <option value="">All Sites</option>
-            </select>
-            <button class="btn sm" onclick="loadLiveFeed()"><i class="ti ti-refresh"></i> Refresh Now</button>
-          </div>
-          <div id="live-stats" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
-          <div id="live-feed" style="max-height:400px;overflow-y:auto">
-            <p style="color:#94a3b8;text-align:center;padding:20px">Loading live feed...</p>
+          <div id="face-backup-info" style="margin-top:10px;font-size:12px;color:var(--muted)">Checking backup…</div>
+        </div>
+        <div class="card">
+          <div class="ct"><i class="ti ti-database"></i>Data Backup</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Export all employees, sites, supervisors and records as JSON.</p>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="exportJSON()"><i class="ti ti-download"></i>Export Full Backup (JSON)</button>
+            <label class="btn btn-gray" style="cursor:pointer"><i class="ti ti-upload"></i>Import Backup
+              <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">
+            </label>
           </div>
         </div>
-
-        <!-- App Supervisors List -->
         <div class="card">
-          <div class="card-lbl">
-            <i class="ti ti-device-mobile"></i> Registered App Supervisors
-            <button class="btn sm" onclick="loadAppSupervisors()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
-          </div>
-          <p style="font-size:12px;color:#64748b;margin-bottom:14px">Supervisors who installed the BDI Attendance app. Approve and manage their permissions.</p>
-          <div id="app-sup-list"><p style="color:#94a3b8;text-align:center;padding:20px">Click Refresh to load supervisors...</p></div>
-        </div>
-
-        <!-- Man Hours -->
-        <div class="card">
-          <div class="card-lbl">
-            <i class="ti ti-clock"></i> Man Hours Report
-            <button class="btn sm" onclick="loadManHours()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
-          </div>
-          <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-            <input type="date" id="mh-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px">
-            <button class="btn sm" onclick="loadManHours()"><i class="ti ti-search"></i> Search</button>
-          </div>
-          <div id="manhours-list"><p style="color:#94a3b8;text-align:center;padding:20px">Select a date and click Load.</p></div>
+          <div class="ct"><i class="ti ti-info-circle"></i>System Info</div>
+          <div id="sys-info" style="font-size:13px;color:var(--muted)">Loading…</div>
         </div>
       </div>
 
-      <!-- ── MANUAL REQUESTS TAB ───────────────────────── -->
-      <div id="ap-manreq" class="page">
-        <div class="card">
-          <div class="card-lbl">
-            <i class="ti ti-camera"></i> Manual Attendance Requests
-            <button class="btn sm" onclick="loadManualRequests()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
-          </div>
-          <p style="font-size:12px;color:#64748b;margin-bottom:14px">When face scan fails, supervisors submit a photo for review. Approve or reject each request below.</p>
-          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-            <label style="font-size:12px;font-weight:600;color:#475569">Filter:</label>
-            <button class="btn sm" onclick="loadManualRequests('pending')" id="mr-btn-pending" style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
-            <button class="btn sm n" onclick="loadManualRequests('approved')" id="mr-btn-approved">✅ Approved</button>
-            <button class="btn sm n" onclick="loadManualRequests('rejected')" id="mr-btn-rejected">❌ Rejected</button>
-            <button class="btn sm n" onclick="loadManualRequests('')" id="mr-btn-all">All</button>
-          </div>
-          <div id="manreq-list"><p style="color:#94a3b8;text-align:center;padding:20px">Loading requests...</p></div>
-        </div>
-      </div>
-
-      <!-- ── SETTINGS TAB ───────────────────────────────── -->
-      <div id="ap-settings" class="page">
-        <div class="card">
-          <div class="card-lbl"><i class="ti ti-building"></i> Company Information</div>
-          <div class="form-row">
-            <div class="form-g"><label>Company Full Name</label><input type="text" id="set-company" placeholder="Bright Deal International"></div>
-            <div class="form-g"><label>Short Name / Code</label><input type="text" id="set-short" placeholder="BDI"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-lbl"><i class="ti ti-face-id"></i> Face Recognition Settings</div>
-          <div class="form-row">
-            <div class="form-g">
-              <label>Verification Threshold (1:1): <span id="set-threshold-v" style="color:var(--orange);font-weight:600">0.55</span></label>
-              <input type="range" min="0.3" max="0.8" step="0.01" id="set-threshold" oninput="document.getElementById('set-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
-              <p class="hint">Used for supervisor face-verify. Lower = stricter. 0.55 recommended.</p>
-            </div>
-            <div class="form-g">
-              <label>Scanner / Terminal Threshold: <span id="set-scan-threshold-v" style="color:var(--orange);font-weight:600">0.62</span></label>
-              <input type="range" min="0.3" max="0.85" step="0.01" id="set-scan-threshold" oninput="document.getElementById('set-scan-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
-              <p class="hint">Used for auto-identification in scanner &amp; terminal. 0.62 recommended.</p>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-g">
-              <label>Confirm Frames (consecutive)</label>
-              <input type="number" id="set-confirm-frames" min="1" max="10" placeholder="3">
-              <p class="hint">How many consecutive matching frames before auto-punch. 3 recommended.</p>
-            </div>
-            <div class="form-g">
-              <label>Min Face Size: <span id="set-min-face-v" style="color:var(--orange);font-weight:600">4%</span></label>
-              <input type="range" min="1" max="20" step="1" id="set-min-face" oninput="document.getElementById('set-min-face-v').textContent=this.value+'%'" style="accent-color:var(--orange);width:100%;margin-top:6px">
-              <p class="hint">Face must cover this % of frame. Prevents far-away false matches.</p>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-g">
-              <label>Scanner Cooldown (frames)</label>
-              <input type="number" id="set-cooldown" min="10" max="300" placeholder="60">
-              <p class="hint">Frames between auto-punches. Higher = longer gap between marks.</p>
-            </div>
-            <div class="form-g"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-lbl"><i class="ti ti-clock"></i> Shift &amp; Time Rules</div>
-          <div class="form-row">
-            <div class="form-g"><label>Shift Start Time</label><input type="time" id="set-shift-start"></div>
-            <div class="form-g"><label>Shift End Time</label><input type="time" id="set-shift-end"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-g"><label>Late Grace Period (minutes)</label><input type="number" id="set-grace" min="0" max="60" placeholder="15"></div>
-            <div class="form-g"><label>Auto-logout After Inactivity (min, 0=off)</label><input type="number" id="set-timeout" min="0" max="480" placeholder="30"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-lbl"><i class="ti ti-database"></i> Data Backup &amp; Restore</div>
-          <p class="hint" style="margin-bottom:12px">Export a full JSON backup of all data including employees, sites, records and settings.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button class="btn o" onclick="exportJSON()"><i class="ti ti-download"></i> Export Full Backup (JSON)</button>
-            <button class="btn" onclick="downloadReport()"><i class="ti ti-file-spreadsheet"></i> Export CSV Report</button>
-            <label class="btn n" style="cursor:pointer"><i class="ti ti-upload"></i> Import Backup (JSON) <input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn o" onclick="saveSettingsForm()"><i class="ti ti-device-floppy"></i> Save Settings</button>
-          <button class="btn" onclick="initSettings()"><i class="ti ti-refresh"></i> Reset Form</button>
-        </div>
-      </div>
-
-    </main><!-- /.admin-content -->
-  </div><!-- /.main-wrap -->
-</div><!-- /.admin-layout -->
-
-<!-- Footer (hidden, kept for shared.js compatibility) -->
-<div class="bdi-footer" style="display:none"><span>© 2026 BDI</span></div>
-
-<!-- Site Edit Modal -->
-<div class="modal-backdrop" id="site-modal" onclick="closeSiteModal(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-head">
-      <div class="modal-head-title"><i class="ti ti-building-cog"></i> Edit Site &nbsp;<span class="modal-head-code" id="m-code">—</span></div>
-      <button onclick="closeSiteModal()" class="btn sm" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff"><i class="ti ti-x"></i> Close</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="ti ti-info-circle"></i> Site Details</div>
-        <div class="form-row">
-          <div class="form-g"><label>Site Name *</label><input type="text" id="m-name" placeholder="Site name"></div>
-          <div class="form-g"><label>Site Code *</label><input type="text" id="m-codeinput" placeholder="ABD-01" style="font-family:var(--mono);text-transform:uppercase"></div>
-        </div>
-        <div class="form-g"><label>Location / Address</label><input type="text" id="m-loc" placeholder="e.g. Corniche Road, Abu Dhabi"></div>
-        <div class="form-row">
-          <div class="form-g"><label>Latitude *</label><input type="number" id="m-lat" placeholder="24.4539" step="0.0001"></div>
-          <div class="form-g"><label>Longitude *</label><input type="number" id="m-lng" placeholder="54.3773" step="0.0001"></div>
-        </div>
-        <div class="form-g">
-          <label>Geo-Zone Radius: <span id="m-rad-v" style="color:var(--orange);font-weight:600">2.0 km</span></label>
-          <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:5px" id="m-rad" oninput="document.getElementById('m-rad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
-          <p class="hint">Supervisor must be within this radius to mark attendance</p>
-        </div>
-        <div style="display:flex;gap:7px;margin-top:4px">
-          <button class="btn sm" onclick="mUseMyLoc()"><i class="ti ti-map-pin"></i> Use My GPS</button>
-          <span id="m-loc-msg" style="font-size:10px;color:var(--gray);align-self:center"></span>
-        </div>
-      </div>
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="ti ti-hard-hat"></i> Assigned Supervisors / Site Engineers</div>
-        <p class="hint" style="margin-bottom:8px">Toggle supervisors authorised to mark attendance for this site.</p>
-        <div class="sup-assign-list" id="m-sup-list"></div>
-      </div>
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="ti ti-users"></i> Employees at This Site</div>
-        <p class="hint" style="margin-bottom:8px">Only assigned employees appear in the supervisor roster.</p>
-        <div style="display:flex;gap:7px;margin-bottom:7px">
-          <input type="text" id="m-emp-srch" placeholder="Filter employees…" oninput="renderMEmpList()" style="flex:1">
-          <button class="btn sm o" onclick="mAssignAll()"><i class="ti ti-users-plus"></i> All</button>
-          <button class="btn sm r" onclick="mRemoveAll()"><i class="ti ti-users-minus"></i> Remove All</button>
-        </div>
-        <div class="emp-assign-list" id="m-emp-list"></div>
-        <div style="margin-top:8px;font-size:11px;color:var(--gray)">Total: <span id="m-emp-count">0</span> &nbsp;·&nbsp; Assigned: <span id="m-emp-assigned-count" style="color:var(--ok);font-weight:500">0</span></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button onclick="closeSiteModal()" class="btn"><i class="ti ti-x"></i> Cancel</button>
-      <div style="display:flex;gap:7px">
-        <button onclick="mDeleteSite()" class="btn r"><i class="ti ti-trash"></i> Delete Site</button>
-        <button onclick="saveSiteModal()" class="btn o"><i class="ti ti-device-floppy"></i> Save Changes</button>
-      </div>
-    </div>
+    </main>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-<script src="shared.js"></script>
+<!-- PHOTO MODAL -->
+<div class="modal-bg" id="photo-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="photo-modal-title">Employee Photo</h3>
+      <button class="btn btn-gray btn-sm" onclick="closePhotoModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <img id="photo-modal-img" class="photo-prev" src="" alt="Photo">
+  </div>
+</div>
+
+<div id="toast"></div>
+
 <script>
-// ── Page title map ────────────────────────────────────────────
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════════════════════════ */
+const SERVER = ''; // relative URLs — works whether local or Railway
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+let EMPS = [], SITES = [], SUPS = [], RECS = [];
+let _reportRecs = []; // full unfiltered report records
+
+/* ══════════════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════════════ */
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const ini = n => n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderLeftColor = ok ? 'var(--or)' : '#ef4444';
+  t.style.display = 'block';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.style.display='none', 3000);
+}
+function uid(prefix) { return prefix + Date.now() + Math.floor(Math.random()*1000); }
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(SERVER + path, opts);
+  return r.json();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════════════════════════ */
+function doLogin() {
+  const u = document.getElementById('l-user').value.trim();
+  const p = document.getElementById('l-pass').value;
+  const err = document.getElementById('l-err');
+  if (u === 'admin' && p === 'bdi2026') {
+    document.getElementById('scr-login').style.display = 'none';
+    document.getElementById('scr-admin').classList.add('show');
+    initAdmin();
+  } else {
+    err.style.display = 'block';
+    setTimeout(() => err.style.display='none', 3000);
+  }
+}
+document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('l-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function logout() {
+  document.getElementById('scr-admin').classList.remove('show');
+  document.getElementById('scr-login').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE NAVIGATION
+══════════════════════════════════════════════════════════════ */
 const PAGE_META = {
-  emp:      {title:'Employees',          sub:'Management'},
-  sups:     {title:'Supervisors',        sub:'Web Portal Supervisors'},
-  sites:    {title:'Sites',              sub:'Geo-fenced Locations'},
-  report:   {title:'Reports',            sub:'Attendance & Supervisor'},
-  dash:     {title:'Dashboard',          sub:'Overview'},
-  appsup:   {title:'App Supervisors',    sub:'Mobile App · Live Feed · Man Hours'},
-  manreq:   {title:'Manual Requests',    sub:'Review & Approve'},
-  settings: {title:'Settings',           sub:'System Configuration'},
+  dash:    ['Dashboard',         'Overview'],
+  emp:     ['Employees',         'Management'],
+  sups:    ['Supervisors',       'Web Portal'],
+  appsup:  ['App Supervisors',   'Mobile App'],
+  sites:   ['Sites',             'Geo-fenced Locations'],
+  report:  ['Reports',           'Attendance Records'],
+  manreq:  ['Manual Requests',   'Review & Approve'],
+  settings:['Settings',          'System'],
 };
-
-// ── Override aTab to also update sidebar + header ─────────────
-const _origATab = window.aTab;
-window.aTab = function(t) {
-  _origATab(t);
-  // Update sidebar nav active state
-  document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
-    el.classList.toggle('active', el.dataset.tab === t);
-  });
-  // Update header page title
-  const meta = PAGE_META[t] || {title: t, sub: ''};
-  document.getElementById('page-title').textContent   = meta.title;
-  document.getElementById('page-breadcrumb').textContent = meta.sub;
-  // Close mobile sidebar
-  closeMobileSidebar();
-};
-
-// ── Sidebar collapse ──────────────────────────────────────────
-let _sidebarCollapsed = false;
-function toggleSidebar() {
-  _sidebarCollapsed = !_sidebarCollapsed;
-  document.getElementById('sidebar').classList.toggle('collapsed', _sidebarCollapsed);
-  const icon = document.getElementById('sb-toggle-icon');
-  icon.className = _sidebarCollapsed
-    ? 'ti ti-layout-sidebar-left-expand'
-    : 'ti ti-layout-sidebar-left-collapse';
+function go(id) {
+  document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const pg = document.getElementById('pg-'+id);
+  if (pg) pg.classList.add('on');
+  const btn = document.querySelector(`.nb[data-pg="${id}"]`);
+  if (btn) btn.classList.add('on');
+  const m = PAGE_META[id] || [id,''];
+  document.getElementById('pg-title').innerHTML = m[0]+` <small id="pg-sub">${m[1]}</small>`;
+  closeMob();
 }
+function openMob() { document.getElementById('sidebar').classList.add('mob-open'); document.getElementById('mob-overlay').classList.add('show'); }
+function closeMob() { document.getElementById('sidebar').classList.remove('mob-open'); document.getElementById('mob-overlay').classList.remove('show'); }
 
-// ── Mobile sidebar ────────────────────────────────────────────
-function openMobileSidebar() {
-  document.getElementById('sidebar').classList.add('mobile-open');
-  document.getElementById('sb-overlay').classList.add('show');
-}
-function closeMobileSidebar() {
-  document.getElementById('sidebar').classList.remove('mobile-open');
-  document.getElementById('sb-overlay').classList.remove('show');
-}
-
-// ── Server status indicator ───────────────────────────────────
-async function checkServerStatus() {
-  const dot = document.getElementById('server-dot');
-  const lbl = document.getElementById('server-lbl');
+/* ══════════════════════════════════════════════════════════════
+   SERVER STATUS
+══════════════════════════════════════════════════════════════ */
+async function checkServer() {
+  const dot = document.getElementById('srv-dot');
+  const lbl = document.getElementById('srv-lbl');
   try {
-    const r = await fetch(`${PY_SERVER}/status`);
-    const d = await r.json();
+    const d = await api('/status');
     if (d.ok) {
       dot.style.background = '#22c55e';
-      lbl.textContent = `Server Online · ${d.enrolled || 0} enrolled`;
+      lbl.textContent = `Online · ${d.enrolled||0} faces enrolled`;
     } else {
-      dot.style.background = '#f59e0b'; lbl.textContent = 'Server Error';
+      dot.style.background = '#f59e0b'; lbl.textContent = 'Server error';
     }
-  } catch(_) {
-    dot.style.background = '#ef4444'; lbl.textContent = 'Server Offline';
+  } catch {
+    dot.style.background = '#ef4444'; lbl.textContent = 'Offline';
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────
-window.onload = async () => {
-  curUser = {name:'Admin'}; curRole = 'admin';
-  initAdmin();
-  checkServerStatus();
-  setInterval(checkServerStatus, 60000);
-
-  // Set today's date defaults
-  const today = new Date().toISOString().substring(0, 10);
-  document.getElementById('mh-date').value      = today;
-  document.getElementById('live-date').value    = today;
-  document.getElementById('sup-rep-from').value = today;
-  document.getElementById('sup-rep-to').value   = today;
-
-  populateLiveSiteFilter();
-  await restoreSupervisorsIfEmpty();
-  await restoreFaceEncodingsIfEmpty();
-  loadLiveFeed();
-  setInterval(loadLiveFeed, 30000);
-  setInterval(backupFaceEncodings, 5 * 60 * 1000);
-};
-
-// ── Live Attendance Feed ──────────────────────────────────────
-async function populateLiveSiteFilter() {
+/* ══════════════════════════════════════════════════════════════
+   LOAD ALL DATA FROM SERVER
+══════════════════════════════════════════════════════════════ */
+async function loadAll() {
   try {
-    const r = await fetch(`${PY_SERVER}/data`);
-    const d = await r.json();
-    const sel = document.getElementById('live-site');
-    (d.sites || []).forEach(s => {
-      const o = document.createElement('option');
-      o.value = s.id || s.code || s.name; o.textContent = s.name;
-      sel.appendChild(o);
-    });
-  } catch(_) {}
-}
-
-async function loadLiveFeed() {
-  const el      = document.getElementById('live-feed');
-  const statsEl = document.getElementById('live-stats');
-  const date    = document.getElementById('live-date')?.value || new Date().toISOString().substring(0,10);
-  const siteId  = document.getElementById('live-site')?.value || '';
-  const liveStatus = document.getElementById('live-status');
-  if (liveStatus) {
-    liveStatus.innerHTML = `<i class="ti ti-circle-filled" style="font-size:8px;color:#22c55e"></i> Updated ${new Date().toLocaleTimeString()}`;
-  }
-  try {
-    const url  = `${PY_SERVER}/app/punches?date=${date}${siteId ? '&siteId='+siteId : ''}`;
-    const r    = await fetch(url);
-    const data = await r.json();
-    const recs = (data.records || []).filter(rec => !siteId || rec.siteId === siteId);
-    if (recs.length === 0) {
-      el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No punches recorded on ${date}.</p>`;
-      statsEl.innerHTML = ''; return;
+    const d = await api('/data');
+    if (!d.ok) return;
+    if (d.employees  && d.employees.length)   EMPS  = d.employees;
+    if (d.sites      && d.sites.length)        SITES = d.sites;
+    if (d.supervisors&& d.supervisors.length)  SUPS  = d.supervisors;
+    if (d.records    && d.records.length)      RECS  = d.records;
+    renderEmps(); renderSups(); renderSites(); renderDash();
+    populateSiteSelects();
+    // Auto-restore from localStorage if server empty
+    if (!d.employees || d.employees.length === 0) {
+      const cached = localStorage.getItem('bdi_emp_backup');
+      if (cached) {
+        const emps = JSON.parse(cached);
+        if (emps.length) { EMPS = emps; await pushAll(); toast(`Restored ${emps.length} employees from cache`); renderEmps(); }
+      }
     }
-    const inCount  = recs.filter(r => r.type === 'in').length;
-    const outCount = recs.filter(r => r.type === 'out').length;
-    const empSet   = new Set(recs.map(r => r.empUid)).size;
-    statsEl.innerHTML = `
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:#16a34a">${inCount}</div><div style="color:#64748b;font-size:11px">Check INs</div>
-      </div>
-      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:#ea580c">${outCount}</div><div style="color:#64748b;font-size:11px">Check OUTs</div>
-      </div>
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:#2563eb">${empSet}</div><div style="color:#64748b;font-size:11px">Employees</div>
-      </div>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:#475569">${recs.length}</div><div style="color:#64748b;font-size:11px">Total Punches</div>
-      </div>`;
-    recs.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-    el.innerHTML = `
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
-          <tr>
-            <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Employee</th>
-            <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Type</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Site</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Supervisor</th>
-            <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569">Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${recs.map(rec => {
-            const t = rec.time ? new Date(rec.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
-            const isIn = rec.type === 'in';
-            return `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-              <td style="padding:9px 10px;font-weight:600">${rec.empName||'—'}</td>
-              <td style="padding:9px 10px;text-align:center">
-                <span style="background:${isIn?'#dcfce7':'#fff7ed'};color:${isIn?'#16a34a':'#ea580c'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${isIn?'✅ IN':'👋 OUT'}</span>
-              </td>
-              <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.siteName||'—'}</td>
-              <td style="padding:9px 10px;color:#64748b;font-size:12px">${rec.supervisorName||'—'}</td>
-              <td style="padding:9px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
   } catch(e) {
-    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+    // Load from localStorage fallback
+    const cached = localStorage.getItem('bdi_emp_backup');
+    if (cached) { try { EMPS = JSON.parse(cached); renderEmps(); } catch{} }
+    toast('Could not reach server — loaded from cache', false);
   }
 }
 
-// ── Face Encoding Backup / Restore ────────────────────────────
-async function backupFaceEncodings() {
+async function pushAll() {
   try {
-    const r = await fetch(`${PY_SERVER}/export-encodings?secret=bdi-import-2024`);
-    const d = await r.json();
-    if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
-      localStorage.setItem('bdi_face_encodings_backup', JSON.stringify(d.encodings));
-      localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
-      localStorage.setItem('bdi_face_backup_count', String(Object.keys(d.encodings).length));
+    await api('/data', 'POST', { employees:EMPS, sites:SITES, supervisors:SUPS, records:RECS });
+    await api('/employees', 'POST', { employees: EMPS.map(e => ({uid:e.uid, name:e.name, id:e.id||e.uid, dept:e.dept||'', site:(e.sites||[]).join(',')})) });
+    localStorage.setItem('bdi_emp_backup', JSON.stringify(EMPS));
+    localStorage.setItem('bdi_sites_backup', JSON.stringify(SITES));
+    localStorage.setItem('bdi_sups_backup', JSON.stringify(SUPS));
+  } catch(e) { toast('Save failed — check server', false); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+async function initAdmin() {
+  checkServer(); setInterval(checkServer, 60000);
+  await loadAll();
+  await restoreAppSupsIfEmpty();
+  await restoreFacesIfEmpty();
+  // Default dates
+  const today = new Date().toISOString().slice(0,10);
+  const df = document.getElementById('r-from'); if(df) df.value = today;
+  const dt = document.getElementById('r-to'); if(dt) dt.value = today;
+  loadFaceBackupInfo();
+  loadSysInfo();
+  loadReport();
+  // Auto-backup face every 5 min
+  setInterval(backupFaces, 5*60*1000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════════════════ */
+async function renderDash() {
+  document.getElementById('d-emps').textContent  = EMPS.length;
+  document.getElementById('d-sites').textContent = SITES.length;
+  document.getElementById('d-sups').textContent  = SUPS.length;
+  // Today's punches
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const d = await api(`/app/punches?date=${today}`);
+    const recs = d.records || [];
+    const inC = recs.filter(r=>r.type==='in').length;
+    const outC = recs.filter(r=>r.type==='out').length;
+    const empSet = new Set(recs.map(r=>r.empUid));
+    document.getElementById('d-present').textContent = empSet.size;
+    const el = document.getElementById('dash-punches');
+    if (!recs.length) { el.innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i>No punches recorded today</div>'; return; }
+    recs.sort((a,b)=>(b.time||'').localeCompare(a.time||''));
+    el.innerHTML = `
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="kpi g" style="flex:1;min-width:100px;padding:12px 16px"><div class="kpi-v" style="font-size:22px">${inC}</div><div class="kpi-l">Check INs</div></div>
+        <div class="kpi o" style="flex:1;min-width:100px;padding:12px 16px"><div class="kpi-v" style="font-size:22px">${outC}</div><div class="kpi-l">Check OUTs</div></div>
+        <div class="kpi b" style="flex:1;min-width:100px;padding:12px 16px"><div class="kpi-v" style="font-size:22px">${recs.length}</div><div class="kpi-l">Total Punches</div></div>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Employee</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Time</th></tr></thead>
+        <tbody>${recs.slice(0,20).map(r=>{
+          const t = r.time ? new Date(r.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+          const isIn = r.type==='in';
+          return `<tr>
+            <td style="font-weight:600">${esc(r.empName||'—')}</td>
+            <td><span class="bdg ${isIn?'bdg-g':'bdg-o'}">${isIn?'✅ IN':'👋 OUT'}</span></td>
+            <td style="color:var(--muted);font-size:12px">${esc(r.siteName||'—')}</td>
+            <td style="color:var(--muted);font-size:12px">${esc(r.supervisorName||'—')}</td>
+            <td style="font-weight:600;color:var(--blue)">${t}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } catch {
+    document.getElementById('d-present').textContent = '—';
+    document.getElementById('dash-punches').innerHTML = '<div class="empty"><i class="ti ti-wifi-off"></i>Could not load punches</div>';
+  }
+  // Pending manual requests
+  try {
+    const d = await api('/manual-requests?status=pending');
+    document.getElementById('d-pending').textContent = d.count || 0;
+  } catch { document.getElementById('d-pending').textContent = '0'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SITE SELECTS (populate dropdowns)
+══════════════════════════════════════════════════════════════ */
+function populateSiteSelects() {
+  const opts = SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  ['esites','ssites'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts || '<option value="">No sites yet</option>';
+  });
+  const rsite = document.getElementById('r-site');
+  if (rsite) rsite.innerHTML = '<option value="">All Sites</option>' + SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EMPLOYEES
+══════════════════════════════════════════════════════════════ */
+function renderEmps() {
+  const q = (document.getElementById('emp-srch')?.value||'').toLowerCase();
+  const df = document.getElementById('emp-dept')?.value||'';
+  const list = EMPS.filter(e =>
+    (!q || e.name.toLowerCase().includes(q) || (e.id||'').toLowerCase().includes(q) || (e.role||'').toLowerCase().includes(q)) &&
+    (!df || e.dept === df)
+  );
+  document.getElementById('emp-count').textContent = `${list.length} of ${EMPS.length}`;
+  const tb = document.getElementById('emp-tbl');
+  if (!list.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>${EMPS.length?'No match':'No employees yet — add one above'}</div></td></tr>`; return; }
+  tb.innerHTML = list.map(e => {
+    const siteNames = (e.sites||[]).map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(232,119,34,.15);color:var(--or);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(e.name)}</div>
+        <div><div style="font-weight:600;color:var(--text)">${esc(e.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(e.phone||'')}</div></div>
+      </div></td>
+      <td><span class="bdg bdg-or">${esc(e.id||e.uid)}</span></td>
+      <td><span class="bdg bdg-b">${esc(e.dept||'—')}</span></td>
+      <td style="font-size:12px">${esc(e.role||'—')}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
+      <td><span class="bdg bdg-gy">Registered</span></td>
+      <td><button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function addEmp() {
+  const name  = document.getElementById('en').value.trim();
+  const id    = document.getElementById('ei').value.trim();
+  const dept  = document.getElementById('ed').value;
+  const role  = document.getElementById('er').value.trim()||dept;
+  const phone = document.getElementById('eph').value.trim();
+  const sites = [...(document.getElementById('esites')?.selectedOptions||[])].map(o=>o.value).filter(Boolean);
+  if (!name || !id) { toast('Name and Employee ID are required', false); return; }
+  if (EMPS.find(e=>e.id?.toUpperCase()===id.toUpperCase())) { toast('Employee ID already exists', false); return; }
+  EMPS.push({ uid: uid('E'), name, id, dept, role, phone, sites });
+  ['en','ei','er','eph'].forEach(x=>document.getElementById(x).value='');
+  renderEmps(); renderDash();
+  toast(`${name} added ✓`);
+  await pushAll();
+}
+
+async function delEmp(empUid) {
+  const e = EMPS.find(x=>x.uid===empUid);
+  if (!e || !confirm(`Remove ${e.name} from directory?`)) return;
+  EMPS = EMPS.filter(x=>x.uid!==empUid);
+  renderEmps(); renderDash();
+  toast(`${e.name} removed`, false);
+  await pushAll();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SUPERVISORS (web portal)
+══════════════════════════════════════════════════════════════ */
+function renderSups() {
+  const tb = document.getElementById('sup-tbl');
+  if (!SUPS.length) { tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-user-x"></i>No supervisors yet</div></td></tr>`; return; }
+  tb.innerHTML = SUPS.map(s => {
+    const siteNames = (s.sites||[]).map(id=>SITES.find(x=>x.id===id)?.code||id).join(', ')||'None';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(37,99,235,.15);color:var(--blue);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(s.name)}</div>
+        <span style="font-weight:600">${esc(s.name)}</span>
+      </div></td>
+      <td><span class="bdg bdg-gy">${esc(s.loginId)}</span></td>
+      <td><span class="bdg bdg-b">${esc(s.role)}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
+      <td><button class="btn btn-red btn-sm" onclick="delSup('${esc(s.uid)}')"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function addSup() {
+  const name    = document.getElementById('sn').value.trim();
+  const loginId = document.getElementById('sid').value.trim();
+  const role    = document.getElementById('srole').value;
+  const pw      = document.getElementById('spw').value;
+  const sites   = [...(document.getElementById('ssites')?.selectedOptions||[])].map(o=>o.value).filter(Boolean);
+  if (!name||!loginId||!pw) { toast('Fill all required fields', false); return; }
+  if (SUPS.find(s=>s.loginId.toLowerCase()===loginId.toLowerCase())) { toast('Login ID already exists', false); return; }
+  SUPS.push({ uid: uid('SUP'), name, loginId, role, pw, sites });
+  ['sn','sid','spw'].forEach(x=>document.getElementById(x).value='');
+  renderSups(); renderDash();
+  toast(`${name} added as ${role} ✓`);
+  await pushAll();
+}
+
+async function delSup(supUid) {
+  const s = SUPS.find(x=>x.uid===supUid);
+  if (!s||!confirm(`Remove ${s.name}?`)) return;
+  SUPS = SUPS.filter(x=>x.uid!==supUid);
+  renderSups(); renderDash();
+  toast(`${s.name} removed`, false);
+  await pushAll();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APP SUPERVISORS
+══════════════════════════════════════════════════════════════ */
+async function loadAppSups() {
+  const el = document.getElementById('appsup-list');
+  el.innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Loading…</div>';
+  try {
+    const d = await api('/supervisor/list');
+    if (!d.ok || !d.supervisors?.length) {
+      el.innerHTML = '<div class="empty"><i class="ti ti-device-mobile-off"></i>No app supervisors registered yet.<br><small>Ask supervisors to install and open the BDI app.</small></div>'; return;
     }
-  } catch(e) {}
-}
-
-async function restoreFaceEncodingsIfEmpty() {
-  try {
-    const r = await fetch(`${PY_SERVER}/status`);
-    const d = await r.json();
-    if (!d.ok || d.enrolled > 0) { backupFaceEncodings(); return; }
-    const backupStr = localStorage.getItem('bdi_face_encodings_backup');
-    if (!backupStr) return;
-    const encodings = JSON.parse(backupStr);
-    const count = Object.keys(encodings).length;
-    if (count === 0) return;
-    const res = await fetch(`${PY_SERVER}/import-encodings`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({encodings, secret:'bdi-import-2024'})
-    });
-    const result = await res.json();
-    if (result.ok) toast(`✅ Restored ${count} face encoding(s) after server restart`);
-  } catch(e) {}
-}
-
-// ── Supervisor Cache / Restore ────────────────────────────────
-function cacheSupervisors(list) {
-  try { localStorage.setItem('bdi_supervisors_cache', JSON.stringify(list)); } catch(_) {}
-}
-
-async function restoreSupervisorsIfEmpty() {
-  try {
-    const r = await fetch(`${PY_SERVER}/supervisor/list`);
-    const d = await r.json();
-    if (d.ok && d.supervisors && d.supervisors.length > 0) return;
-    const cached = localStorage.getItem('bdi_supervisors_cache');
-    if (!cached) return;
-    const list = JSON.parse(cached);
-    if (!list || list.length === 0) return;
-    const res = await fetch(`${PY_SERVER}/supervisor/restore`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({supervisors:list})
-    });
-    const result = await res.json();
-    if (result.ok) console.log(`Restored ${result.restored} supervisor(s)`);
-  } catch(e) {}
-}
-
-// ── App Supervisors ───────────────────────────────────────────
-async function loadAppSupervisors() {
-  const el = document.getElementById('app-sup-list');
-  el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-  try {
-    const r = await fetch(`${PY_SERVER}/supervisor/list`);
-    const data = await r.json();
-    if (!data.ok || data.supervisors.length === 0) {
-      el.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No supervisors registered yet.<br>Ask supervisors to install and open the app.</p>';
-      return;
-    }
-    cacheSupervisors(data.supervisors);
-    el.innerHTML = data.supervisors.map(s => `
-      <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="width:42px;height:42px;border-radius:50%;background:${s.approved?'#22c55e':'#f97316'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:18px;flex-shrink:0">
-            ${s.name.charAt(0).toUpperCase()}
+    // Cache for Railway restarts
+    localStorage.setItem('bdi_appsups_cache', JSON.stringify(d.supervisors));
+    el.innerHTML = d.supervisors.map(s => `
+      <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
+        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="width:44px;height:44px;border-radius:50%;background:${s.approved?'#22c55e':'#f97316'};color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            ${(s.name||'?')[0].toUpperCase()}
           </div>
           <div style="flex:1;min-width:160px">
-            <div style="font-weight:700;font-size:15px">${s.name}</div>
-            <div style="font-size:12px;color:#64748b">${s.role} · ${s.phone||'No phone'}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px">Device: ${s.deviceId}</div>
-            <div style="font-size:11px;color:#94a3b8">Registered: ${s.registeredAt?new Date(s.registeredAt).toLocaleString():'Unknown'}</div>
+            <div style="font-weight:700;font-size:15px">${esc(s.name)}</div>
+            <div style="font-size:12px;color:var(--muted)">${esc(s.role||'Supervisor')} · ${esc(s.phone||'No phone')}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px">Device: ${esc(s.deviceId)}</div>
+            <div style="font-size:10px;color:#94a3b8">${s.registeredAt?'Registered: '+new Date(s.registeredAt).toLocaleString():''}</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px;min-width:160px">
-            <input type="text" value="${s.name}" id="sup-name-${s.deviceId}" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;width:100%" placeholder="Supervisor name">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-              <input type="checkbox" ${s.approved?'checked':''} id="sup-approved-${s.deviceId}" onchange="updateSupervisor('${s.deviceId}')">
-              <span style="color:${s.approved?'#22c55e':'#f97316'};font-weight:600">${s.approved?'✅ Approved':'⏳ Pending Approval'}</span>
+          <div style="display:flex;flex-direction:column;gap:7px;min-width:170px">
+            <input type="text" value="${esc(s.name)}" id="asn-${s.deviceId}" placeholder="Name"
+              style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:12px;width:100%">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
+              <input type="checkbox" ${s.approved?'checked':''} id="asp-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
+              <span style="color:${s.approved?'#22c55e':'#f97316'}">${s.approved?'✅ Approved':'⏳ Pending'}</span>
             </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-              <input type="checkbox" ${s.canEnroll?'checked':''} id="sup-enroll-${s.deviceId}" onchange="updateSupervisor('${s.deviceId}')">
-              <span style="color:${s.canEnroll?'#3b82f6':'#94a3b8'};font-weight:600">${s.canEnroll?'🎭 Enroll: ON':'🔒 Enroll: OFF'}</span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
+              <input type="checkbox" ${s.canEnroll?'checked':''} id="ase-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
+              <span style="color:${s.canEnroll?'var(--blue)':'#94a3b8'}">${s.canEnroll?'🎭 Can Enroll':'🔒 No Enroll'}</span>
             </label>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <button class="btn sm" onclick="updateSupervisor('${s.deviceId}')" style="background:#3b82f6;color:#fff;border:none"><i class="ti ti-check"></i> Save</button>
-            <button class="btn sm" onclick="deleteSupervisor('${s.deviceId}')" style="background:#ef4444;color:#fff;border:none"><i class="ti ti-trash"></i> Remove</button>
+          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+            <button class="btn btn-blue btn-sm" onclick="updateAppSup('${s.deviceId}')"><i class="ti ti-check"></i>Save</button>
+            <button class="btn btn-red btn-sm" onclick="deleteAppSup('${s.deviceId}')"><i class="ti ti-trash"></i>Remove</button>
           </div>
         </div>
       </div>`).join('');
   } catch(e) {
-    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+    el.innerHTML = `<div class="empty"><i class="ti ti-wifi-off"></i>Error: ${esc(e.message)}</div>`;
   }
 }
 
-async function updateSupervisor(deviceId) {
-  const name      = document.getElementById(`sup-name-${deviceId}`)?.value?.trim() || '';
-  const approved  = document.getElementById(`sup-approved-${deviceId}`)?.checked || false;
-  const canEnroll = document.getElementById(`sup-enroll-${deviceId}`)?.checked || false;
-  try {
-    const r = await fetch(`${PY_SERVER}/supervisor/update`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({deviceId, name, approved, canEnroll})
-    });
-    const d = await r.json();
-    if (d.ok) { await loadAppSupervisors(); toast(`✅ ${name} updated`); }
-  } catch(e) { alert('Error: ' + e.message); }
+async function updateAppSup(deviceId) {
+  const name      = document.getElementById(`asn-${deviceId}`)?.value?.trim()||'';
+  const approved  = document.getElementById(`asp-${deviceId}`)?.checked||false;
+  const canEnroll = document.getElementById(`ase-${deviceId}`)?.checked||false;
+  const d = await api('/supervisor/update','POST',{deviceId,name,approved,canEnroll});
+  if (d.ok) { toast(`${name} updated ✓`); loadAppSups(); }
+  else toast('Update failed', false);
 }
 
-async function deleteSupervisor(deviceId) {
+async function deleteAppSup(deviceId) {
   if (!confirm('Remove this supervisor?')) return;
-  try {
-    await fetch(`${PY_SERVER}/supervisor/delete`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({deviceId})
-    });
-    loadAppSupervisors();
-  } catch(e) { alert('Error: ' + e.message); }
+  await api('/supervisor/delete','POST',{deviceId});
+  loadAppSups(); toast('Supervisor removed', false);
 }
 
-// ── Manual Requests ───────────────────────────────────────────
-async function loadManualRequests(status = 'pending') {
-  const el = document.getElementById('manreq-list');
+async function restoreAppSupsIfEmpty() {
+  try {
+    const d = await api('/supervisor/list');
+    if (d.ok && d.supervisors?.length) return;
+    const cached = localStorage.getItem('bdi_appsups_cache');
+    if (!cached) return;
+    const list = JSON.parse(cached);
+    if (!list?.length) return;
+    const r = await api('/supervisor/restore','POST',{supervisors:list});
+    if (r.ok) toast(`Restored ${r.restored} supervisor(s) after server restart`);
+  } catch {}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SITES
+══════════════════════════════════════════════════════════════ */
+function renderSites() {
+  const el = document.getElementById('sites-list');
   if (!el) return;
-  el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-  ['pending','approved','rejected',''].forEach(s => {
-    const btn = document.getElementById(`mr-btn-${s===''?'all':s}`);
-    if (btn) {
-      const active = s === status;
-      btn.style.background  = active ? '#3b82f6' : '';
-      btn.style.borderColor = active ? '#3b82f6' : '';
-      btn.style.color       = active ? '#fff' : '';
-      btn.className = active ? 'btn sm' : 'btn sm n';
-    }
-  });
-  try {
-    const url  = status ? `${PY_SERVER}/manual-requests?status=${status}` : `${PY_SERVER}/manual-requests`;
-    const r    = await fetch(url);
-    const data = await r.json();
-    if (!data.ok || !data.requests || data.requests.length === 0) {
-      el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:30px">No ${status||''} requests found.</p>`;
-      return;
-    }
-    el.innerHTML = data.requests.map(req => {
-      const ts     = req.timestamp ? new Date(req.timestamp).toLocaleString() : 'Unknown';
-      const isPend = req.status === 'pending';
-      const isApp  = req.status === 'approved';
-      const borderCol = isPend?'#fed7aa':isApp?'#bbf7d0':'#fecaca';
-      const bgCol     = isPend?'#fff7ed':isApp?'#f0fdf4':'#fef2f2';
-      const badge     = isPend?'⏳ Pending':isApp?'✅ Approved':'❌ Rejected';
-      const badgeCol  = isPend?'#f97316':isApp?'#22c55e':'#ef4444';
-      return `
-        <div id="mr-card-${req.id}" style="border:1px solid ${borderCol};border-radius:14px;padding:16px;margin-bottom:14px;background:${bgCol}">
-          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
-            <div style="flex-shrink:0">
-              <img id="mr-img-${req.id}" src="" alt="" style="width:110px;height:110px;object-fit:cover;border-radius:10px;border:2px solid ${borderCol};cursor:pointer;display:none" onclick="viewFullPhoto('${req.id}')">
-              <div id="mr-img-load-${req.id}" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:10px;font-size:11px;color:#94a3b8">
-                <button class="btn sm n" onclick="loadPhoto('${req.id}')" style="font-size:10px">📷 Load Photo</button>
-              </div>
-            </div>
-            <div style="flex:1;min-width:180px">
-              <div style="font-weight:700;font-size:16px;margin-bottom:2px">${req.empName||'Unknown'}</div>
-              <div style="font-size:12px;color:#64748b;margin-bottom:6px">ID: ${req.empUid||'—'}</div>
-              <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                <span style="background:${req.type==='in'?'#dcfce7':'#fff7ed'};color:${req.type==='in'?'#16a34a':'#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
-                  ${req.type==='in'?'📍 CHECK IN':'👋 CHECK OUT'}
-                </span>
-                <span style="background:#f1f5f9;color:${badgeCol};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span>
-              </div>
-              <div style="font-size:12px;color:#475569;line-height:1.8">
-                🏗️ <strong>${req.siteName||'—'}</strong><br>
-                👷 ${req.supervisorName||'—'}<br>
-                🕐 ${ts}
-              </div>
-              ${req.reviewedAt?`<div style="font-size:11px;color:#94a3b8;margin-top:4px">Reviewed: ${new Date(req.reviewedAt).toLocaleString()}</div>`:''}
-            </div>
-            ${isPend?`
-            <div style="display:flex;flex-direction:column;gap:8px;min-width:120px">
-              <button onclick="reviewManualRequest('${req.id}','approved')" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">✅ Approve<br><span style="font-size:10px;font-weight:400">Record attendance</span></button>
-              <button onclick="reviewManualRequest('${req.id}','rejected')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">❌ Reject</button>
-            </div>`:''}
+  if (!SITES.length) { el.innerHTML='<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:13px;padding:40px"><i class="ti ti-building-off"></i>No sites yet — add one above</div>'; return; }
+  el.innerHTML = SITES.map(s => {
+    const assignedEmps = EMPS.filter(e=>(e.sites||[]).includes(s.id)).length;
+    const assignedSups = SUPS.filter(x=>(x.sites||[]).includes(s.id));
+    return `<div class="card" style="border-left:3px solid var(--or)">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span class="bdg bdg-or">${esc(s.code)}</span>
+            <strong style="font-size:14px;color:var(--text)">${esc(s.name)}</strong>
           </div>
-        </div>`;
-    }).join('');
-  } catch(e) {
-    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
-  }
-}
-
-async function loadPhoto(reqId) {
-  const img = document.getElementById(`mr-img-${reqId}`);
-  const div = document.getElementById(`mr-img-load-${reqId}`);
-  try {
-    const r = await fetch(`${PY_SERVER}/manual-request/${reqId}/photo`);
-    const d = await r.json();
-    if (d.ok && d.photo_b64) { img.src = d.photo_b64; img.style.display='block'; if(div) div.style.display='none'; }
-  } catch(e) {}
-}
-
-function viewFullPhoto(reqId) {
-  const img = document.getElementById(`mr-img-${reqId}`);
-  if (!img || !img.src || img.src === window.location.href) return;
-  const win = window.open('');
-  win.document.write(`<img src="${img.src}" style="max-width:100%;max-height:100vh">`);
-}
-
-async function reviewManualRequest(reqId, decision) {
-  if (!confirm(`${decision === 'approved' ? 'Approve' : 'Reject'} this request?`)) return;
-  try {
-    const r = await fetch(`${PY_SERVER}/manual-request/review`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({id:reqId, status:decision, reviewedBy:'Admin'})
-    });
-    const d = await r.json();
-    if (d.ok) {
-      const card = document.getElementById(`mr-card-${reqId}`);
-      if (card) {
-        card.innerHTML = `<p style="text-align:center;padding:12px;color:${decision==='approved'?'#22c55e':'#ef4444'};font-weight:700">${decision==='approved'?'✅ Approved — attendance recorded!':'❌ Rejected'}</p>`;
-        setTimeout(() => card.remove(), 2000);
-      }
-    } else { alert('Error: ' + (d.error||'Unknown')); }
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-// ── Supervisor Punch Report ───────────────────────────────────
-let _supRepData = [];
-
-async function loadSupervisorReport() {
-  const fromDate  = document.getElementById('sup-rep-from').value;
-  const toDate    = document.getElementById('sup-rep-to').value;
-  const supFilter = document.getElementById('sup-rep-sup').value;
-  const cardsEl   = document.getElementById('sup-rep-cards');
-  const tableEl   = document.getElementById('sup-rep-table');
-  cardsEl.innerHTML = '';
-  tableEl.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-  try {
-    const r    = await fetch(`${PY_SERVER}/app/punches`);
-    const data = await r.json();
-    let recs   = data.records || [];
-    if (fromDate) recs = recs.filter(r => (r.time||'') >= fromDate);
-    if (toDate)   recs = recs.filter(r => (r.time||'') <= toDate+'T23:59:59');
-    if (supFilter) recs = recs.filter(r => (r.supervisorName||'') === supFilter);
-    _supRepData = recs;
-    if (recs.length === 0) {
-      tableEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No punches found for the selected period.</p>';
-      return;
-    }
-    const bySup = {};
-    for (const rec of recs) {
-      const sup = rec.supervisorName || rec.supervisorDeviceId || 'Unknown';
-      if (!bySup[sup]) bySup[sup] = {name:sup, ins:0, outs:0, emps:new Set(), records:[]};
-      if (rec.type==='in') bySup[sup].ins++; else bySup[sup].outs++;
-      if (rec.empName) bySup[sup].emps.add(rec.empUid||rec.empName);
-      bySup[sup].records.push(rec);
-    }
-    // Populate dropdown
-    const sel = document.getElementById('sup-rep-sup');
-    const existing = new Set([...sel.options].map(o => o.value));
-    for (const sup of Object.keys(bySup)) {
-      if (!existing.has(sup)) { const o=document.createElement('option'); o.value=sup; o.textContent=sup; sel.appendChild(o); }
-    }
-    // Summary cards
-    cardsEl.innerHTML = Object.values(bySup).map(s => `
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;min-width:180px;flex:1">
-        <div style="font-weight:700;font-size:15px;color:#1e293b;margin-bottom:6px"><i class="ti ti-hard-hat" style="color:#e87722"></i> ${s.name}</div>
-        <div style="display:flex;gap:12px;font-size:13px;margin-bottom:4px">
-          <span style="color:#16a34a;font-weight:700">↓ ${s.ins} IN</span>
-          <span style="color:#ea580c;font-weight:700">↑ ${s.outs} OUT</span>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:5px">
+            <i class="ti ti-map-pin" style="font-size:11px"></i> ${esc(s.loc||s.address||'—')}
+            &nbsp;·&nbsp; <span style="font-family:'JetBrains Mono',monospace">${parseFloat(s.lat||0).toFixed(4)}, ${parseFloat(s.lng||0).toFixed(4)}</span>
+            &nbsp;·&nbsp; <span class="bdg bdg-b" style="font-size:10px">${s.radius||s.radiusMeters||'?'} km zone</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted)">
+            <i class="ti ti-users" style="color:var(--navy)"></i> ${assignedEmps} employees
+            &nbsp;·&nbsp;
+            <i class="ti ti-hard-hat" style="color:var(--or)"></i>
+            ${assignedSups.length ? assignedSups.map(x=>`<span class="bdg bdg-or" style="font-size:10px;padding:1px 7px">${esc(x.name)}</span>`).join(' ') : '<span style="color:var(--red)">No supervisor</span>'}
+          </div>
         </div>
-        <div style="font-size:11px;color:#64748b">${s.emps.size} employee(s) · ${s.records.length} total punches</div>
-      </div>`).join('');
-    // Table
-    recs.sort((a, b) => (b.time||'').localeCompare(a.time||''));
-    tableEl.innerHTML = `
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
-          <tr>
-            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Supervisor</th>
-            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Employee</th>
-            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Type</th>
-            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">Site</th>
-            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Date</th>
-            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569">Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${recs.map(rec => {
-            const dt = rec.time ? new Date(rec.time) : null;
-            const d  = dt ? dt.toLocaleDateString() : '—';
-            const t  = dt ? dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
-            const isIn = rec.type === 'in';
-            return `<tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-              <td style="padding:8px 10px;font-weight:600;color:#e87722">${rec.supervisorName||'—'}</td>
-              <td style="padding:8px 10px;font-weight:600">${rec.empName||'—'}</td>
-              <td style="padding:8px 10px;text-align:center">
-                <span style="background:${isIn?'#dcfce7':'#fff7ed'};color:${isIn?'#16a34a':'#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${isIn?'✅ IN':'👋 OUT'}</span>
-              </td>
-              <td style="padding:8px 10px;color:#64748b;font-size:12px">${rec.siteName||'—'}</td>
-              <td style="padding:8px 10px;text-align:center;color:#475569;font-size:12px">${d}</td>
-              <td style="padding:8px 10px;text-align:center;font-weight:600;color:#3b82f6">${t}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
+        <div style="display:flex;gap:7px;flex-shrink:0;align-items:flex-start">
+          <a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" class="btn btn-gray btn-sm"><i class="ti ti-map"></i>Map</a>
+          <button class="btn btn-red btn-sm" onclick="delSite('${esc(s.id)}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addSite() {
+  const name   = document.getElementById('sns').value.trim();
+  const code   = document.getElementById('snc').value.trim().toUpperCase();
+  const loc    = document.getElementById('snl').value.trim();
+  const lat    = parseFloat(document.getElementById('snlat').value);
+  const lng    = parseFloat(document.getElementById('snlng').value);
+  const radius = parseFloat(document.getElementById('srad').value);
+  if (!name||!code||isNaN(lat)||isNaN(lng)) { toast('Fill all required fields (Name, Code, Lat, Lng)', false); return; }
+  if (SITES.find(s=>s.code===code)) { toast('Site code already exists', false); return; }
+  SITES.push({ id:'S'+Date.now(), code, name, loc:loc||'UAE', lat, lng, radius: radius||2 });
+  ['sns','snc','snl','snlat','snlng'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('srad').value=2;
+  document.getElementById('srad-v').textContent='2.0 km';
+  renderSites(); populateSiteSelects(); renderDash();
+  toast(`${name} added ✓`);
+  await pushAll();
+}
+
+async function delSite(siteId) {
+  const s = SITES.find(x=>x.id===siteId);
+  if (!s||!confirm(`Delete site "${s.name}"?`)) return;
+  SITES = SITES.filter(x=>x.id!==siteId);
+  renderSites(); populateSiteSelects(); renderDash();
+  toast(`${s.name} deleted`, false);
+  await pushAll();
+}
+
+function useMyLoc() {
+  const msg = document.getElementById('loc-msg');
+  msg.textContent = 'Acquiring GPS…';
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('snlat').value = pos.coords.latitude.toFixed(5);
+    document.getElementById('snlng').value = pos.coords.longitude.toFixed(5);
+    msg.textContent = `✓ ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (±${Math.round(pos.coords.accuracy)}m)`;
+    msg.style.color = 'var(--green)';
+  }, () => { msg.textContent = 'GPS unavailable — enter coordinates manually'; msg.style.color = 'var(--red)'; });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REPORTS
+══════════════════════════════════════════════════════════════ */
+async function loadReport() {
+  const from = document.getElementById('r-from')?.value||'';
+  const to   = document.getElementById('r-to')?.value||'';
+  try {
+    // Fetch app punches
+    let url = '/app/punches';
+    if (from) url += `?date=${from}`;
+    const d1 = await api(url);
+    const appPunches = (d1.records||[]).filter(r=>{
+      if (!from && !to) return true;
+      const t = (r.time||'').slice(0,10);
+      return (!from||t>=from) && (!to||t<=to);
+    });
+    // Fetch data records
+    const d2 = await api('/data');
+    const dataRecs = (d2.records||[]).filter(r=>{
+      const t = (r.time||r.timestamp||'').slice(0,10);
+      return (!from||t>=from) && (!to||t<=to);
+    });
+    // Merge (deduplicate by time)
+    const seen = new Set();
+    const all = [];
+    for (const r of [...appPunches, ...dataRecs]) {
+      const key = (r.empUid||'')+(r.time||r.timestamp||'');
+      if (!seen.has(key)) { seen.add(key); all.push(r); }
+    }
+    all.sort((a,b)=>(b.time||b.timestamp||'').localeCompare(a.time||a.timestamp||''));
+    _reportRecs = all;
+    filterReport();
+    // Stats
+    const inC = all.filter(r=>r.type==='in').length;
+    const outC = all.filter(r=>r.type==='out').length;
+    document.getElementById('rep-stats').innerHTML = `
+      <div class="kpi g" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${inC}</div><div class="kpi-l">Check INs</div></div>
+      <div class="kpi o" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${outC}</div><div class="kpi-l">Check OUTs</div></div>
+      <div class="kpi b" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${all.length}</div><div class="kpi-l">Total Records</div></div>`;
   } catch(e) {
-    tableEl.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+    document.getElementById('rep-tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-wifi-off"></i>Cannot load records</div></td></tr>`;
   }
 }
 
-function exportSupervisorCSV() {
-  if (!_supRepData.length) { alert('Load the report first.'); return; }
-  const rows = [['Supervisor','Employee','Employee ID','Type','Site','Date','Time']];
-  for (const rec of _supRepData) {
-    const dt = rec.time ? new Date(rec.time) : null;
-    rows.push([rec.supervisorName||'', rec.empName||'', rec.empUid||'',
-      rec.type==='in'?'Check IN':'Check OUT', rec.siteName||'',
-      dt?dt.toLocaleDateString():'', dt?dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''
-    ]);
-  }
-  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const a    = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `supervisor_report_${new Date().toISOString().substring(0,10)}.csv`;
+function filterReport() {
+  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-site')?.value||'';
+  const type = document.getElementById('r-type')?.value||'';
+  const list = _reportRecs.filter(r =>
+    (!q || (r.empName||'').toLowerCase().includes(q) || (r.empId||'').toLowerCase().includes(q)) &&
+    (!site || r.siteId===site) &&
+    (!type || r.type===type)
+  );
+  const tb = document.getElementById('rep-tbl');
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
+  tb.innerHTML = list.map(r => {
+    const t = (r.time||r.timestamp) ? new Date(r.time||r.timestamp).toLocaleString([],{dateStyle:'short',timeStyle:'short'}) : '—';
+    const isIn = r.type==='in';
+    const src = r.source||r.method||'—';
+    return `<tr>
+      <td style="font-weight:600">${esc(r.empName||'—')}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(r.empId||'—')}</td>
+      <td><span class="bdg ${isIn?'bdg-g':'bdg-o'}">${isIn?'✅ IN':'👋 OUT'}</span></td>
+      <td style="font-size:12px">${esc(r.siteName||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(r.supervisorName||'—')}</td>
+      <td><span class="bdg bdg-gy" style="font-size:10px">${esc(src)}</span></td>
+      <td style="font-weight:600;color:var(--blue);font-size:12px">${esc(t)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportCSV() {
+  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-site')?.value||'';
+  const type = document.getElementById('r-type')?.value||'';
+  const list = _reportRecs.filter(r =>
+    (!q || (r.empName||'').toLowerCase().includes(q)||(r.empId||'').toLowerCase().includes(q)) &&
+    (!site||r.siteId===site) && (!type||r.type===type)
+  );
+  const rows = [['Employee','ID','Type','Site','Supervisor','Source','Time']];
+  list.forEach(r => rows.push([r.empName||'',r.empId||'',r.type||'',r.siteName||'',r.supervisorName||'',r.source||r.method||'',(r.time||r.timestamp||'')]));
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{href:'data:text/csv;charset=utf-8,'+encodeURIComponent(csv),download:`bdi-attendance-${new Date().toISOString().slice(0,10)}.csv`});
   a.click();
 }
 
-// ── Man Hours ─────────────────────────────────────────────────
-async function loadManHours() {
-  const date = document.getElementById('mh-date').value;
-  const el   = document.getElementById('manhours-list');
-  el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
+/* ══════════════════════════════════════════════════════════════
+   MANUAL REQUESTS
+══════════════════════════════════════════════════════════════ */
+async function loadManReqs(status='pending') {
+  const el = document.getElementById('manreq-list');
+  el.innerHTML = '<div class="empty"><i class="ti ti-loader-2"></i>Loading…</div>';
   try {
-    const r    = await fetch(`${PY_SERVER}/app/manhours?date=${date}`);
-    const data = await r.json();
-    if (!data.ok || data.manhours.length === 0) {
-      el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No records found for ${date}.</p>`;
-      return;
+    const url = status ? `/manual-requests?status=${status}` : '/manual-requests';
+    const d = await api(url);
+    if (!d.ok||!d.requests?.length) {
+      el.innerHTML = `<div class="empty"><i class="ti ti-camera-off"></i>No ${status||''} requests</div>`; return;
     }
-    const totalHours = data.manhours.reduce((s, e) => s + e.totalHours, 0);
-    el.innerHTML = `
-      <div style="background:#eff6ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
-        <strong>${data.manhours.length} employees</strong> · Total: <strong>${totalHours.toFixed(1)} man-hours</strong> on ${date}
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:#f8fafc">
-          <th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0">Employee</th>
-          <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check IN</th>
-          <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check OUT</th>
-          <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Hours</th>
-        </tr></thead>
-        <tbody>
-          ${data.manhours.map(emp => `
-            <tr style="border-bottom:1px solid #f1f5f9">
-              <td style="padding:8px;font-weight:600">${emp.empName}</td>
-              <td style="padding:8px;text-align:center;color:#22c55e">${emp.pairs.map(p=>new Date(p.in).toLocaleTimeString()).join('<br>')||'—'}</td>
-              <td style="padding:8px;text-align:center;color:#f97316">${emp.pairs.map(p=>p.out?new Date(p.out).toLocaleTimeString():'—').join('<br>')||'—'}</td>
-              <td style="padding:8px;text-align:center;font-weight:700;color:#3b82f6">${emp.totalHours.toFixed(2)}h</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
+    el.innerHTML = d.requests.map(req => {
+      const ts = req.timestamp ? new Date(req.timestamp).toLocaleString() : '—';
+      const isPend = req.status==='pending';
+      return `<div style="border:1px solid ${isPend?'#fed7aa':req.status==='approved'?'#bbf7d0':'#fecaca'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${isPend?'#fff7ed':req.status==='approved'?'#f0fdf4':'#fef2f2'}">
+        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:3px">${esc(req.empName||'—')}</div>
+            <div style="font-size:12px;color:var(--muted)">
+              <span class="bdg ${req.type==='in'?'bdg-g':'bdg-o'}">${req.type==='in'?'CHECK IN':'CHECK OUT'}</span>
+              &nbsp; ${esc(req.siteName||'—')} &nbsp;·&nbsp; ${esc(req.supervisorName||'—')}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px">${ts}</div>
+            ${req.reviewNote?`<div style="font-size:11px;color:var(--muted);margin-top:4px">Note: ${esc(req.reviewNote)}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <span class="bdg ${isPend?'bdg-o':req.status==='approved'?'bdg-g':'bdg-r'}">${req.status.toUpperCase()}</span>
+            ${req.hasPhoto?`<button class="btn btn-gray btn-sm" onclick="viewPhoto('${esc(req.id)}','${esc(req.empName||'')}')"><i class="ti ti-photo"></i>Photo</button>`:''}
+            ${isPend?`
+              <button class="btn btn-green btn-sm" onclick="reviewReq('${esc(req.id)}','approve')"><i class="ti ti-check"></i>Approve</button>
+              <button class="btn btn-red btn-sm" onclick="reviewReq('${esc(req.id)}','reject')"><i class="ti ti-x"></i>Reject</button>
+            `:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   } catch(e) {
-    el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+    el.innerHTML = `<div class="empty"><i class="ti ti-wifi-off"></i>Error: ${esc(e.message)}</div>`;
   }
 }
+
+async function reviewReq(id, action) {
+  const note = action==='reject' ? (prompt('Reason for rejection (optional):') || '') : '';
+  const d = await api('/manual-request/review','POST',{id, action, note});
+  if (d.ok) { toast(action==='approve'?'✅ Approved':'❌ Rejected', action==='approve'); loadManReqs(); renderDash(); }
+  else toast('Action failed', false);
+}
+
+async function viewPhoto(id, name) {
+  try {
+    const d = await api(`/manual-request/${id}/photo`);
+    if (d.ok && d.photo_b64) {
+      document.getElementById('photo-modal-title').textContent = `Photo — ${name}`;
+      document.getElementById('photo-modal-img').src = d.photo_b64.startsWith('data:') ? d.photo_b64 : `data:image/jpeg;base64,${d.photo_b64}`;
+      document.getElementById('photo-modal').classList.add('show');
+    } else toast('No photo available', false);
+  } catch { toast('Could not load photo', false); }
+}
+function closePhotoModal() { document.getElementById('photo-modal').classList.remove('show'); }
+document.getElementById('photo-modal').addEventListener('click', e => { if(e.target.id==='photo-modal') closePhotoModal(); });
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS — FACE BACKUP / RESTORE
+══════════════════════════════════════════════════════════════ */
+async function backupFaces() {
+  try {
+    const d = await api('/export-encodings?secret=bdi-import-2024');
+    if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
+      localStorage.setItem('bdi_face_backup', JSON.stringify(d.encodings));
+      localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
+      toast(`✅ Face backup saved — ${Object.keys(d.encodings).length} employee(s)`);
+      loadFaceBackupInfo();
+    } else toast('No face data on server to backup', false);
+  } catch { toast('Backup failed — server offline?', false); }
+}
+
+async function restoreFaces() {
+  const backed = localStorage.getItem('bdi_face_backup');
+  if (!backed) { toast('No local backup found', false); return; }
+  try {
+    const encodings = JSON.parse(backed);
+    const count = Object.keys(encodings).length;
+    if (!count) { toast('Backup is empty', false); return; }
+    const d = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+    if (d.ok) { toast(`✅ Restored ${d.imported} face encoding(s)`); checkServer(); }
+    else toast('Restore failed: '+(d.error||'unknown'), false);
+  } catch(e) { toast('Restore error: '+e.message, false); }
+}
+
+async function restoreFacesIfEmpty() {
+  try {
+    const d = await api('/status');
+    if (!d.ok || d.enrolled > 0) { if(d.enrolled>0) backupFaces(); return; }
+    const backed = localStorage.getItem('bdi_face_backup');
+    if (!backed) return;
+    const encodings = JSON.parse(backed);
+    if (!Object.keys(encodings).length) return;
+    const r = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+    if (r.ok) toast(`Auto-restored ${r.imported} face encoding(s) after server restart`);
+  } catch {}
+}
+
+function loadFaceBackupInfo() {
+  const el = document.getElementById('face-backup-info');
+  const t  = localStorage.getItem('bdi_face_backup_time');
+  const c  = localStorage.getItem('bdi_face_backup');
+  if (!c) { el.textContent = 'No backup found in browser storage.'; return; }
+  try {
+    const count = Object.keys(JSON.parse(c)).length;
+    el.innerHTML = `<span style="color:var(--green);font-weight:600">✓ Backup exists</span> — ${count} employee face(s) · Last saved: ${t ? new Date(t).toLocaleString() : 'unknown'}`;
+  } catch { el.textContent = 'Could not read backup.'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS — DATA BACKUP
+══════════════════════════════════════════════════════════════ */
+function exportJSON() {
+  const data = { employees:EMPS, sites:SITES, supervisors:SUPS, records:RECS, exported: new Date().toISOString() };
+  const a = Object.assign(document.createElement('a'),{href:'data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data,null,2)),download:`bdi-backup-${new Date().toISOString().slice(0,10)}.json`});
+  a.click();
+}
+
+function importJSON(input) {
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.employees) EMPS  = data.employees;
+      if (data.sites)     SITES = data.sites;
+      if (data.supervisors) SUPS = data.supervisors;
+      if (data.records)   RECS  = data.records;
+      renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+      await pushAll();
+      toast(`Imported ${EMPS.length} employees, ${SITES.length} sites ✓`);
+    } catch { toast('Invalid JSON file', false); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SYSTEM INFO
+══════════════════════════════════════════════════════════════ */
+async function loadSysInfo() {
+  try {
+    const d = await api('/status');
+    document.getElementById('sys-info').innerHTML = `
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:var(--muted);width:160px">Server</td><td style="font-weight:600;color:var(--green)">● Online</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Enrolled Faces</td><td style="font-weight:600">${d.enrolled||0}</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Face Recognition</td><td style="font-weight:600;color:${d.face_recognition?'var(--green)':'var(--red)'}">${d.face_recognition?'Available':'Not Available'}</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Employees in DB</td><td style="font-weight:600">${EMPS.length}</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Sites</td><td style="font-weight:600">${SITES.length}</td></tr>
+      </table>`;
+  } catch { document.getElementById('sys-info').textContent = 'Server offline'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SPIN ANIMATION
+══════════════════════════════════════════════════════════════ */
+const style = document.createElement('style');
+style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(style);
 </script>
 </body>
 </html>
