@@ -410,7 +410,13 @@ tr:hover td{background:#f8fafc}
             <div class="fg"><label>From Date</label><input type="date" id="r-from" onchange="loadReport()"></div>
             <div class="fg"><label>To Date</label><input type="date" id="r-to" onchange="loadReport()"></div>
           </div>
-          <div class="sr">
+          <!-- View toggle -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button id="rv-log" class="btn btn-or btn-sm" onclick="setReportView('log')"><i class="ti ti-list"></i>Punch Log</button>
+            <button id="rv-hrs" class="btn btn-gray btn-sm" onclick="setReportView('hrs')"><i class="ti ti-clock"></i>Man-Hours Summary</button>
+          </div>
+          <!-- Punch log filters -->
+          <div id="r-log-filters" class="sr">
             <input id="r-srch" placeholder="Search employee…" oninput="filterReport()">
             <select id="r-site" onchange="filterReport()"><option value="">All Sites</option></select>
             <select id="r-type" onchange="filterReport()">
@@ -420,11 +426,27 @@ tr:hover td{background:#f8fafc}
             </select>
             <button class="btn btn-green btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export CSV</button>
           </div>
+          <!-- Man-hours filters -->
+          <div id="r-hrs-filters" class="sr" style="display:none">
+            <input id="r-hrs-srch" placeholder="Search employee…" oninput="renderManhours()">
+            <select id="r-hrs-site" onchange="renderManhours()"><option value="">All Sites</option></select>
+            <button class="btn btn-green btn-sm" onclick="exportManhours()"><i class="ti ti-download"></i>Export CSV</button>
+          </div>
           <div id="rep-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
-          <div class="tw"><table>
-            <thead><tr><th>Employee</th><th>ID</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Source</th><th>GPS</th><th>Time</th></tr></thead>
-            <tbody id="rep-tbl"></tbody>
-          </table></div>
+          <!-- Punch log table -->
+          <div id="r-log-view">
+            <div class="tw"><table>
+              <thead><tr><th>Employee</th><th>ID</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Source</th><th>GPS</th><th>Time</th></tr></thead>
+              <tbody id="rep-tbl"></tbody>
+            </table></div>
+          </div>
+          <!-- Man-hours table -->
+          <div id="r-hrs-view" style="display:none">
+            <div class="tw"><table>
+              <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site(s)</th><th>Days</th><th>Total Hours</th><th>Paired Sessions</th></tr></thead>
+              <tbody id="hrs-tbl"></tbody>
+            </table></div>
+          </div>
         </div>
       </div>
 
@@ -1101,8 +1123,15 @@ async function loadReport() {
     }
     all.sort((a,b)=>(b.time||b.timestamp||'').localeCompare(a.time||a.timestamp||''));
     _reportRecs = all;
+    // Populate site dropdowns for both views
+    const siteOpts = '<option value="">All Sites</option>' +
+      SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.code||s.name)}</option>`).join('');
+    const rSite = document.getElementById('r-site'); if(rSite) rSite.innerHTML = siteOpts;
+    const rHrsSite = document.getElementById('r-hrs-site'); if(rHrsSite) rHrsSite.innerHTML = siteOpts;
+
+    if (_reportView === 'hrs') { renderManhours(); return; }
     filterReport();
-    // Stats
+    // Stats (punch log view)
     const inC = all.filter(r=>r.type==='in').length;
     const outC = all.filter(r=>r.type==='out').length;
     document.getElementById('rep-stats').innerHTML = `
@@ -1169,6 +1198,175 @@ function exportCSV() {
   });
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = Object.assign(document.createElement('a'),{href:'data:text/csv;charset=utf-8,'+encodeURIComponent(csv),download:`bdi-attendance-${new Date().toISOString().slice(0,10)}.csv`});
+  a.click();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAN-HOURS
+══════════════════════════════════════════════════════════════ */
+let _reportView = 'log'; // 'log' | 'hrs'
+
+function setReportView(v) {
+  _reportView = v;
+  document.getElementById('rv-log').className = v==='log' ? 'btn btn-or btn-sm' : 'btn btn-gray btn-sm';
+  document.getElementById('rv-hrs').className = v==='hrs' ? 'btn btn-or btn-sm' : 'btn btn-gray btn-sm';
+  document.getElementById('r-log-filters').style.display  = v==='log' ? '' : 'none';
+  document.getElementById('r-hrs-filters').style.display  = v==='hrs' ? '' : 'none';
+  document.getElementById('r-log-view').style.display     = v==='log' ? '' : 'none';
+  document.getElementById('r-hrs-view').style.display     = v==='hrs' ? '' : 'none';
+  if (v==='hrs') { populateHrsSiteSelect(); renderManhours(); }
+}
+
+function populateHrsSiteSelect() {
+  const sel = document.getElementById('r-hrs-site');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Sites</option>' +
+    SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.code||s.name)}</option>`).join('');
+  sel.value = cur;
+}
+
+/* Calculate man-hours from raw punch records.
+   Returns array of { uid, name, empId, dept, sites[], days, totalMins, sessions[] } */
+function calcManhours(records) {
+  // Group by empUid
+  const byEmp = {};
+  for (const r of records) {
+    const uid = r.empUid || r.uid || '';
+    if (!uid) continue;
+    if (!byEmp[uid]) byEmp[uid] = { uid, name: r.empName||uid, empId: r.empId||'', dept: r.empDept||'', sites: new Set(), ins: [], outs: [] };
+    if (r.siteId) byEmp[uid].sites.add(r.siteId);
+    if (r.type === 'in')  byEmp[uid].ins.push(new Date(r.time||r.timestamp));
+    if (r.type === 'out') byEmp[uid].outs.push(new Date(r.time||r.timestamp));
+  }
+
+  const result = [];
+  for (const [, emp] of Object.entries(byEmp)) {
+    const ins  = emp.ins.sort((a,b)=>a-b);
+    const outs = emp.outs.sort((a,b)=>a-b);
+    // Pair each IN with the first OUT that comes after it
+    const sessions = [];
+    const usedOuts = new Set();
+    for (const inT of ins) {
+      const outT = outs.find((o,i) => o > inT && !usedOuts.has(i));
+      if (outT !== undefined) {
+        const idx = outs.indexOf(outT);
+        usedOuts.add(idx);
+        const mins = Math.round((outT - inT) / 60000);
+        sessions.push({ in: inT, out: outT, mins });
+      } else {
+        sessions.push({ in: inT, out: null, mins: null }); // open (no checkout)
+      }
+    }
+    const totalMins = sessions.reduce((s,x)=> s + (x.mins||0), 0);
+    const days = new Set(ins.map(d=>d.toISOString().slice(0,10))).size;
+    // Get name/dept from EMPS if available
+    const empObj = EMPS.find(e=>e.uid===emp.uid);
+    result.push({
+      uid: emp.uid,
+      name: empObj?.name || emp.name,
+      empId: empObj?.id || emp.empId,
+      dept: empObj?.dept || emp.dept,
+      sites: [...emp.sites],
+      days,
+      totalMins,
+      sessions
+    });
+  }
+  return result.sort((a,b)=>b.totalMins - a.totalMins);
+}
+
+function fmtDur(mins) {
+  if (!mins) return '—';
+  const h = Math.floor(mins/60), m = mins%60;
+  return `${h}h ${m.toString().padStart(2,'0')}m`;
+}
+
+function renderManhours() {
+  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-hrs-site')?.value||'';
+  const tb   = document.getElementById('hrs-tbl');
+  if (!tb) return;
+
+  // Filter raw records by site
+  let recs = _reportRecs;
+  if (site) recs = recs.filter(r=>r.siteId===site);
+
+  const data = calcManhours(recs).filter(e=>
+    !q || e.name.toLowerCase().includes(q) || (e.empId||'').toLowerCase().includes(q)
+  );
+
+  if (!data.length) {
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-clock-off"></i>No man-hour data for selected period</div></td></tr>`;
+    return;
+  }
+
+  const totalHours = data.reduce((s,e)=>s+e.totalMins,0);
+  // Summary KPIs
+  document.getElementById('rep-stats').innerHTML = `
+    <div class="kpi b" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${data.length}</div><div class="kpi-l">Employees</div></div>
+    <div class="kpi g" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${fmtDur(totalHours)}</div><div class="kpi-l">Total Man-Hours</div></div>
+    <div class="kpi o" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${data.filter(e=>e.sessions.some(s=>s.out===null)).length}</div><div class="kpi-l">Still Checked IN</div></div>`;
+
+  tb.innerHTML = data.map(e => {
+    const siteNames = e.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    const empObj = EMPS.find(x=>x.uid===e.uid);
+    const dept = empObj?.dept || e.dept || '—';
+    const paired = e.sessions.filter(s=>s.out).length;
+    const open   = e.sessions.filter(s=>!s.out).length;
+    const sessionDetail = e.sessions.map(s=>{
+      const inStr  = s.in.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const outStr = s.out ? s.out.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '…';
+      const date   = s.in.toLocaleDateString([],{month:'short',day:'numeric'});
+      const dur    = s.mins ? fmtDur(s.mins) : '⏳ active';
+      return `<span style="font-size:10px;color:var(--muted);white-space:nowrap">${date} ${inStr}→${outStr} (${dur})</span>`;
+    }).join('<br>');
+
+    return `<tr>
+      <td><div style="font-weight:600">${esc(e.name)}</div></td>
+      <td><span class="bdg bdg-or" style="font-size:10px">${esc(e.empId||'—')}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${esc(dept)}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
+      <td style="font-weight:700;text-align:center">${e.days}</td>
+      <td><span style="font-weight:800;font-size:16px;color:${e.totalMins>=480?'var(--gr)':'var(--or)'}">${fmtDur(e.totalMins)}</span>
+          ${open?`<br><span style="font-size:10px;color:#f97316">⏳ ${open} open</span>`:''}
+          ${paired?`<br><span style="font-size:10px;color:var(--muted)">${paired} session${paired>1?'s':''}</span>`:''}
+      </td>
+      <td style="font-size:10px;line-height:1.8">${sessionDetail||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportManhours() {
+  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-hrs-site')?.value||'';
+  let recs = _reportRecs;
+  if (site) recs = recs.filter(r=>r.siteId===site);
+  const data = calcManhours(recs).filter(e=>
+    !q || e.name.toLowerCase().includes(q) || (e.empId||'').toLowerCase().includes(q)
+  );
+  const rows = [['Employee','Employee ID','Department','Sites','Days Worked','Total Hours','Total Minutes','Sessions (IN→OUT)']];
+  data.forEach(e => {
+    const siteNames = e.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join('|');
+    const empObj = EMPS.find(x=>x.uid===e.uid);
+    const sessionStr = e.sessions.map(s=>{
+      const inStr = s.in.toISOString();
+      const outStr = s.out ? s.out.toISOString() : 'OPEN';
+      return `${inStr}→${outStr}(${s.mins!=null?s.mins+'min':'active'})`;
+    }).join(' | ');
+    rows.push([
+      e.name, empObj?.id||e.empId||'', empObj?.dept||e.dept||'', siteNames,
+      e.days,
+      e.totalMins ? (e.totalMins/60).toFixed(2) : '0',
+      e.totalMins||0,
+      sessionStr
+    ]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{
+    href:'data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv),
+    download:`manhours-${new Date().toISOString().slice(0,10)}.csv`
+  });
   a.click();
 }
 
