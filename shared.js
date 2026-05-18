@@ -67,8 +67,8 @@ async function pyPing() {
     pyServerOnline = !!d.ok;
   } catch { pyServerOnline = false; }
   _updatePyStatus();
-  // Merge Python records whenever server just came online
-  if(pyServerOnline && !wasOnline) _mergePyRecords();
+  // Reload full data + merge Python records whenever server just came online
+  if(pyServerOnline && !wasOnline) _loadFromServer();
   return pyServerOnline;
 }
 
@@ -330,13 +330,14 @@ function addEmp(){
   EMPS.push({uid:'E'+(++ec),name,id,dept,role,phone,sites,faceReg});
   ['en','ei','er','eph'].forEach(x=>document.getElementById(x).value='');
   renderAStats();renderEmpTbl();toast(`${name} added to company directory`);
+  saveData();
 }
 
 function delEmp(uid){
   const e=EMPS.find(x=>x.uid===uid);
   if(!e||!confirm(`Remove ${e.name} from the directory?`))return;
   EMPS=EMPS.filter(x=>x.uid!==uid);RECS=RECS.filter(r=>r.empUid!==uid);
-  renderAStats();renderEmpTbl();toast(`${e.name} removed`,false);
+  renderAStats();renderEmpTbl();toast(`${e.name} removed`,false);saveData();
 }
 
 function renderEmpTbl(){
@@ -372,13 +373,13 @@ function addSup(){
   if(SUPS.find(s=>s.loginId.toLowerCase()===loginId.toLowerCase())){toast('Login ID already exists',false);return;}
   SUPS.push({uid:'SUP'+(++sc),name,loginId,role,pw,sites});
   ['sn','sid','spw'].forEach(x=>document.getElementById(x).value='');
-  renderSupTbl();renderAStats();toast(`${name} added as ${role}`);
+  renderSupTbl();renderAStats();toast(`${name} added as ${role}`);saveData();
 }
 
 function delSup(uid){
   const s=SUPS.find(x=>x.uid===uid);
   if(!s||!confirm(`Remove ${s.name}?`))return;
-  SUPS=SUPS.filter(x=>x.uid!==uid);renderSupTbl();renderAStats();toast(`${s.name} removed`,false);
+  SUPS=SUPS.filter(x=>x.uid!==uid);renderSupTbl();renderAStats();toast(`${s.name} removed`,false);saveData();
 }
 
 function renderSupTbl(){
@@ -410,7 +411,7 @@ function addSite(){
   SITES.push({id:'S'+Date.now(),code,name,loc:loc||'UAE',lat,lng,radius});
   ['sns','snc','snl','snlat','snlng'].forEach(x=>document.getElementById(x).value='');
   document.getElementById('srad').value=2;document.getElementById('srad-v').textContent='2.0 km';
-  renderSites();populateAllSelects();toast(`${name} added`);
+  renderSites();populateAllSelects();toast(`${name} added`);saveData();
 }
 
 function useMyLoc(){
@@ -1945,7 +1946,7 @@ function loadData(){
 
 /* Load all data from central server — makes all devices share same data */
 async function _loadFromServer(){
-  if(!pyServerOnline) { _mergePyRecords(); return; }
+  // Always attempt — don't gate on pyServerOnline (it may not be set yet on first load)
   try{
     const r = await fetch(`${PY_SERVER}/data`);
     const d = await r.json();
