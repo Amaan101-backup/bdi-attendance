@@ -103,6 +103,13 @@ def service_worker():
     resp.headers['Service-Worker-Allowed'] = '/'
     return resp
 
+@app.route('/attendance-bridge.js')
+def attendance_bridge():
+    resp = send_from_directory(BASE_DIR, 'attendance-bridge.js')
+    resp.headers['Content-Type'] = 'application/javascript'
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
 # ── Storage ─────────────────────────────────────────────────────────────────
 ENCODINGS_FILE = os.path.join(DATA_DIR, 'face_encodings.json')
 face_db = {}   # uid → list of 128-dim encodings (numpy arrays)
