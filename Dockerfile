@@ -11,8 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
-# dlib-bin = pre-compiled dlib wheel (~30s) vs dlib from source (~20 min)
+# Step 1: Install dlib-bin FIRST (pre-compiled wheel, satisfies the dlib requirement)
+# Step 2: Install face_recognition with --no-deps so pip doesn't try to pull/build dlib from source
+# Step 3: Install remaining packages
+RUN pip install --no-cache-dir dlib-bin==19.24.1
+RUN pip install --no-cache-dir face_recognition==1.3.0 --no-deps
 COPY requirements-server.txt .
 RUN pip install --no-cache-dir -r requirements-server.txt
 
