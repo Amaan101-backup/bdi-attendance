@@ -303,7 +303,14 @@ tr:hover td{background:#f8fafc}
         </div>
         <div class="card">
           <div class="ct"><i class="ti ti-list"></i>Employee Directory
-            <span class="ct-action" style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
+            <span class="ct-action" style="display:flex;gap:7px;align-items:center">
+              <span style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
+              <button class="btn btn-gray btn-sm" onclick="exportEmps()"><i class="ti ti-download"></i>Export CSV</button>
+              <button class="btn btn-gray btn-sm" onclick="downloadEmpTemplate()"><i class="ti ti-file-spreadsheet"></i>Template</button>
+              <label class="btn btn-or btn-sm" style="cursor:pointer;margin:0"><i class="ti ti-upload"></i>Import CSV
+                <input type="file" accept=".csv" style="display:none" onchange="importEmps(this)">
+              </label>
+            </span>
           </div>
           <div class="sr">
             <input id="emp-srch" placeholder="Search name, ID, role…" oninput="renderEmps()">
@@ -765,6 +772,104 @@ async function delEmp(empUid) {
   renderEmps(); renderDash();
   toast(`${e.name} removed`, false);
   await pushAll();
+}
+
+/* ── Export employees to CSV ─────────────────────────────────────────────── */
+function exportEmps() {
+  if (!EMPS.length) { toast('No employees to export', false); return; }
+  const header = ['Name','Employee ID','Department','Role','Phone','Sites (codes)'];
+  const rows = EMPS.map(e => {
+    const siteCodes = (e.sites||[]).map(id => SITES.find(s=>s.id===id)?.code || id).join('|');
+    return [e.name, e.id||e.uid, e.dept||'', e.role||'', e.phone||'', siteCodes];
+  });
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv),
+    download: `employees-${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${EMPS.length} employees`);
+}
+
+/* ── Download blank CSV template ─────────────────────────────────────────── */
+function downloadEmpTemplate() {
+  const siteCodes = SITES.map(s=>s.code).join(' | ') || 'DXB-01 | AUH-01';
+  const csv = [
+    '"Name","Employee ID","Department","Role","Phone","Sites (codes)"',
+    `"Ahmed Hassan","BDI-001","Engineering","Site Engineer","+971501234567","${SITES[0]?.code||'DXB-01'}"`,
+    `"Sara Mohammed","BDI-002","HSE","HSE Officer","+971502345678","${SITES[0]?.code||'DXB-01'}|${SITES[1]?.code||'AUH-01'}"`,
+  ].join('\n');
+  const note = `\n\n# Available site codes: ${siteCodes}\n# Departments: Engineering, Operations, HSE, Mechanical, Admin\n# Separate multiple sites with | (pipe)`;
+  const a = Object.assign(document.createElement('a'), {
+    href: 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv + note),
+    download: 'employee-import-template.csv'
+  });
+  a.click();
+  toast('Template downloaded — fill in and import');
+}
+
+/* ── Import employees from CSV ───────────────────────────────────────────── */
+async function importEmps(input) {
+  const file = input.files[0]; if (!file) return;
+  input.value = ''; // reset so same file can be re-imported if needed
+  const text = await file.text();
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l && !l.startsWith('#'));
+  if (lines.length < 2) { toast('CSV has no data rows', false); return; }
+
+  // Parse header to find column indices (flexible column order)
+  const parseCSVLine = line => {
+    const out=[]; let cur='', inQ=false;
+    for (let i=0;i<line.length;i++) {
+      const c=line[i];
+      if (c==='"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+      else if (c===',' && !inQ) { out.push(cur.trim()); cur=''; }
+      else cur+=c;
+    }
+    out.push(cur.trim()); return out;
+  };
+
+  const headers = parseCSVLine(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z]/g,''));
+  const col = name => headers.findIndex(h=>h.includes(name));
+  const iName=col('name'), iId=col('id'), iDept=col('dept')||col('department'),
+        iRole=col('role'), iPhone=col('phone'), iSites=col('site');
+
+  if (iName<0 || iId<0) { toast('CSV must have Name and Employee ID columns', false); return; }
+
+  let added=0, skipped=0, errors=[];
+  for (let i=1; i<lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    const name  = (cols[iName]||'').trim();
+    const empId = (cols[iId]||'').trim();
+    if (!name || !empId) { skipped++; continue; }
+
+    // Skip duplicates
+    if (EMPS.find(e=>e.id?.toUpperCase()===empId.toUpperCase())) {
+      errors.push(`Row ${i+1}: ID "${empId}" already exists — skipped`); skipped++; continue;
+    }
+
+    const dept  = iDept>=0  ? (cols[iDept]||'').trim() : '';
+    const role  = iRole>=0  ? (cols[iRole]||'').trim() : dept;
+    const phone = iPhone>=0 ? (cols[iPhone]||'').trim() : '';
+    // Sites: match by code or id
+    const siteCodes = iSites>=0 ? (cols[iSites]||'').split('|').map(s=>s.trim()).filter(Boolean) : [];
+    const siteIds = siteCodes.map(code => {
+      const s = SITES.find(s=>s.code?.toLowerCase()===code.toLowerCase()||s.id?.toLowerCase()===code.toLowerCase());
+      return s?.id||null;
+    }).filter(Boolean);
+
+    EMPS.push({ uid: uid('E'), name, id: empId, dept, role, phone, sites: siteIds });
+    added++;
+  }
+
+  renderEmps(); renderDash();
+  if (added) await pushAll();
+
+  let msg = `Imported ${added} employee(s)`;
+  if (skipped) msg += `, ${skipped} skipped`;
+  toast(msg, added>0);
+  if (errors.length) {
+    setTimeout(()=>toast(errors[0], false), 3500);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
