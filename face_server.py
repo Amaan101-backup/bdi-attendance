@@ -226,7 +226,7 @@ def recognize():
     """
     data      = request.json
     img_b64   = data.get('image_b64')
-    threshold = float(data.get('threshold', 0.62))  # 0.62 = good balance for real world
+    threshold = float(data.get('threshold', 0.45))  # 0.45 = strict, requires ~55% confidence
     site_uids = data.get('site_uids')               # list of site IDs to filter employees
 
     if not img_b64:
