@@ -230,8 +230,11 @@ function doLogin(){
   const err=document.getElementById('l-err');
   err.style.display='none';
   if(loginRole==='admin'){
-    if(u==='admin'&&p==='bdi2026'){curUser={name:'Admin'};curRole='admin';showScr('scr-admin');initAdmin();}
-    else{err.textContent='Invalid credentials';err.style.display='block';}
+    if(u==='admin'&&p==='bdi2026'){
+      // Admin has its own standalone page — redirect there
+      if(document.getElementById('scr-admin')){curUser={name:'Admin'};curRole='admin';showScr('scr-admin');initAdmin();}
+      else{window.location.href='/admin';}
+    }else{err.textContent='Invalid credentials';err.style.display='block';}
     return;
   }
   if(loginRole==='supervisor'){
