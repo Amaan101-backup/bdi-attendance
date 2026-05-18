@@ -280,8 +280,6 @@ function aTab(t){
   if(t==='report'){renderReport();populateRepFilter();}
   if(t==='sites')renderSites();
   if(t==='sups')renderSupTbl();
-  if(t==='enroll')initEnroll();
-  if(t==='term')initTerm();
   if(t==='dash')renderDashboard();
   if(t==='settings')initSettings();
 }
