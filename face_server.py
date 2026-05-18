@@ -881,6 +881,9 @@ def app_punch():
     if not emp_uid:
         return jsonify({'ok': False, 'error': 'Missing empUid'}), 400
 
+    lat = data.get('lat')
+    lng = data.get('lng')
+
     rec = {
         'empUid':             emp_uid,
         'empName':            emp_name,
@@ -892,9 +895,13 @@ def app_punch():
         'supervisorName':     sup_name,
         'source':             'flutter-app',
     }
+    if lat is not None: rec['lat'] = round(float(lat), 6)
+    if lng is not None: rec['lng'] = round(float(lng), 6)
+
     app_punches.append(rec)
     save_app_punches()
-    log.info(f'App punch: {emp_name} → {punch_type.upper()} at {site_name} by {sup_name}')
+    loc_str = f' [{lat:.4f},{lng:.4f}]' if lat and lng else ' [no GPS]'
+    log.info(f'App punch: {emp_name} → {punch_type.upper()} at {site_name} by {sup_name}{loc_str}')
     return jsonify({'ok': True, 'record': rec})
 
 @app.route('/app/punches', methods=['GET'])

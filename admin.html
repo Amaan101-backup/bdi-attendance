@@ -415,7 +415,7 @@ tr:hover td{background:#f8fafc}
           </div>
           <div id="rep-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
           <div class="tw"><table>
-            <thead><tr><th>Employee</th><th>ID</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Source</th><th>Time</th></tr></thead>
+            <thead><tr><th>Employee</th><th>ID</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Source</th><th>GPS</th><th>Time</th></tr></thead>
             <tbody id="rep-tbl"></tbody>
           </table></div>
         </div>
@@ -1003,7 +1003,7 @@ async function loadReport() {
       <div class="kpi o" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${outC}</div><div class="kpi-l">Check OUTs</div></div>
       <div class="kpi b" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${all.length}</div><div class="kpi-l">Total Records</div></div>`;
   } catch(e) {
-    document.getElementById('rep-tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-wifi-off"></i>Cannot load records</div></td></tr>`;
+    document.getElementById('rep-tbl').innerHTML = `<tr><td colspan="8"><div class="empty"><i class="ti ti-wifi-off"></i>Cannot load records</div></td></tr>`;
   }
 }
 
@@ -1017,11 +1017,17 @@ function filterReport() {
     (!type || r.type===type)
   );
   const tb = document.getElementById('rep-tbl');
-  if (!list.length) { tb.innerHTML=`<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
   tb.innerHTML = list.map(r => {
     const t = (r.time||r.timestamp) ? new Date(r.time||r.timestamp).toLocaleString([],{dateStyle:'short',timeStyle:'short'}) : '—';
     const isIn = r.type==='in';
     const src = r.source||r.method||'—';
+    const hasGps = r.lat != null && r.lng != null;
+    const gpsCell = hasGps
+      ? `<a href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" style="font-size:10px;color:var(--blue);white-space:nowrap">
+           📍 ${parseFloat(r.lat).toFixed(4)}, ${parseFloat(r.lng).toFixed(4)}
+         </a>`
+      : `<span style="font-size:10px;color:var(--muted)">—</span>`;
     return `<tr>
       <td style="font-weight:600">${esc(r.empName||'—')}</td>
       <td style="font-size:11px;color:var(--muted)">${esc(r.empId||'—')}</td>
@@ -1029,6 +1035,7 @@ function filterReport() {
       <td style="font-size:12px">${esc(r.siteName||'—')}</td>
       <td style="font-size:12px;color:var(--muted)">${esc(r.supervisorName||'—')}</td>
       <td><span class="bdg bdg-gy" style="font-size:10px">${esc(src)}</span></td>
+      <td>${gpsCell}</td>
       <td style="font-weight:600;color:var(--blue);font-size:12px">${esc(t)}</td>
     </tr>`;
   }).join('');
@@ -1042,8 +1049,17 @@ function exportCSV() {
     (!q || (r.empName||'').toLowerCase().includes(q)||(r.empId||'').toLowerCase().includes(q)) &&
     (!site||r.siteId===site) && (!type||r.type===type)
   );
-  const rows = [['Employee','ID','Type','Site','Supervisor','Source','Time']];
-  list.forEach(r => rows.push([r.empName||'',r.empId||'',r.type||'',r.siteName||'',r.supervisorName||'',r.source||r.method||'',(r.time||r.timestamp||'')]));
+  const rows = [['Employee','ID','Type','Site','Supervisor','Source','Latitude','Longitude','GPS Maps Link','Time']];
+  list.forEach(r => {
+    const hasGps = r.lat != null && r.lng != null;
+    rows.push([
+      r.empName||'', r.empId||'', r.type||'', r.siteName||'',
+      r.supervisorName||'', r.source||r.method||'',
+      hasGps ? r.lat : '', hasGps ? r.lng : '',
+      hasGps ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '',
+      r.time||r.timestamp||''
+    ]);
+  });
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = Object.assign(document.createElement('a'),{href:'data:text/csv;charset=utf-8,'+encodeURIComponent(csv),download:`bdi-attendance-${new Date().toISOString().slice(0,10)}.csv`});
   a.click();
