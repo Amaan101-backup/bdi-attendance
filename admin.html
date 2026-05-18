@@ -513,6 +513,39 @@ tr:hover td{background:#f8fafc}
 
 <div id="toast"></div>
 
+<!-- ── Edit Employee Modal ──────────────────────────────────────────────── -->
+<div id="edit-emp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeEditEmp()">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a2e"><i class="ti ti-user-edit" style="margin-right:8px;color:var(--or)"></i>Edit Employee</div>
+      <button onclick="closeEditEmp()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+    </div>
+    <input type="hidden" id="edit-uid">
+    <div class="fr">
+      <div class="fg"><label>Full Name *</label><input id="edit-name" placeholder="Ahmed Hassan"></div>
+      <div class="fg"><label>Employee ID *</label><input id="edit-id" placeholder="BDI-001"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Department</label>
+        <select id="edit-dept">
+          <option value="">Select Department</option>
+          <option>Engineering</option><option>Operations</option>
+          <option>HSE</option><option>Mechanical</option><option>Admin</option>
+        </select>
+      </div>
+      <div class="fg"><label>Role / Job Title</label><input id="edit-role" placeholder="Site Engineer"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Phone</label><input id="edit-phone" placeholder="+971501234567"></div>
+      <div class="fg"><label>Sites</label><select id="edit-sites" multiple style="height:80px"></select></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeEditEmp()">Cancel</button>
+      <button class="btn btn-or" style="flex:2" onclick="saveEditEmp()"><i class="ti ti-device-floppy"></i>Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -766,7 +799,10 @@ function renderEmps() {
       <td style="font-size:12px">${esc(e.role||'—')}</td>
       <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
       <td><span class="bdg bdg-gy">Registered</span></td>
-      <td><button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')"><i class="ti ti-trash"></i></button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-gray btn-sm" onclick="openEditEmp('${esc(e.uid)}')" style="margin-right:4px"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')"><i class="ti ti-trash"></i></button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -793,6 +829,52 @@ async function delEmp(empUid) {
   EMPS = EMPS.filter(x=>x.uid!==empUid);
   renderEmps(); renderDash();
   toast(`${e.name} removed`, false);
+  await pushAll();
+}
+
+function openEditEmp(empUid) {
+  const e = EMPS.find(x=>x.uid===empUid);
+  if (!e) return;
+  // Populate edit-sites select with all sites
+  const siteSel = document.getElementById('edit-sites');
+  siteSel.innerHTML = SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  // Pre-select employee's sites
+  [...siteSel.options].forEach(o => { o.selected = (e.sites||[]).includes(o.value); });
+  // Fill fields
+  document.getElementById('edit-uid').value   = e.uid;
+  document.getElementById('edit-name').value  = e.name||'';
+  document.getElementById('edit-id').value    = e.id||'';
+  document.getElementById('edit-dept').value  = e.dept||'';
+  document.getElementById('edit-role').value  = e.role||'';
+  document.getElementById('edit-phone').value = e.phone||'';
+  // Show modal
+  const modal = document.getElementById('edit-emp-modal');
+  modal.style.display = 'flex';
+}
+
+function closeEditEmp() {
+  document.getElementById('edit-emp-modal').style.display = 'none';
+}
+
+async function saveEditEmp() {
+  const uid   = document.getElementById('edit-uid').value;
+  const name  = document.getElementById('edit-name').value.trim();
+  const id    = document.getElementById('edit-id').value.trim();
+  const dept  = document.getElementById('edit-dept').value;
+  const role  = document.getElementById('edit-role').value.trim();
+  const phone = document.getElementById('edit-phone').value.trim();
+  const sites = [...document.getElementById('edit-sites').selectedOptions].map(o=>o.value);
+  if (!name || !id) { toast('Name and Employee ID are required', false); return; }
+  // Check duplicate ID (ignoring current employee)
+  if (EMPS.find(e=>e.uid!==uid && e.id?.toUpperCase()===id.toUpperCase())) {
+    toast('Employee ID already used by another employee', false); return;
+  }
+  const idx = EMPS.findIndex(e=>e.uid===uid);
+  if (idx < 0) { toast('Employee not found', false); return; }
+  EMPS[idx] = { ...EMPS[idx], name, id, dept, role, phone, sites };
+  closeEditEmp();
+  renderEmps(); renderDash();
+  toast(`${name} updated ✓`);
   await pushAll();
 }
 
