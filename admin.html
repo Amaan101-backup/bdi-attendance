@@ -1676,15 +1676,20 @@ function saveEditedFace() {
   const newId = document.getElementById('edit-face-id').value.trim();
   if (!newName || !newId) { toast('Name and Employee ID are required', false); return; }
 
-  const emp = EMPS.find(e => e.uid === uid);
-  if (!emp) { toast('Employee not found', false); return; }
-
   // Check for duplicate ID (ignore self)
-  const dup = EMPS.find(e => e.uid !== uid && e.id.toUpperCase() === newId.toUpperCase());
+  const dup = EMPS.find(e => e.uid !== uid && e.id && e.id.toUpperCase() === newId.toUpperCase());
   if (dup) { toast('Employee ID already in use by ' + dup.name, false); return; }
 
-  emp.name = newName;
-  emp.id = newId;
+  let emp = EMPS.find(e => e.uid === uid);
+  if (emp) {
+    // Update existing employee
+    emp.name = newName;
+    emp.id = newId;
+  } else {
+    // Server has this face but no local EMPS entry — create one
+    EMPS.push({ uid, name: newName, id: newId, dept: '', role: '', phone: '', sites: [], faceReg: true });
+  }
+
   saveData();
   closeEditFaceModal();
   loadEnrolledFaces();
