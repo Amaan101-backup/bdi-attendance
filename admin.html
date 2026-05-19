@@ -479,7 +479,7 @@ tr:hover td{background:#f8fafc}
             </span>
           </div>
           <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
-            View and manage all employees whose faces are enrolled for recognition. Click <strong>Delete</strong> to remove a face enrollment.
+            View and manage all employees whose faces are enrolled for recognition. Click <strong>Edit</strong> to update name/ID, or <strong>Delete</strong> to remove a face enrollment.
           </p>
           <div id="enrolled-faces-wrap">
             <div style="color:var(--muted);font-size:13px;padding:12px 0">Loading enrolled faces…</div>
@@ -1621,7 +1621,10 @@ async function loadEnrolledFaces() {
           <td style="padding:10px 8px;text-align:center">
             <span style="background:rgba(22,163,74,.1);color:var(--green);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${samples} sample${samples!==1?'s':''}</span>
           </td>
-          <td style="padding:10px 8px;text-align:right">
+          <td style="padding:10px 8px;text-align:right;white-space:nowrap">
+            <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:4px" onclick="openEditFaceModal('${uid}','${name.replace(/'/g,"\\'")}','${empId.replace(/'/g,"\\'")}')">
+              <i class="ti ti-pencil"></i>Edit
+            </button>
             <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${name.replace(/'/g,"\\'")}')">
               <i class="ti ti-trash"></i>Delete
             </button>
@@ -1650,6 +1653,42 @@ async function loadEnrolledFaces() {
   } catch(e) {
     wrap.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px 0">⚠️ Could not load enrolled faces — server offline?</div>`;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EDIT ENROLLED FACE — name & employee ID
+══════════════════════════════════════════════════════════════ */
+function openEditFaceModal(uid, currentName, currentId) {
+  document.getElementById('edit-face-uid').value = uid;
+  document.getElementById('edit-face-name').value = currentName;
+  document.getElementById('edit-face-id').value = currentId;
+  document.getElementById('edit-face-modal').style.display = 'flex';
+  document.getElementById('edit-face-name').focus();
+}
+
+function closeEditFaceModal() {
+  document.getElementById('edit-face-modal').style.display = 'none';
+}
+
+function saveEditedFace() {
+  const uid = document.getElementById('edit-face-uid').value;
+  const newName = document.getElementById('edit-face-name').value.trim();
+  const newId = document.getElementById('edit-face-id').value.trim();
+  if (!newName || !newId) { toast('Name and Employee ID are required', false); return; }
+
+  const emp = EMPS.find(e => e.uid === uid);
+  if (!emp) { toast('Employee not found', false); return; }
+
+  // Check for duplicate ID (ignore self)
+  const dup = EMPS.find(e => e.uid !== uid && e.id.toUpperCase() === newId.toUpperCase());
+  if (dup) { toast('Employee ID already in use by ' + dup.name, false); return; }
+
+  emp.name = newName;
+  emp.id = newId;
+  saveData();
+  closeEditFaceModal();
+  loadEnrolledFaces();
+  toast(`Updated: ${newName}`);
 }
 
 async function deleteFace(uid, name) {
@@ -1769,5 +1808,40 @@ const style = document.createElement('style');
 style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
 document.head.appendChild(style);
 </script>
+<!-- ══ EDIT FACE MODAL ══════════════════════════════════════════ -->
+<div id="edit-face-modal" onclick="if(event.target===this)closeEditFaceModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:360px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:9px">
+        <i class="ti ti-pencil" style="font-size:18px;color:var(--or)"></i>
+        <span style="font-size:15px;font-weight:700;color:var(--text)">Edit Employee Info</span>
+      </div>
+      <button onclick="closeEditFaceModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px">&times;</button>
+    </div>
+    <input type="hidden" id="edit-face-uid">
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Full Name</label>
+      <input id="edit-face-name" type="text" placeholder="Employee full name"
+        style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='var(--or)'" onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')saveEditedFace()">
+    </div>
+    <div style="margin-bottom:22px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Employee ID</label>
+      <input id="edit-face-id" type="text" placeholder="e.g. BDI-001"
+        style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;box-sizing:border-box;font-family:monospace"
+        onfocus="this.style.borderColor='var(--or)'" onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')saveEditedFace()">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveEditedFace()" style="flex:1;padding:10px;background:var(--or);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+        <i class="ti ti-check"></i> Save Changes
+      </button>
+      <button onclick="closeEditFaceModal()" style="padding:10px 16px;background:var(--light);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

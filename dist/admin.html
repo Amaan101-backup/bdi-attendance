@@ -2,752 +2,1846 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BDI Admin">
-<meta name="theme-color" content="#0a1628">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BDI Admin Portal</title>
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="https://bdiuae.com/images/common/bdi_logo.png">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
-<link rel="stylesheet" href="shared.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Inter',sans-serif;overflow:hidden}
+:root{
+  --or:#e87722;--navy:#0f172a;--sl:#1e293b;
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--light:#f8fafc;
+  --green:#16a34a;--red:#ef4444;--blue:#2563eb;
+}
+
+/* ══ LOGIN ══════════════════════════════════════════════════════ */
+#scr-login{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);
+  display:flex;align-items:center;justify-content:center;z-index:999;
+}
+.lbox{
+  background:#1e293b;border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;padding:40px;width:340px;
+  box-shadow:0 25px 60px rgba(0,0,0,.5);
+}
+.lbox-logo{text-align:center;margin-bottom:28px}
+.lbox-logo img{width:56px;height:56px;border-radius:12px;background:#fff;padding:4px}
+.lbox-logo h1{color:#fff;font-size:20px;font-weight:800;margin-top:10px}
+.lbox-logo p{color:rgba(255,255,255,.35);font-size:11px;margin-top:2px}
+.lf{margin-bottom:12px}
+.lf label{display:block;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;margin-bottom:6px;letter-spacing:.3px}
+.lf input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 14px;color:#fff;font-size:14px}
+.lf input:focus{outline:none;border-color:var(--or);background:rgba(255,255,255,.08)}
+.lbtn{width:100%;padding:12px;background:var(--or);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+.lbtn:hover{background:#d06518}
+.lerr{color:#fca5a5;font-size:12px;margin-top:10px;text-align:center;display:none}
+
+/* ══ LAYOUT ═════════════════════════════════════════════════════ */
+#scr-admin{display:none;height:100vh}
+#scr-admin.show{display:flex}
+.sidebar{
+  width:220px;min-width:220px;height:100vh;
+  background:var(--navy);display:flex;flex-direction:column;
+  flex-shrink:0;overflow:hidden;
+}
+.sb-brand{
+  padding:16px 14px 13px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;gap:9px;min-height:60px;
+}
+.sb-brand img{width:32px;height:32px;border-radius:8px;background:#fff;padding:3px;flex-shrink:0}
+.sb-brand-fb{width:32px;height:32px;border-radius:8px;background:var(--or);color:#fff;font-weight:800;font-size:13px;display:none;align-items:center;justify-content:center;flex-shrink:0}
+.sb-brand-txt strong{display:block;color:#fff;font-size:13px;font-weight:700}
+.sb-brand-txt span{color:rgba(255,255,255,.3);font-size:10px}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0;scrollbar-width:none}
+.sb-nav::-webkit-scrollbar{display:none}
+.sb-sec{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,.22);padding:12px 15px 4px}
+.nb{
+  display:flex;align-items:center;gap:9px;
+  width:100%;padding:9px 15px;
+  background:none;border:none;border-left:3px solid transparent;
+  cursor:pointer;color:rgba(255,255,255,.5);font-size:12.5px;font-weight:500;text-align:left;
+  transition:all .15s;
+}
+.nb i{font-size:16px;width:18px;text-align:center;flex-shrink:0}
+.nb:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.85)}
+.nb.on{background:rgba(232,119,34,.14);color:var(--or);border-left-color:var(--or);font-weight:600}
+.sb-foot{border-top:1px solid rgba(255,255,255,.07);padding:10px}
+.sb-user{display:flex;align-items:center;gap:8px;padding:7px 6px;margin-bottom:7px}
+.sb-av{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-user-info strong{display:block;color:#fff;font-size:12px}
+.sb-user-info span{color:rgba(255,255,255,.3);font-size:10px}
+.sb-logout{width:100%;padding:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:7px;color:rgba(255,255,255,.45);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.sb-logout:hover{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+
+/* ══ MAIN ════════════════════════════════════════════════════════ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{
+  height:54px;min-height:54px;background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);flex-shrink:0;
+}
+.topbar-title{font-size:15px;font-weight:700;color:var(--text);flex:1}
+.topbar-title small{font-size:11px;font-weight:400;color:var(--muted);margin-left:7px}
+.srv-dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;animation:pls 2s infinite;flex-shrink:0}
+@keyframes pls{0%,100%{opacity:1}50%{opacity:.35}}
+.srv-lbl{font-size:11px;color:var(--muted);white-space:nowrap}
+.topbar-badge{background:rgba(232,119,34,.1);border:1px solid rgba(232,119,34,.25);color:var(--or);font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;white-space:nowrap}
+.content{flex:1;overflow-y:auto;padding:20px 22px;background:var(--bg)}
+
+/* ══ PAGE TABS ═══════════════════════════════════════════════════ */
+.pg{display:none}.pg.on{display:block}
+
+/* ══ CARDS ═══════════════════════════════════════════════════════ */
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:18px 20px;margin-bottom:14px}
+.ct{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.ct i{color:var(--or);font-size:16px}
+.ct .ct-action{margin-left:auto}
+
+/* ══ KPI ROW ═════════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:13px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 18px}
+.kpi-v{font-size:28px;font-weight:800;color:var(--text);line-height:1}
+.kpi-l{font-size:11px;color:var(--muted);margin-top:5px;font-weight:500}
+.g .kpi-v{color:var(--green)}.b .kpi-v{color:var(--blue)}.o .kpi-v{color:var(--or)}.r .kpi-v{color:var(--red)}
+
+/* ══ FORM ════════════════════════════════════════════════════════ */
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.2px}
+.fg input,.fg select{border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;color:var(--text);background:var(--light)}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--or);background:#fff}
+select[multiple]{height:78px}
+.hint{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ══ BUTTONS ═════════════════════════════════════════════════════ */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid;transition:all .15s;font-family:inherit}
+.btn-or{background:var(--or);border-color:var(--or);color:#fff}.btn-or:hover{background:#d06518}
+.btn-gray{background:var(--light);border-color:var(--border);color:var(--text)}.btn-gray:hover{background:var(--border)}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff}.btn-green:hover{background:#15803d}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff}.btn-red:hover{background:#dc2626}
+.btn-blue{background:var(--blue);border-color:var(--blue);color:#fff}.btn-blue:hover{background:#1d4ed8}
+.btn-sm{padding:5px 9px;font-size:11px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+/* ══ TABLE ═══════════════════════════════════════════════════════ */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:9px 11px;text-align:left;border-bottom:2px solid var(--border);font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;background:var(--light)}
+td{padding:10px 11px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+
+/* ══ BADGES ══════════════════════════════════════════════════════ */
+.bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.bdg-g{background:#dcfce7;color:#16a34a}.bdg-o{background:#fff7ed;color:#ea580c}
+.bdg-gy{background:#f1f5f9;color:var(--muted)}.bdg-b{background:#eff6ff;color:var(--blue)}
+.bdg-r{background:#fef2f2;color:var(--red)}.bdg-or{background:rgba(232,119,34,.1);color:var(--or)}
+
+/* ══ SEARCH ══════════════════════════════════════════════════════ */
+.sr{display:flex;gap:8px;margin-bottom:13px;flex-wrap:wrap}
+.sr input,.sr select{border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12.5px;color:var(--text);background:#fff}
+.sr input{flex:1;min-width:160px}
+
+/* ══ EMPTY ═══════════════════════════════════════════════════════ */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty i{font-size:44px;display:block;margin-bottom:10px;opacity:.35}
+
+/* ══ TOAST ═══════════════════════════════════════════════════════ */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;border-left:4px solid var(--or);display:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:300px}
+
+/* ══ MODAL ═══════════════════════════════════════════════════════ */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-bg.show{display:flex}
+.modal-box{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-head h3{font-size:15px;font-weight:700;color:var(--text)}
+
+/* ══ PHOTO PREVIEW ═══════════════════════════════════════════════ */
+.photo-prev{max-width:100%;max-height:280px;border-radius:10px;margin-top:10px;display:block}
+
+/* ══ RESPONSIVE ══════════════════════════════════════════════════ */
+@media(max-width:680px){
+  .sidebar{position:fixed;left:-220px;top:0;height:100vh;z-index:300;transition:left .25s}
+  .sidebar.mob-open{left:0}
+  .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:299}
+  .mob-overlay.show{display:block}
+  .topbar-badge{display:none}
+  .fr{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
-<div id="scr-admin" class="screen active">
 
-
-  <div class="topnav">
-    <div class="logo-wrap">
-      <img src="https://bdiuae.com/images/common/bdi_logo.png" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="BDI">
-      <div class="logo-fallback">BDI</div>
-      <div class="logo-div"></div>
-      <div class="logo-txt"><strong>Admin Dashboard</strong>Attendance Management</div>
+<!-- ══════════════ LOGIN ══════════════════════════════════════════ -->
+<div id="scr-login">
+  <div class="lbox">
+    <div class="lbox-logo">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png"
+           onerror="this.style.display='none'" alt="BDI">
+      <h1>BDI Admin</h1>
+      <p>Attendance Management Portal</p>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div id="a-clk" style="color:rgba(255,255,255,.55);font-size:10px;font-family:var(--mono);background:rgba(255,255,255,.07);padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.1)">--:--:--</div>
-      <div style="display:flex;gap:4px">
-        <a href="attendance.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-hard-hat" style="font-size:11px"></i> Supervisor</a>
-        <a href="face_enroll.html" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);text-decoration:none;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.07)'"><i class="ti ti-face-id" style="font-size:11px"></i> Enroll</a>
-      </div>
-      <div style="background:rgba(232,119,34,.15);border:1px solid rgba(232,119,34,.3);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--orange)"><i class="ti ti-shield-lock" style="font-size:10px"></i> Admin</div>
-      <button onclick="logout()" class="btn sm n"><i class="ti ti-logout"></i> Logout</button>
+    <div class="lf">
+      <label>Username</label>
+      <input type="text" id="l-user" placeholder="admin" autocomplete="username">
     </div>
+    <div class="lf">
+      <label>Password</label>
+      <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="lbtn" onclick="doLogin()"><i class="ti ti-login"></i> Sign In</button>
+    <div class="lerr" id="l-err">Incorrect username or password</div>
   </div>
-  <div class="subnav">
-    <button class="stab active" onclick="aTab('emp')"><i class="ti ti-users"></i> Employees</button>
-    <button class="stab" onclick="aTab('sups')"><i class="ti ti-hard-hat"></i> Supervisors</button>
-    <button class="stab" onclick="aTab('sites')"><i class="ti ti-building"></i> Sites</button>
-    <button class="stab" onclick="aTab('enroll')"><i class="ti ti-face-id"></i> Enrollment</button>
-    <button class="stab" onclick="aTab('term')"><i class="ti ti-device-laptop"></i> Terminal</button>
-    <button class="stab" onclick="aTab('report')"><i class="ti ti-chart-bar"></i> Report</button>
-    <button class="stab" onclick="aTab('dash')"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
-    <button class="stab" onclick="aTab('appsup');loadAppSupervisors()"><i class="ti ti-device-mobile"></i> App Supervisors</button>
-    <button class="stab" onclick="aTab('manreq');loadManualRequests()"><i class="ti ti-camera"></i> Manual Requests</button>
-    <button class="stab" onclick="aTab('settings')"><i class="ti ti-settings"></i> Settings</button>
-  </div>
-  <div class="shell">
-
-    <!-- EMPLOYEES TAB -->
-    <div id="ap-emp" class="page active">
-      <div class="stats-row" id="a-stats"></div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Employee to Company</div>
-        <div class="form-row">
-          <div class="form-g"><label>Full Name *</label><input type="text" id="en" placeholder="Ahmed Hassan"></div>
-          <div class="form-g"><label>Employee ID *</label><input type="text" id="ei" placeholder="BDI-0042"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Department</label>
-            <select id="ed"><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option><option>Other</option></select>
-          </div>
-          <div class="form-g"><label>Role / Designation</label><input type="text" id="er" placeholder="Pipeline Engineer"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Mobile</label><input type="text" id="eph" placeholder="+971 50 000 0000"></div>
-          <div class="form-g"><label>Assign Sites (hold Ctrl for multiple)</label><select id="esites" multiple><option value="">Loading…</option></select></div>
-        </div>
-        <div class="form-g"><label>Face Registered?</label>
-          <div style="display:flex;gap:8px;margin-top:4px">
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="yes" style="width:auto"> Yes — face sample stored</label>
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);cursor:pointer"><input type="radio" name="eface" value="no" checked style="width:auto"> No — manual override allowed</label>
-          </div>
-        </div>
-        <div style="display:flex;gap:7px;margin-top:6px;flex-wrap:wrap">
-          <button class="btn o" onclick="addEmp()"><i class="ti ti-user-plus"></i> Add Employee</button>
-          <button class="btn" onclick="loadDemo()"><i class="ti ti-download"></i> Load Demo Data (10 employees)</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-list"></i> Company Employee Directory</div>
-        <div class="search-row">
-          <input type="text" id="esrch" placeholder="Search name, ID, role…" oninput="renderEmpTbl()">
-          <select id="edept" onchange="renderEmpTbl()"><option value="">All departments</option><option>Engineering</option><option>Operations</option><option>HSE</option><option>Mechanical</option><option>Admin</option></select>
-        </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Face</th><th>Today</th><th></th></tr></thead>
-          <tbody id="etbl"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <!-- SUPERVISORS TAB -->
-    <div id="ap-sups" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-user-plus"></i> Add Supervisor / Site Engineer</div>
-        <div class="form-row">
-          <div class="form-g"><label>Full Name *</label><input type="text" id="sn" placeholder="Omar Al Rashidi"></div>
-          <div class="form-g"><label>Login ID *</label><input type="text" id="sid" placeholder="sup001"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Role</label>
-            <select id="srole"><option>Site Supervisor</option><option>Site Engineer</option><option>HSE Officer</option><option>Foreman</option></select>
-          </div>
-          <div class="form-g"><label>Password *</label><input type="password" id="spw" placeholder="Set login password"></div>
-        </div>
-        <div class="form-g"><label>Assigned Sites (hold Ctrl for multiple)</label>
-          <select id="ssites" multiple><option value="">Loading…</option></select>
-          <p class="hint"><i class="ti ti-info-circle" style="font-size:11px"></i> Supervisor can only mark attendance for employees at their assigned sites</p>
-        </div>
-        <button class="btn o" onclick="addSup()" style="margin-top:5px"><i class="ti ti-user-plus"></i> Add Supervisor</button>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-list"></i> Supervisors & Site Engineers</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Assigned Sites</th><th>Marked Today</th><th></th></tr></thead>
-          <tbody id="suptbl"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <!-- SITES TAB -->
-    <div id="ap-sites" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-circle-plus"></i> Add New Site</div>
-        <div class="form-row">
-          <div class="form-g"><label>Site Name *</label><input type="text" id="sns" placeholder="Al Ain Pipeline Project"></div>
-          <div class="form-g"><label>Site Code *</label><input type="text" id="snc" placeholder="AIN-01"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Location / Address</label><input type="text" id="snl" placeholder="Al Ain, Abu Dhabi"></div>
-          <div class="form-g"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
-          <div class="form-g"><label>Geo-Zone Radius: <span id="srad-v" style="color:var(--orange);font-weight:500">2.0 km</span></label>
-            <input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:6px" id="srad" oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'">
-            <p class="hint">Distance from site coordinates within which supervisor must be present</p>
-          </div>
-        </div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
-          <button class="btn o" onclick="addSite()"><i class="ti ti-circle-plus"></i> Add Site</button>
-          <button class="btn" onclick="useMyLoc()"><i class="ti ti-map-pin"></i> Use My Location as Coords</button>
-        </div>
-        <div id="loc-msg" style="font-size:10px;color:var(--gray);margin-top:5px;display:none"></div>
-      </div>
-      <div id="sites-list"></div>
-    </div>
-
-    <!-- ENROLLMENT TAB (ADMIN/SUP) -->
-    <div id="ap-enroll" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-face-id"></i> Biometric Enrollment</div>
-        <div class="two-col">
-          <div>
-            <div class="form-g"><label>Select Employee to Enroll</label>
-              <select id="enr-emp-sel" onchange="enrEmpChange()"><option value="">— Choose employee —</option></select>
-            </div>
-            <div id="enr-emp-info" style="margin-top:10px"></div>
-          </div>
-          <div>
-            <div class="cam-wrap" style="aspect-ratio:1/1;max-width:320px;margin:0 auto">
-              <video id="enr-vid" autoplay playsinline muted style="transform: scaleX(-1);"></video>
-              <canvas id="enr-cnv" style="display:none"></canvas>
-              <div class="cam-overlay">
-                <div class="w-full h-full border-4 border-dashed border-white/20 rounded-full" style="margin:20px"></div>
-              </div>
-            </div>
-            <div style="display:flex;gap:6px;margin-top:10px">
-              <button class="btn n" onclick="startEnrCam()" style="flex:1"><i class="ti ti-camera"></i> Start Cam</button>
-              <button class="btn o" id="enr-cap-btn" onclick="captureEnroll()" disabled style="flex:1"><i class="ti ti-scan"></i> Capture Face</button>
-            </div>
-            <div id="enr-status" style="margin-top:8px;font-size:11px;text-align:center;color:var(--gray)"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TERMINAL TAB (ADMIN/SUP) -->
-    <div id="ap-term" class="page">
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:7px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;font-size:11px">
-        <div style="display:flex;align-items:center;gap:7px">
-          <i class="ti ti-brain" style="font-size:14px;color:#16a34a"></i>
-          <span class="ai-status-lbl" style="font-weight:500;color:#15803d">⏳ Loading AI…</span>
-        </div>
-        <button onclick="retryModels()" class="btn sm n" style="font-size:10px;padding:3px 9px"><i class="ti ti-refresh" style="font-size:11px"></i> Retry AI</button>
-      </div>
-      <div class="card" style="background:#0a1628;color:#fff;border:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-          <div class="card-lbl" style="color:#e87722;margin:0"><i class="ti ti-device-laptop"></i> Kiosk Terminal Mode</div>
-          <div style="font-size:11px;font-family:var(--mono);color:#94a3b8" id="term-clock">--:--:--</div>
-        </div>
-        
-        <div class="two-col">
-          <div style="position:relative">
-            <div class="cam-wrap" style="aspect-ratio:4/3;max-width:480px;border-color:#1e293b">
-              <video id="term-vid" autoplay playsinline muted style="transform: scaleX(-1)"></video>
-              <canvas id="term-cnv" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
-              <div class="cam-overlay">
-                <div id="term-status-box" style="position:absolute;top:20px;left:20px;right:20px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px;border-left:3px solid #e87722">
-                  <div class="dot-pulse"></div>
-                  <span id="term-status">Initializing AI Vision...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="card" style="background:#1e293b;border:1px solid #334155;margin:0">
-              <div class="card-lbl" style="color:#fff;font-size:12px">Active Site Connection</div>
-              <select id="term-site-sel" style="background:#0f172a;color:#fff;border-color:#334155"><option value="">— Select Site for this Terminal —</option></select>
-            </div>
-            
-            <div id="term-match-card" class="card" style="background:#1e293b;border:1px solid #334155;margin:0;display:none;animation:slideIn 0.3s ease">
-              <div class="card-lbl" style="color:#22c55e;font-size:12px"><i class="ti ti-circle-check"></i> Identity Verified</div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <div id="term-match-av" class="av lg" style="background:#e87722;color:#fff;width:50px;height:50px;font-size:18px"></div>
-                <div>
-                  <div id="term-match-name" style="font-size:16px;font-weight:600;color:#fff">Name</div>
-                  <div id="term-match-id" style="font-size:12px;color:#94a3b8">ID</div>
-                </div>
-              </div>
-              <div style="margin-top:10px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:11px;color:#4ade80;text-align:center">
-                Attendance logged successfully
-              </div>
-            </div>
-            
-            <button class="btn full" onclick="startTerminal()" id="term-start-btn" style="background:#e87722;color:#fff;padding:15px;font-weight:bold"><i class="ti ti-player-play"></i> Launch Terminal Recognition</button>
-            <button class="btn full r" onclick="stopTerminal()" id="term-stop-btn" style="display:none;padding:15px;font-weight:bold"><i class="ti ti-player-stop"></i> Stop Terminal</button>
-            
-            <div class="card" style="background:#0f172a;border:1px solid #1e293b;margin:0;flex:1">
-              <div class="card-lbl" style="color:#64748b;font-size:10px">Live Log</div>
-              <div id="term-log" style="font-size:10px;font-family:var(--mono);color:#94a3b8;height:120px;overflow-y:auto;display:flex;flex-direction:column-reverse">
-                <div>Terminal Ready.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- REPORT TAB -->
-    <div id="ap-report" class="page">
-      <div class="stats-row" id="rep-stats"></div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-list"></i> Full Attendance Log</div>
-
-        <!-- Python sync banner -->
-        <div id="py-sync-bar" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <i class="ti ti-brand-python" style="color:#3b82f6;font-size:16px"></i>
-          <span style="font-size:12px;color:#1e40af;flex:1">Python camera records are included in this report automatically when the server is running.</span>
-          <button class="btn sm" onclick="_mergePyRecords().then(()=>{renderReport();renderAStats();})" style="background:#3b82f6;color:#fff;border:none;font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer">
-            <i class="ti ti-refresh"></i> Sync Now
-          </button>
-        </div>
-
-        <div class="form-row" style="margin-bottom:8px">
-          <div class="form-g"><label>From Date</label><input type="date" id="r-date-from" onchange="renderReport()"></div>
-          <div class="form-g"><label>To Date</label><input type="date" id="r-date-to" onchange="renderReport()"></div>
-        </div>
-        <div class="search-row">
-          <input type="text" id="rsrch" placeholder="Search name or ID…" oninput="renderReport()">
-          <select id="rsiteF" onchange="renderReport()"><option value="">All sites</option></select>
-          <select id="rstatF" onchange="renderReport()"><option value="">All status</option><option value="in">Present</option><option value="out">Checked out</option><option value="absent">Absent</option></select>
-          <button class="btn n" onclick="downloadReport()"><i class="ti ti-download"></i> Export CSV</button>
-        </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site</th><th>Punched By</th><th>Method</th><th>Check-in</th><th>Check-out</th><th>Arrival</th><th>Status</th></tr></thead>
-          <tbody id="rtbl"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <!-- DASHBOARD TAB -->
-    <div id="ap-dash" class="page"></div>
-
-    <!-- APP SUPERVISORS TAB -->
-    <div id="ap-appsup" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-device-mobile"></i> App Supervisors
-          <button class="btn sm" onclick="loadAppSupervisors()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:14px">Supervisors who installed the BDI Attendance app. Approve them and control their permissions.</p>
-        <div id="app-sup-list"><p style="color:#94a3b8;text-align:center;padding:20px">Click Refresh to load supervisors...</p></div>
-      </div>
-
-      <!-- Man Hours Report -->
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-clock"></i> Man Hours Report
-          <button class="btn sm" onclick="loadManHours()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Load</button>
-        </div>
-        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-          <input type="date" id="mh-date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px"
-            value="">
-          <button class="btn sm" onclick="loadManHours()"><i class="ti ti-search"></i> Search</button>
-        </div>
-        <div id="manhours-list"><p style="color:#94a3b8;text-align:center;padding:20px">Select a date and click Load.</p></div>
-      </div>
-    </div>
-
-    <!-- MANUAL REQUESTS TAB -->
-    <div id="ap-manreq" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-camera"></i> Manual Attendance Requests
-          <button class="btn sm" onclick="loadManualRequests()" style="float:right;margin-top:-4px"><i class="ti ti-refresh"></i> Refresh</button>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:14px">
-          When face scan fails, supervisors submit a photo of the employee. Review and approve or reject each request.
-        </p>
-        <!-- Filter bar -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-          <label style="font-size:12px;font-weight:600;color:#475569">Filter:</label>
-          <button class="btn sm" onclick="loadManualRequests('pending')" id="mr-btn-pending"
-            style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
-          <button class="btn sm n" onclick="loadManualRequests('approved')" id="mr-btn-approved">✅ Approved</button>
-          <button class="btn sm n" onclick="loadManualRequests('rejected')" id="mr-btn-rejected">❌ Rejected</button>
-          <button class="btn sm n" onclick="loadManualRequests('')" id="mr-btn-all">All</button>
-        </div>
-        <div id="manreq-list"><p style="color:#94a3b8;text-align:center;padding:20px">Loading requests...</p></div>
-      </div>
-    </div>
-
-    <!-- SETTINGS TAB -->
-    <div id="ap-settings" class="page">
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-building"></i> Company Information</div>
-        <div class="form-row">
-          <div class="form-g"><label>Company Full Name</label><input type="text" id="set-company" placeholder="Bright Deal International"></div>
-          <div class="form-g"><label>Short Name / Code</label><input type="text" id="set-short" placeholder="BDI"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-face-id"></i> Face Recognition Settings</div>
-        <div class="form-row">
-          <div class="form-g">
-            <label>Verification Threshold (1:1): <span id="set-threshold-v" style="color:var(--orange);font-weight:500">0.55</span></label>
-            <input type="range" min="0.3" max="0.8" step="0.01" id="set-threshold" oninput="document.getElementById('set-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
-            <p class="hint">Used for supervisor face-verify. Lower = stricter. 0.55 recommended.</p>
-          </div>
-          <div class="form-g">
-            <label>Scanner / Terminal Threshold: <span id="set-scan-threshold-v" style="color:var(--orange);font-weight:500">0.62</span></label>
-            <input type="range" min="0.3" max="0.85" step="0.01" id="set-scan-threshold" oninput="document.getElementById('set-scan-threshold-v').textContent=parseFloat(this.value).toFixed(2)" style="accent-color:var(--orange);width:100%;margin-top:6px">
-            <p class="hint">Used for auto-identification in scanner &amp; terminal. 0.62 recommended.</p>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-g">
-            <label>Confirm Frames (consecutive)</label>
-            <input type="number" id="set-confirm-frames" min="1" max="10" placeholder="3">
-            <p class="hint">How many consecutive matching frames before auto-punch. 3 recommended.</p>
-          </div>
-          <div class="form-g">
-            <label>Min Face Size: <span id="set-min-face-v" style="color:var(--orange);font-weight:500">4%</span></label>
-            <input type="range" min="1" max="20" step="1" id="set-min-face" oninput="document.getElementById('set-min-face-v').textContent=this.value+'%'" style="accent-color:var(--orange);width:100%;margin-top:6px">
-            <p class="hint">Face must cover this % of frame. Prevents far-away false matches.</p>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-g">
-            <label>Scanner Cooldown (frames)</label>
-            <input type="number" id="set-cooldown" min="10" max="300" placeholder="60">
-            <p class="hint">Frames between auto-punches. Higher = longer gap between marks.</p>
-          </div>
-          <div class="form-g"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-clock"></i> Shift &amp; Time Rules</div>
-        <div class="form-row">
-          <div class="form-g"><label>Shift Start Time</label><input type="time" id="set-shift-start"></div>
-          <div class="form-g"><label>Shift End Time</label><input type="time" id="set-shift-end"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-g"><label>Late Grace Period (minutes)</label><input type="number" id="set-grace" min="0" max="60" placeholder="15"></div>
-          <div class="form-g"><label>Auto-logout After Inactivity (minutes, 0=off)</label><input type="number" id="set-timeout" min="0" max="480" placeholder="30"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-lbl"><i class="ti ti-database"></i> Data Backup &amp; Restore</div>
-        <p class="hint" style="margin-bottom:12px">Export a full JSON backup of all data including employees, sites, records and settings. Restore from a previous backup.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn o" onclick="exportJSON()"><i class="ti ti-download"></i> Export Full Backup (JSON)</button>
-          <button class="btn" onclick="downloadReport()"><i class="ti ti-file-spreadsheet"></i> Export CSV Report</button>
-          <label class="btn n" style="cursor:pointer"><i class="ti ti-upload"></i> Import Backup (JSON) <input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn o" onclick="saveSettingsForm()"><i class="ti ti-device-floppy"></i> Save Settings</button>
-        <button class="btn" onclick="initSettings()"><i class="ti ti-refresh"></i> Reset Form</button>
-      </div>
-    </div>
-
-  </div>
-  <div class="bdi-footer"><span>© 2026 Bright Deal International Gen. Cont. · Abu Dhabi, UAE</span><span>Attendance System v2.0 — Admin</span></div>
 </div>
 
+<!-- ══════════════ ADMIN ══════════════════════════════════════════ -->
+<div class="mob-overlay" id="mob-overlay" onclick="closeMob()"></div>
+<div id="scr-admin">
 
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <img src="https://bdiuae.com/images/common/bdi_logo.png"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="BDI">
+      <div class="sb-brand-fb">BDI</div>
+      <div class="sb-brand-txt">
+        <strong>BDI Admin</strong>
+        <span>Attendance Portal</span>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Overview</div>
+      <button class="nb on" data-pg="dash" onclick="go('dash')"><i class="ti ti-layout-dashboard"></i>Dashboard</button>
 
-<div class="modal-backdrop" id="site-modal" onclick="closeSiteModal(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="sb-sec">People</div>
+      <button class="nb" data-pg="emp" onclick="go('emp')"><i class="ti ti-users"></i>Employees</button>
+      <button class="nb" data-pg="sups" onclick="go('sups')"><i class="ti ti-hard-hat"></i>Supervisors</button>
+      <button class="nb" data-pg="appsup" onclick="go('appsup');loadAppSups()"><i class="ti ti-device-mobile"></i>App Supervisors</button>
+
+      <div class="sb-sec">Locations</div>
+      <button class="nb" data-pg="sites" onclick="go('sites')"><i class="ti ti-building"></i>Sites</button>
+
+      <div class="sb-sec">Attendance</div>
+      <button class="nb" data-pg="report" onclick="go('report');loadReport()"><i class="ti ti-chart-bar"></i>Reports</button>
+      <button class="nb" data-pg="manreq" onclick="go('manreq');loadManReqs()"><i class="ti ti-camera"></i>Manual Requests</button>
+
+      <div class="sb-sec">System</div>
+      <button class="nb" data-pg="settings" onclick="go('settings');loadEnrolledFaces();loadSysInfo()"><i class="ti ti-settings"></i>Settings</button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-av">A</div>
+        <div class="sb-user-info">
+          <strong>Administrator</strong>
+          <span>Full Access</span>
+        </div>
+      </div>
+      <button class="sb-logout" onclick="logout()"><i class="ti ti-logout"></i> Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title" id="pg-title">Dashboard <small id="pg-sub">Overview</small></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="srv-dot" id="srv-dot"></div>
+        <span class="srv-lbl" id="srv-lbl">Connecting…</span>
+      </div>
+      <div class="topbar-badge"><i class="ti ti-shield-lock" style="font-size:11px"></i> Admin</div>
+    </header>
+
+    <main class="content">
+
+      <!-- ── DASHBOARD ─────────────────────────────── -->
+      <div class="pg on" id="pg-dash">
+        <div class="kpi-row" id="dash-kpi">
+          <div class="kpi"><div class="kpi-v" id="d-emps">–</div><div class="kpi-l">Total Employees</div></div>
+          <div class="kpi g"><div class="kpi-v" id="d-present">–</div><div class="kpi-l">Present Today</div></div>
+          <div class="kpi b"><div class="kpi-v" id="d-sites">–</div><div class="kpi-l">Active Sites</div></div>
+          <div class="kpi o"><div class="kpi-v" id="d-sups">–</div><div class="kpi-l">Supervisors</div></div>
+          <div class="kpi r"><div class="kpi-v" id="d-pending">–</div><div class="kpi-l">Pending Requests</div></div>
+        </div>
+        <div class="card">
+          <div class="ct"><i class="ti ti-activity"></i>Today's Punches</div>
+          <div id="dash-punches"><div class="empty"><i class="ti ti-clock"></i>Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ── EMPLOYEES ─────────────────────────────── -->
+      <div class="pg" id="pg-emp">
+        <div class="card">
+          <div class="ct"><i class="ti ti-user-plus"></i>Add Employee</div>
+          <div class="fr">
+            <div class="fg"><label>Full Name *</label><input id="en" placeholder="Ahmed Hassan"></div>
+            <div class="fg"><label>Employee ID *</label><input id="ei" placeholder="BDI-0042"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>Department</label>
+              <select id="ed">
+                <option>Engineering</option><option>Operations</option>
+                <option>HSE</option><option>Mechanical</option>
+                <option>Admin</option><option>Other</option>
+              </select>
+            </div>
+            <div class="fg"><label>Role / Designation</label><input id="er" placeholder="Pipeline Engineer"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>Mobile</label><input id="eph" placeholder="+971 50 000 0000"></div>
+            <div class="fg"><label>Assign Sites <span class="hint">(hold Ctrl for multiple)</span></label>
+              <select id="esites" multiple></select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="addEmp()"><i class="ti ti-user-plus"></i>Add Employee</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct"><i class="ti ti-list"></i>Employee Directory
+            <span class="ct-action" style="display:flex;gap:7px;align-items:center">
+              <span style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
+              <button class="btn btn-gray btn-sm" onclick="exportEmps()"><i class="ti ti-download"></i>Export CSV</button>
+              <button class="btn btn-gray btn-sm" onclick="downloadEmpTemplate()"><i class="ti ti-file-spreadsheet"></i>Template</button>
+              <label class="btn btn-or btn-sm" style="cursor:pointer;margin:0"><i class="ti ti-upload"></i>Import CSV
+                <input type="file" accept=".csv" style="display:none" onchange="importEmps(this)">
+              </label>
+            </span>
+          </div>
+          <div class="sr">
+            <input id="emp-srch" placeholder="Search name, ID, role…" oninput="renderEmps()">
+            <select id="emp-dept" onchange="renderEmps()">
+              <option value="">All Departments</option>
+              <option>Engineering</option><option>Operations</option>
+              <option>HSE</option><option>Mechanical</option><option>Admin</option>
+            </select>
+          </div>
+          <div class="tw"><table>
+            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th></th></tr></thead>
+            <tbody id="emp-tbl"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── SUPERVISORS ───────────────────────────── -->
+      <div class="pg" id="pg-sups">
+        <div class="card">
+          <div class="ct"><i class="ti ti-user-plus"></i>Add Web Portal Supervisor</div>
+          <div class="fr">
+            <div class="fg"><label>Full Name *</label><input id="sn" placeholder="Omar Al Rashidi"></div>
+            <div class="fg"><label>Login ID *</label><input id="sid" placeholder="sup001"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>Role</label>
+              <select id="srole">
+                <option>Site Supervisor</option><option>Site Engineer</option>
+                <option>HSE Officer</option><option>Foreman</option>
+              </select>
+            </div>
+            <div class="fg"><label>Password *</label><input type="password" id="spw" placeholder="Set password"></div>
+          </div>
+          <div class="fg" style="margin-bottom:11px"><label>Assigned Sites <span class="hint">(hold Ctrl for multiple)</span></label>
+            <select id="ssites" multiple></select>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="addSup()"><i class="ti ti-user-plus"></i>Add Supervisor</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct"><i class="ti ti-list"></i>Web Portal Supervisors</div>
+          <div class="tw"><table>
+            <thead><tr><th>Name</th><th>Login ID</th><th>Role</th><th>Sites</th><th></th></tr></thead>
+            <tbody id="sup-tbl"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── APP SUPERVISORS ───────────────────────── -->
+      <div class="pg" id="pg-appsup">
+        <div class="card">
+          <div class="ct"><i class="ti ti-device-mobile"></i>Registered App Supervisors
+            <span class="ct-action"><button class="btn btn-gray btn-sm" onclick="loadAppSups()"><i class="ti ti-refresh"></i>Refresh</button></span>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Supervisors who installed the BDI app. Approve to allow attendance marking.</p>
+          <div id="appsup-list"><div class="empty"><i class="ti ti-device-mobile"></i>Click Refresh to load</div></div>
+        </div>
+      </div>
+
+      <!-- ── SITES ─────────────────────────────────── -->
+      <div class="pg" id="pg-sites">
+        <div class="card">
+          <div class="ct"><i class="ti ti-circle-plus"></i>Add New Site</div>
+          <div class="fr">
+            <div class="fg"><label>Site Name *</label><input id="sns" placeholder="Al Ain Pipeline Project"></div>
+            <div class="fg"><label>Site Code *</label><input id="snc" placeholder="AIN-01"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>Location / Address</label><input id="snl" placeholder="Al Ain, Abu Dhabi"></div>
+            <div class="fg"><label>Latitude *</label><input type="number" id="snlat" placeholder="24.4539" step="0.0001"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>Longitude *</label><input type="number" id="snlng" placeholder="54.3773" step="0.0001"></div>
+            <div class="fg">
+              <label>Geo-Zone Radius: <span id="srad-v" style="color:var(--or);font-weight:700">2.0 km</span></label>
+              <input type="range" min="0.5" max="20" step="0.5" value="2" id="srad"
+                     oninput="document.getElementById('srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"
+                     style="accent-color:var(--or);width:100%;margin-top:6px">
+              <p class="hint">Distance from site coordinates where attendance can be marked</p>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="addSite()"><i class="ti ti-circle-plus"></i>Add Site</button>
+            <button class="btn btn-gray" onclick="useMyLoc()"><i class="ti ti-map-pin"></i>Use My GPS</button>
+          </div>
+          <div id="loc-msg" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+        </div>
+        <div id="sites-list"></div>
+      </div>
+
+      <!-- ── REPORTS ────────────────────────────────── -->
+      <div class="pg" id="pg-report">
+        <div class="card">
+          <div class="ct"><i class="ti ti-chart-bar"></i>Attendance Report</div>
+          <div class="fr" style="margin-bottom:12px">
+            <div class="fg"><label>From Date</label><input type="date" id="r-from" onchange="loadReport()"></div>
+            <div class="fg"><label>To Date</label><input type="date" id="r-to" onchange="loadReport()"></div>
+          </div>
+          <!-- View toggle -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button id="rv-log" class="btn btn-or btn-sm" onclick="setReportView('log')"><i class="ti ti-list"></i>Punch Log</button>
+            <button id="rv-hrs" class="btn btn-gray btn-sm" onclick="setReportView('hrs')"><i class="ti ti-clock"></i>Man-Hours Summary</button>
+          </div>
+          <!-- Punch log filters -->
+          <div id="r-log-filters" class="sr">
+            <input id="r-srch" placeholder="Search employee…" oninput="filterReport()">
+            <select id="r-site" onchange="filterReport()"><option value="">All Sites</option></select>
+            <select id="r-type" onchange="filterReport()">
+              <option value="">All Sessions</option>
+              <option value="in">⏳ Still Active (no checkout)</option>
+              <option value="out">✅ Completed (has checkout)</option>
+            </select>
+            <button class="btn btn-green btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export CSV</button>
+          </div>
+          <!-- Man-hours filters -->
+          <div id="r-hrs-filters" class="sr" style="display:none">
+            <input id="r-hrs-srch" placeholder="Search employee…" oninput="renderManhours()">
+            <select id="r-hrs-site" onchange="renderManhours()"><option value="">All Sites</option></select>
+            <button class="btn btn-green btn-sm" onclick="exportManhours()"><i class="ti ti-download"></i>Export CSV</button>
+          </div>
+          <div id="rep-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <!-- Punch log table -->
+          <div id="r-log-view">
+            <div class="tw"><table>
+              <thead><tr><th>Employee</th><th>ID</th><th>Check In</th><th>Check Out</th><th>Site</th><th>Supervisor</th><th>Date</th></tr></thead>
+              <tbody id="rep-tbl"></tbody>
+            </table></div>
+          </div>
+          <!-- Man-hours table -->
+          <div id="r-hrs-view" style="display:none">
+            <div class="tw"><table>
+              <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Site(s)</th><th>Days</th><th>Total Hours</th><th>Paired Sessions</th></tr></thead>
+              <tbody id="hrs-tbl"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MANUAL REQUESTS ────────────────────────── -->
+      <div class="pg" id="pg-manreq">
+        <div class="card">
+          <div class="ct"><i class="ti ti-camera"></i>Manual Attendance Requests
+            <span class="ct-action"><button class="btn btn-gray btn-sm" onclick="loadManReqs()"><i class="ti ti-refresh"></i>Refresh</button></span>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">When face scan fails, supervisors submit a photo. Approve or reject below.</p>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-sm" id="mr-all" onclick="loadManReqs('')" style="background:#f1f5f9;border-color:#e2e8f0;color:var(--text)">All</button>
+            <button class="btn btn-sm" id="mr-pend" onclick="loadManReqs('pending')" style="background:#f59e0b;border-color:#f59e0b;color:#fff">⏳ Pending</button>
+            <button class="btn btn-sm" id="mr-appr" onclick="loadManReqs('approved')" style="background:#f1f5f9;border-color:#e2e8f0;color:var(--text)">✅ Approved</button>
+            <button class="btn btn-sm" id="mr-rej" onclick="loadManReqs('rejected')" style="background:#f1f5f9;border-color:#e2e8f0;color:var(--text)">❌ Rejected</button>
+          </div>
+          <div id="manreq-list"><div class="empty"><i class="ti ti-camera-off"></i>Loading requests…</div></div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS ───────────────────────────────── -->
+      <div class="pg" id="pg-settings">
+
+        <!-- Enrolled Faces Management -->
+        <div class="card">
+          <div class="ct">
+            <i class="ti ti-face-id"></i>Enrolled Faces
+            <span class="ct-action">
+              <button class="btn btn-gray btn-sm" onclick="loadEnrolledFaces()"><i class="ti ti-refresh"></i>Refresh</button>
+            </span>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            View and manage all employees whose faces are enrolled for recognition. Click <strong>Edit</strong> to update name/ID, or <strong>Delete</strong> to remove a face enrollment.
+          </p>
+          <div id="enrolled-faces-wrap">
+            <div style="color:var(--muted);font-size:13px;padding:12px 0">Loading enrolled faces…</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ct"><i class="ti ti-face-id"></i>Face Encoding Backup</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            Railway wipes server data on every redeploy. Use these buttons to backup face data to your browser and restore after restart.
+          </p>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="backupFaces()"><i class="ti ti-download"></i>Backup Face Data Now</button>
+            <button class="btn btn-blue" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore to Server</button>
+          </div>
+          <div id="face-backup-info" style="margin-top:10px;font-size:12px;color:var(--muted)">Checking backup…</div>
+        </div>
+        <div class="card">
+          <div class="ct"><i class="ti ti-database"></i>Data Backup</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Export all employees, sites, supervisors and records as JSON.</p>
+          <div class="btn-row">
+            <button class="btn btn-or" onclick="exportJSON()"><i class="ti ti-download"></i>Export Full Backup (JSON)</button>
+            <label class="btn btn-gray" style="cursor:pointer"><i class="ti ti-upload"></i>Import Backup
+              <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">
+            </label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct"><i class="ti ti-info-circle"></i>System Info</div>
+          <div id="sys-info" style="font-size:13px;color:var(--muted)">Loading…</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- PHOTO MODAL -->
+<div class="modal-bg" id="photo-modal">
+  <div class="modal-box">
     <div class="modal-head">
-      <div class="modal-head-title"><i class="ti ti-building-cog"></i> Edit Site &nbsp;<span class="modal-head-code" id="m-code">—</span></div>
-      <button onclick="closeSiteModal()" class="btn sm" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff"><i class="ti ti-x"></i> Close</button>
+      <h3 id="photo-modal-title">Employee Photo</h3>
+      <button class="btn btn-gray btn-sm" onclick="closePhotoModal()"><i class="ti ti-x"></i></button>
     </div>
-    <div class="modal-body">
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="ti ti-info-circle"></i> Site Details</div>
-        <div class="form-row"><div class="form-g"><label>Site Name *</label><input type="text" id="m-name" placeholder="Site name"></div><div class="form-g"><label>Site Code *</label><input type="text" id="m-codeinput" placeholder="ABD-01" style="font-family:var(--mono);text-transform:uppercase"></div></div>
-        <div class="form-g"><label>Location / Address</label><input type="text" id="m-loc" placeholder="e.g. Corniche Road, Abu Dhabi"></div>
-        <div class="form-row"><div class="form-g"><label>Latitude *</label><input type="number" id="m-lat" placeholder="24.4539" step="0.0001"></div><div class="form-g"><label>Longitude *</label><input type="number" id="m-lng" placeholder="54.3773" step="0.0001"></div></div>
-        <div class="form-g"><label>Geo-Zone Radius: <span id="m-rad-v" style="color:var(--orange);font-weight:500">2.0 km</span></label><input type="range" min="0.5" max="20" step="0.5" value="2" style="accent-color:var(--orange);width:100%;margin-top:5px" id="m-rad" oninput="document.getElementById('m-rad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"><p class="hint">Supervisor must be within this radius to mark attendance</p></div>
-        <div style="display:flex;gap:7px;margin-top:4px"><button class="btn sm" onclick="mUseMyLoc()"><i class="ti ti-map-pin"></i> Use My GPS</button><span id="m-loc-msg" style="font-size:10px;color:var(--gray);align-self:center"></span></div>
-      </div>
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="ti ti-hard-hat"></i> Assigned Supervisors / Site Engineers</div>
-        <p class="hint" style="margin-bottom:8px">Toggle supervisors who are authorised to mark attendance for this site.</p>
-        <div class="sup-assign-list" id="m-sup-list"></div>
-      </div>
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="ti ti-users"></i> Employees at This Site</div>
-        <p class="hint" style="margin-bottom:8px">Only assigned employees appear in the supervisor roster for attendance marking.</p>
-        <div style="display:flex;gap:7px;margin-bottom:7px"><input type="text" id="m-emp-srch" placeholder="Filter employees…" oninput="renderMEmpList()" style="flex:1"><button class="btn sm o" onclick="mAssignAll()"><i class="ti ti-users-plus"></i> All</button><button class="btn sm r" onclick="mRemoveAll()"><i class="ti ti-users-minus"></i> Remove All</button></div>
-        <div class="emp-assign-list" id="m-emp-list"></div>
-        <div style="margin-top:8px;font-size:11px;color:var(--gray)">Total: <span id="m-emp-count">0</span> &nbsp;·&nbsp; Assigned: <span id="m-emp-assigned-count" style="color:var(--ok);font-weight:500">0</span></div>
-      </div>
+    <img id="photo-modal-img" class="photo-prev" src="" alt="Photo">
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ── Edit Employee Modal ──────────────────────────────────────────────── -->
+<div id="edit-emp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeEditEmp()">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a2e"><i class="ti ti-user-edit" style="margin-right:8px;color:var(--or)"></i>Edit Employee</div>
+      <button onclick="closeEditEmp()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
     </div>
-    <div class="modal-foot">
-      <button onclick="closeSiteModal()" class="btn"><i class="ti ti-x"></i> Cancel</button>
-      <div style="display:flex;gap:7px"><button onclick="mDeleteSite()" class="btn r"><i class="ti ti-trash"></i> Delete Site</button><button onclick="saveSiteModal()" class="btn o"><i class="ti ti-device-floppy"></i> Save Changes</button></div>
+    <input type="hidden" id="edit-uid">
+    <div class="fr">
+      <div class="fg"><label>Full Name *</label><input id="edit-name" placeholder="Ahmed Hassan"></div>
+      <div class="fg"><label>Employee ID *</label><input id="edit-id" placeholder="BDI-001"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Department</label>
+        <select id="edit-dept">
+          <option value="">Select Department</option>
+          <option>Engineering</option><option>Operations</option>
+          <option>HSE</option><option>Mechanical</option><option>Admin</option>
+        </select>
+      </div>
+      <div class="fg"><label>Role / Job Title</label><input id="edit-role" placeholder="Site Engineer"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Phone</label><input id="edit-phone" placeholder="+971501234567"></div>
+      <div class="fg"><label>Sites</label><select id="edit-sites" multiple style="height:80px"></select></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeEditEmp()">Cancel</button>
+      <button class="btn btn-or" style="flex:2" onclick="saveEditEmp()"><i class="ti ti-device-floppy"></i>Save Changes</button>
     </div>
   </div>
 </div>
 
-
-<div class="toast" id="toast"></div>
-<script src="shared.js"></script>
 <script>
-  window.onload = async () => {
-    curUser = {name:'Admin'}; curRole = 'admin';
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════════════════════════ */
+const SERVER = ''; // relative URLs — works whether local or Railway
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+let EMPS = [], SITES = [], SUPS = [], RECS = [];
+let _reportRecs = []; // full unfiltered report records
+
+/* ══════════════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════════════ */
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const ini = n => n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderLeftColor = ok ? 'var(--or)' : '#ef4444';
+  t.style.display = 'block';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.style.display='none', 3000);
+}
+function uid(prefix) { return prefix + Date.now() + Math.floor(Math.random()*1000); }
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(SERVER + path, opts);
+  return r.json();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════════════════════════ */
+function doLogin() {
+  const u = document.getElementById('l-user').value.trim();
+  const p = document.getElementById('l-pass').value;
+  const err = document.getElementById('l-err');
+  if (u === 'admin' && p === 'bdi2026') {
+    document.getElementById('scr-login').style.display = 'none';
+    document.getElementById('scr-admin').classList.add('show');
     initAdmin();
-    // Set today's date for man hours
-    const today = new Date().toISOString().substring(0,10);
-    document.getElementById('mh-date').value = today;
-    // Auto-restore supervisors from localStorage cache if Railway was restarted
-    await restoreSupervisorsIfEmpty();
+  } else {
+    err.style.display = 'block';
+    setTimeout(() => err.style.display='none', 3000);
+  }
+}
+document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('l-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function logout() {
+  document.getElementById('scr-admin').classList.remove('show');
+  document.getElementById('scr-login').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE NAVIGATION
+══════════════════════════════════════════════════════════════ */
+const PAGE_META = {
+  dash:    ['Dashboard',         'Overview'],
+  emp:     ['Employees',         'Management'],
+  sups:    ['Supervisors',       'Web Portal'],
+  appsup:  ['App Supervisors',   'Mobile App'],
+  sites:   ['Sites',             'Geo-fenced Locations'],
+  report:  ['Reports',           'Attendance Records'],
+  manreq:  ['Manual Requests',   'Review & Approve'],
+  settings:['Settings',          'System'],
+};
+function go(id) {
+  document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const pg = document.getElementById('pg-'+id);
+  if (pg) pg.classList.add('on');
+  const btn = document.querySelector(`.nb[data-pg="${id}"]`);
+  if (btn) btn.classList.add('on');
+  const m = PAGE_META[id] || [id,''];
+  document.getElementById('pg-title').innerHTML = m[0]+` <small id="pg-sub">${m[1]}</small>`;
+  closeMob();
+}
+function openMob() { document.getElementById('sidebar').classList.add('mob-open'); document.getElementById('mob-overlay').classList.add('show'); }
+function closeMob() { document.getElementById('sidebar').classList.remove('mob-open'); document.getElementById('mob-overlay').classList.remove('show'); }
+
+/* ══════════════════════════════════════════════════════════════
+   SERVER STATUS
+══════════════════════════════════════════════════════════════ */
+async function checkServer() {
+  const dot = document.getElementById('srv-dot');
+  const lbl = document.getElementById('srv-lbl');
+  try {
+    const d = await api('/status');
+    if (d.ok) {
+      dot.style.background = '#22c55e';
+      lbl.textContent = `Online · ${d.enrolled||0} faces enrolled`;
+    } else {
+      dot.style.background = '#f59e0b'; lbl.textContent = 'Server error';
+    }
+  } catch {
+    dot.style.background = '#ef4444'; lbl.textContent = 'Offline';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOAD ALL DATA FROM SERVER
+══════════════════════════════════════════════════════════════ */
+async function loadAll() {
+  try {
+    const d = await api('/data');
+    if (!d.ok) return;
+    if (d.employees  && d.employees.length)   EMPS  = d.employees;
+    if (d.sites      && d.sites.length)        SITES = d.sites;
+    if (d.supervisors&& d.supervisors.length)  SUPS  = d.supervisors;
+    if (d.records    && d.records.length)      RECS  = d.records;
+    renderEmps(); renderSups(); renderSites(); renderDash();
+    populateSiteSelects();
+    // Auto-restore from localStorage if server empty
+    if (!d.employees || d.employees.length === 0) {
+      const cached = localStorage.getItem('bdi_emp_backup');
+      if (cached) {
+        const emps = JSON.parse(cached);
+        if (emps.length) { EMPS = emps; await pushAll(); toast(`Restored ${emps.length} employees from cache`); renderEmps(); }
+      }
+    }
+  } catch(e) {
+    // Load from localStorage fallback
+    const cached = localStorage.getItem('bdi_emp_backup');
+    if (cached) { try { EMPS = JSON.parse(cached); renderEmps(); } catch{} }
+    toast('Could not reach server — loaded from cache', false);
+  }
+}
+
+async function pushAll() {
+  try {
+    await api('/data', 'POST', { employees:EMPS, sites:SITES, supervisors:SUPS, records:RECS });
+    await api('/employees', 'POST', { employees: EMPS.map(e => ({uid:e.uid, name:e.name, id:e.id||e.uid, dept:e.dept||'', site:(e.sites||[]).join(',')})) });
+    localStorage.setItem('bdi_emp_backup', JSON.stringify(EMPS));
+    localStorage.setItem('bdi_sites_backup', JSON.stringify(SITES));
+    localStorage.setItem('bdi_sups_backup', JSON.stringify(SUPS));
+  } catch(e) { toast('Save failed — check server', false); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+async function initAdmin() {
+  checkServer(); setInterval(checkServer, 60000);
+  await loadAll();
+  await restoreAppSupsIfEmpty();
+  loadAppSups(); // silently cache supervisors on every admin load
+  await restoreFacesIfEmpty();
+  // Default dates
+  const today = new Date().toISOString().slice(0,10);
+  const df = document.getElementById('r-from'); if(df) df.value = today;
+  const dt = document.getElementById('r-to'); if(dt) dt.value = today;
+  loadFaceBackupInfo();
+  loadSysInfo();
+  loadReport();
+  // Auto-backup face every 5 min
+  setInterval(backupFaces, 5*60*1000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════════════════ */
+async function renderDash() {
+  document.getElementById('d-emps').textContent  = EMPS.length;
+  document.getElementById('d-sites').textContent = SITES.length;
+  document.getElementById('d-sups').textContent  = SUPS.length;
+  // Today's punches
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const d = await api(`/app/punches?date=${today}`);
+    const recs = d.records || [];
+    const inC = recs.filter(r=>r.type==='in').length;
+    const outC = recs.filter(r=>r.type==='out').length;
+    const empSet = new Set(recs.map(r=>r.empUid));
+    document.getElementById('d-present').textContent = empSet.size;
+    const el = document.getElementById('dash-punches');
+    if (!recs.length) { el.innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i>No punches recorded today</div>'; return; }
+    recs.sort((a,b)=>(b.time||'').localeCompare(a.time||''));
+    el.innerHTML = `
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="kpi g" style="flex:1;min-width:100px;padding:12px 16px"><div class="kpi-v" style="font-size:22px">${inC}</div><div class="kpi-l">Check INs</div></div>
+        <div class="kpi o" style="flex:1;min-width:100px;padding:12px 16px"><div class="kpi-v" style="font-size:22px">${outC}</div><div class="kpi-l">Check OUTs</div></div>
+        <div class="kpi b" style="flex:1;min-width:100px;padding:12px 16px"><div class="kpi-v" style="font-size:22px">${recs.length}</div><div class="kpi-l">Total Punches</div></div>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Employee</th><th>Type</th><th>Site</th><th>Supervisor</th><th>Time</th></tr></thead>
+        <tbody>${recs.slice(0,20).map(r=>{
+          const t = r.time ? new Date(r.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+          const isIn = r.type==='in';
+          return `<tr>
+            <td style="font-weight:600">${esc(r.empName||'—')}</td>
+            <td><span class="bdg ${isIn?'bdg-g':'bdg-o'}">${isIn?'✅ IN':'👋 OUT'}</span></td>
+            <td style="color:var(--muted);font-size:12px">${esc(r.siteName||'—')}</td>
+            <td style="color:var(--muted);font-size:12px">${esc(r.supervisorName||'—')}</td>
+            <td style="font-weight:600;color:var(--blue)">${t}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } catch {
+    document.getElementById('d-present').textContent = '—';
+    document.getElementById('dash-punches').innerHTML = '<div class="empty"><i class="ti ti-wifi-off"></i>Could not load punches</div>';
+  }
+  // Pending manual requests
+  try {
+    const d = await api('/manual-requests?status=pending');
+    document.getElementById('d-pending').textContent = d.count || 0;
+  } catch { document.getElementById('d-pending').textContent = '0'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SITE SELECTS (populate dropdowns)
+══════════════════════════════════════════════════════════════ */
+function populateSiteSelects() {
+  const opts = SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  ['esites','ssites'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts || '<option value="">No sites yet</option>';
+  });
+  const rsite = document.getElementById('r-site');
+  if (rsite) rsite.innerHTML = '<option value="">All Sites</option>' + SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EMPLOYEES
+══════════════════════════════════════════════════════════════ */
+function renderEmps() {
+  const q = (document.getElementById('emp-srch')?.value||'').toLowerCase();
+  const df = document.getElementById('emp-dept')?.value||'';
+  const list = EMPS.filter(e =>
+    (!q || e.name.toLowerCase().includes(q) || (e.id||'').toLowerCase().includes(q) || (e.role||'').toLowerCase().includes(q)) &&
+    (!df || e.dept === df)
+  );
+  document.getElementById('emp-count').textContent = `${list.length} of ${EMPS.length}`;
+  const tb = document.getElementById('emp-tbl');
+  if (!list.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>${EMPS.length?'No match':'No employees yet — add one above'}</div></td></tr>`; return; }
+  tb.innerHTML = list.map(e => {
+    const siteNames = (e.sites||[]).map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(232,119,34,.15);color:var(--or);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(e.name)}</div>
+        <div><div style="font-weight:600;color:var(--text)">${esc(e.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(e.phone||'')}</div></div>
+      </div></td>
+      <td><span class="bdg bdg-or">${esc(e.id||e.uid)}</span></td>
+      <td><span class="bdg bdg-b">${esc(e.dept||'—')}</span></td>
+      <td style="font-size:12px">${esc(e.role||'—')}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
+      <td><span class="bdg bdg-gy">Registered</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-gray btn-sm" onclick="openEditEmp('${esc(e.uid)}')" style="margin-right:4px"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')"><i class="ti ti-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function addEmp() {
+  const name  = document.getElementById('en').value.trim();
+  const id    = document.getElementById('ei').value.trim();
+  const dept  = document.getElementById('ed').value;
+  const role  = document.getElementById('er').value.trim()||dept;
+  const phone = document.getElementById('eph').value.trim();
+  const sites = [...(document.getElementById('esites')?.selectedOptions||[])].map(o=>o.value).filter(Boolean);
+  if (!name || !id) { toast('Name and Employee ID are required', false); return; }
+  if (EMPS.find(e=>e.id?.toUpperCase()===id.toUpperCase())) { toast('Employee ID already exists', false); return; }
+  EMPS.push({ uid: uid('E'), name, id, dept, role, phone, sites });
+  ['en','ei','er','eph'].forEach(x=>document.getElementById(x).value='');
+  renderEmps(); renderDash();
+  toast(`${name} added ✓`);
+  await pushAll();
+}
+
+async function delEmp(empUid) {
+  const e = EMPS.find(x=>x.uid===empUid);
+  if (!e || !confirm(`Remove ${e.name} from directory?`)) return;
+  EMPS = EMPS.filter(x=>x.uid!==empUid);
+  renderEmps(); renderDash();
+  toast(`${e.name} removed`, false);
+  await pushAll();
+}
+
+function openEditEmp(empUid) {
+  const e = EMPS.find(x=>x.uid===empUid);
+  if (!e) return;
+  // Populate edit-sites select with all sites
+  const siteSel = document.getElementById('edit-sites');
+  siteSel.innerHTML = SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  // Pre-select employee's sites
+  [...siteSel.options].forEach(o => { o.selected = (e.sites||[]).includes(o.value); });
+  // Fill fields
+  document.getElementById('edit-uid').value   = e.uid;
+  document.getElementById('edit-name').value  = e.name||'';
+  document.getElementById('edit-id').value    = e.id||'';
+  document.getElementById('edit-dept').value  = e.dept||'';
+  document.getElementById('edit-role').value  = e.role||'';
+  document.getElementById('edit-phone').value = e.phone||'';
+  // Show modal
+  const modal = document.getElementById('edit-emp-modal');
+  modal.style.display = 'flex';
+}
+
+function closeEditEmp() {
+  document.getElementById('edit-emp-modal').style.display = 'none';
+}
+
+async function saveEditEmp() {
+  const uid   = document.getElementById('edit-uid').value;
+  const name  = document.getElementById('edit-name').value.trim();
+  const id    = document.getElementById('edit-id').value.trim();
+  const dept  = document.getElementById('edit-dept').value;
+  const role  = document.getElementById('edit-role').value.trim();
+  const phone = document.getElementById('edit-phone').value.trim();
+  const sites = [...document.getElementById('edit-sites').selectedOptions].map(o=>o.value);
+  if (!name || !id) { toast('Name and Employee ID are required', false); return; }
+  // Check duplicate ID (ignoring current employee)
+  if (EMPS.find(e=>e.uid!==uid && e.id?.toUpperCase()===id.toUpperCase())) {
+    toast('Employee ID already used by another employee', false); return;
+  }
+  const idx = EMPS.findIndex(e=>e.uid===uid);
+  if (idx < 0) { toast('Employee not found', false); return; }
+  EMPS[idx] = { ...EMPS[idx], name, id, dept, role, phone, sites };
+  closeEditEmp();
+  renderEmps(); renderDash();
+  toast(`${name} updated ✓`);
+  await pushAll();
+}
+
+/* ── Export employees to CSV ─────────────────────────────────────────────── */
+function exportEmps() {
+  if (!EMPS.length) { toast('No employees to export', false); return; }
+  const header = ['Name','Employee ID','Department','Role','Phone','Sites (codes)'];
+  const rows = EMPS.map(e => {
+    const siteCodes = (e.sites||[]).map(id => SITES.find(s=>s.id===id)?.code || id).join('|');
+    return [e.name, e.id||e.uid, e.dept||'', e.role||'', e.phone||'', siteCodes];
+  });
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv),
+    download: `employees-${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${EMPS.length} employees`);
+}
+
+/* ── Download blank CSV template ─────────────────────────────────────────── */
+function downloadEmpTemplate() {
+  const siteCodes = SITES.map(s=>s.code).join(' | ') || 'DXB-01 | AUH-01';
+  const csv = [
+    '"Name","Employee ID","Department","Role","Phone","Sites (codes)"',
+    `"Ahmed Hassan","BDI-001","Engineering","Site Engineer","+971501234567","${SITES[0]?.code||'DXB-01'}"`,
+    `"Sara Mohammed","BDI-002","HSE","HSE Officer","+971502345678","${SITES[0]?.code||'DXB-01'}|${SITES[1]?.code||'AUH-01'}"`,
+  ].join('\n');
+  const note = `\n\n# Available site codes: ${siteCodes}\n# Departments: Engineering, Operations, HSE, Mechanical, Admin\n# Separate multiple sites with | (pipe)`;
+  const a = Object.assign(document.createElement('a'), {
+    href: 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv + note),
+    download: 'employee-import-template.csv'
+  });
+  a.click();
+  toast('Template downloaded — fill in and import');
+}
+
+/* ── Import employees from CSV ───────────────────────────────────────────── */
+async function importEmps(input) {
+  const file = input.files[0]; if (!file) return;
+  input.value = ''; // reset so same file can be re-imported if needed
+  const text = await file.text();
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l && !l.startsWith('#'));
+  if (lines.length < 2) { toast('CSV has no data rows', false); return; }
+
+  // Parse header to find column indices (flexible column order)
+  const parseCSVLine = line => {
+    const out=[]; let cur='', inQ=false;
+    for (let i=0;i<line.length;i++) {
+      const c=line[i];
+      if (c==='"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+      else if (c===',' && !inQ) { out.push(cur.trim()); cur=''; }
+      else cur+=c;
+    }
+    out.push(cur.trim()); return out;
   };
 
-  // ── App Supervisors Management ─────────────────────────────────────────────
+  const headers = parseCSVLine(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z]/g,''));
+  const col = name => headers.findIndex(h=>h.includes(name));
+  const iName=col('name'), iId=col('id'), iDept=col('dept')||col('department'),
+        iRole=col('role'), iPhone=col('phone'), iSites=col('site');
 
-  // Save supervisors to localStorage for persistence across Railway restarts
-  function cacheSupervisors(list) {
-    try { localStorage.setItem('bdi_supervisors_cache', JSON.stringify(list)); } catch(_) {}
+  if (iName<0 || iId<0) { toast('CSV must have Name and Employee ID columns', false); return; }
+
+  let added=0, skipped=0, errors=[];
+  for (let i=1; i<lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    const name  = (cols[iName]||'').trim();
+    const empId = (cols[iId]||'').trim();
+    if (!name || !empId) { skipped++; continue; }
+
+    // Skip duplicates
+    if (EMPS.find(e=>e.id?.toUpperCase()===empId.toUpperCase())) {
+      errors.push(`Row ${i+1}: ID "${empId}" already exists — skipped`); skipped++; continue;
+    }
+
+    const dept  = iDept>=0  ? (cols[iDept]||'').trim() : '';
+    const role  = iRole>=0  ? (cols[iRole]||'').trim() : dept;
+    const phone = iPhone>=0 ? (cols[iPhone]||'').trim() : '';
+    // Sites: match by code or id
+    const siteCodes = iSites>=0 ? (cols[iSites]||'').split('|').map(s=>s.trim()).filter(Boolean) : [];
+    const siteIds = siteCodes.map(code => {
+      const s = SITES.find(s=>s.code?.toLowerCase()===code.toLowerCase()||s.id?.toLowerCase()===code.toLowerCase());
+      return s?.id||null;
+    }).filter(Boolean);
+
+    EMPS.push({ uid: uid('E'), name, id: empId, dept, role, phone, sites: siteIds });
+    added++;
   }
 
-  // Restore cached supervisors to Railway (called on page load if Railway list is empty)
-  async function restoreSupervisorsIfEmpty() {
-    try {
-      const r    = await fetch(`${PY_SERVER}/supervisor/list`);
-      const data = await r.json();
-      if (data.ok && data.supervisors && data.supervisors.length > 0) return; // Railway has data, nothing to do
-      // Railway is empty — try to restore from localStorage cache
-      const cached = localStorage.getItem('bdi_supervisors_cache');
-      if (!cached) return;
-      const list = JSON.parse(cached);
-      if (!list || list.length === 0) return;
-      // Bulk-restore via single endpoint
-      const res = await fetch(`${PY_SERVER}/supervisor/restore`, {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({supervisors: list})
-      });
-      const result = await res.json();
-      if (result.ok) {
-        console.log(`Auto-restored ${result.restored} supervisor(s) to Railway from cache`);
-      }
-    } catch(e) { console.warn('restoreSupervisors error:', e); }
-  }
+  renderEmps(); renderDash();
+  if (added) await pushAll();
 
-  async function loadAppSupervisors() {
-    const el = document.getElementById('app-sup-list');
-    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-    try {
-      const r = await fetch(`${PY_SERVER}/supervisor/list`);
-      const data = await r.json();
-      if (!data.ok || data.supervisors.length === 0) {
-        el.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">No supervisors registered yet.<br>Ask supervisors to install and open the app.</p>';
-        return;
-      }
-      // Cache the list in localStorage every time we load it
-      cacheSupervisors(data.supervisors);
-      el.innerHTML = data.supervisors.map(s => `
-        <div style="border:1px solid ${s.approved ? '#bbf7d0' : '#fed7aa'};border-radius:12px;padding:14px;margin-bottom:10px;background:${s.approved ? '#f0fdf4' : '#fff7ed'}">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <div style="width:42px;height:42px;border-radius:50%;background:${s.approved ? '#22c55e' : '#f97316'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:18px;flex-shrink:0">
-              ${s.name.charAt(0).toUpperCase()}
-            </div>
-            <div style="flex:1;min-width:160px">
-              <div style="font-weight:700;font-size:15px">${s.name}</div>
-              <div style="font-size:12px;color:#64748b">${s.role} &bull; ${s.phone || 'No phone'}</div>
-              <div style="font-size:11px;color:#94a3b8;margin-top:2px">Device: ${s.deviceId}</div>
-              <div style="font-size:11px;color:#94a3b8">Registered: ${s.registeredAt ? new Date(s.registeredAt).toLocaleString() : 'Unknown'}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px;min-width:160px">
-              <!-- Name edit -->
-              <input type="text" value="${s.name}" id="sup-name-${s.deviceId}"
-                style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;width:100%"
-                placeholder="Supervisor name">
-              <!-- Approve toggle -->
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-                <input type="checkbox" ${s.approved ? 'checked' : ''} id="sup-approved-${s.deviceId}"
-                  onchange="updateSupervisor('${s.deviceId}')">
-                <span style="color:${s.approved ? '#22c55e' : '#f97316'};font-weight:600">
-                  ${s.approved ? '✅ Approved' : '⏳ Pending Approval'}
-                </span>
-              </label>
-              <!-- Enroll permission -->
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-                <input type="checkbox" ${s.canEnroll ? 'checked' : ''} id="sup-enroll-${s.deviceId}"
-                  onchange="updateSupervisor('${s.deviceId}')">
-                <span style="color:${s.canEnroll ? '#3b82f6' : '#94a3b8'};font-weight:600">
-                  ${s.canEnroll ? '🎭 Enroll Permission: ON' : '🔒 Enroll Permission: OFF'}
-                </span>
-              </label>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <button class="btn sm" onclick="updateSupervisor('${s.deviceId}')"
-                style="background:#3b82f6;color:#fff;border:none">
-                <i class="ti ti-check"></i> Save
-              </button>
-              <button class="btn sm" onclick="deleteSupervisor('${s.deviceId}')"
-                style="background:#ef4444;color:#fff;border:none">
-                <i class="ti ti-trash"></i> Remove
-              </button>
-            </div>
+  let msg = `Imported ${added} employee(s)`;
+  if (skipped) msg += `, ${skipped} skipped`;
+  toast(msg, added>0);
+  if (errors.length) {
+    setTimeout(()=>toast(errors[0], false), 3500);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SUPERVISORS (web portal)
+══════════════════════════════════════════════════════════════ */
+function renderSups() {
+  const tb = document.getElementById('sup-tbl');
+  if (!SUPS.length) { tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-user-x"></i>No supervisors yet</div></td></tr>`; return; }
+  tb.innerHTML = SUPS.map(s => {
+    const siteNames = (s.sites||[]).map(id=>SITES.find(x=>x.id===id)?.code||id).join(', ')||'None';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(37,99,235,.15);color:var(--blue);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(s.name)}</div>
+        <span style="font-weight:600">${esc(s.name)}</span>
+      </div></td>
+      <td><span class="bdg bdg-gy">${esc(s.loginId)}</span></td>
+      <td><span class="bdg bdg-b">${esc(s.role)}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
+      <td><button class="btn btn-red btn-sm" onclick="delSup('${esc(s.uid)}')"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function addSup() {
+  const name    = document.getElementById('sn').value.trim();
+  const loginId = document.getElementById('sid').value.trim();
+  const role    = document.getElementById('srole').value;
+  const pw      = document.getElementById('spw').value;
+  const sites   = [...(document.getElementById('ssites')?.selectedOptions||[])].map(o=>o.value).filter(Boolean);
+  if (!name||!loginId||!pw) { toast('Fill all required fields', false); return; }
+  if (SUPS.find(s=>s.loginId.toLowerCase()===loginId.toLowerCase())) { toast('Login ID already exists', false); return; }
+  SUPS.push({ uid: uid('SUP'), name, loginId, role, pw, sites });
+  ['sn','sid','spw'].forEach(x=>document.getElementById(x).value='');
+  renderSups(); renderDash();
+  toast(`${name} added as ${role} ✓`);
+  await pushAll();
+}
+
+async function delSup(supUid) {
+  const s = SUPS.find(x=>x.uid===supUid);
+  if (!s||!confirm(`Remove ${s.name}?`)) return;
+  SUPS = SUPS.filter(x=>x.uid!==supUid);
+  renderSups(); renderDash();
+  toast(`${s.name} removed`, false);
+  await pushAll();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APP SUPERVISORS
+══════════════════════════════════════════════════════════════ */
+async function loadAppSups() {
+  const el = document.getElementById('appsup-list');
+  if (el) el.innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Loading…</div>';
+  try {
+    const d = await api('/supervisor/list');
+    if (!d.ok || !d.supervisors?.length) {
+      if (el) el.innerHTML = '<div class="empty"><i class="ti ti-device-mobile-off"></i>No app supervisors registered yet.<br><small>Ask supervisors to install and open the BDI app.</small></div>'; return;
+    }
+    // Always cache — keeps localStorage fresh for Railway restart restores
+    localStorage.setItem('bdi_appsups_cache', JSON.stringify(d.supervisors));
+    if (!el) return; // called silently from initAdmin — no UI to update
+    el.innerHTML = d.supervisors.map(s => `
+      <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
+        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="width:44px;height:44px;border-radius:50%;background:${s.approved?'#22c55e':'#f97316'};color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            ${(s.name||'?')[0].toUpperCase()}
+          </div>
+          <div style="flex:1;min-width:160px">
+            <div style="font-weight:700;font-size:15px">${esc(s.name)}</div>
+            <div style="font-size:12px;color:var(--muted)">${esc(s.role||'Supervisor')} · ${esc(s.phone||'No phone')}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px">Device: ${esc(s.deviceId)}</div>
+            <div style="font-size:10px;color:#94a3b8">${s.registeredAt?'Registered: '+new Date(s.registeredAt).toLocaleString():''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px;min-width:170px">
+            <input type="text" value="${esc(s.name)}" id="asn-${s.deviceId}" placeholder="Name"
+              style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:12px;width:100%">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
+              <input type="checkbox" ${s.approved?'checked':''} id="asp-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
+              <span style="color:${s.approved?'#22c55e':'#f97316'}">${s.approved?'✅ Approved':'⏳ Pending'}</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
+              <input type="checkbox" ${s.canEnroll?'checked':''} id="ase-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
+              <span style="color:${s.canEnroll?'var(--blue)':'#94a3b8'}">${s.canEnroll?'🎭 Can Enroll':'🔒 No Enroll'}</span>
+            </label>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+            <button class="btn btn-blue btn-sm" onclick="updateAppSup('${s.deviceId}')"><i class="ti ti-check"></i>Save</button>
+            <button class="btn btn-red btn-sm" onclick="deleteAppSup('${s.deviceId}')"><i class="ti ti-trash"></i>Remove</button>
           </div>
         </div>
-      `).join('');
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}<br>Make sure Railway server is running.</p>`;
-    }
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><i class="ti ti-wifi-off"></i>Error: ${esc(e.message)}</div>`;
   }
+}
 
-  async function updateSupervisor(deviceId) {
-    const name      = document.getElementById(`sup-name-${deviceId}`)?.value?.trim() || '';
-    const approved  = document.getElementById(`sup-approved-${deviceId}`)?.checked || false;
-    const canEnroll = document.getElementById(`sup-enroll-${deviceId}`)?.checked || false;
-    try {
-      const r = await fetch(`${PY_SERVER}/supervisor/update`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({deviceId, name, approved, canEnroll})
-      });
-      const data = await r.json();
-      if (data.ok) {
-        await loadAppSupervisors(); // also re-caches updated list
-        alert(`✅ ${name} updated successfully!`);
-      }
-    } catch(e) { alert('Error: ' + e.message); }
-  }
+async function updateAppSup(deviceId) {
+  const name      = document.getElementById(`asn-${deviceId}`)?.value?.trim()||'';
+  const approved  = document.getElementById(`asp-${deviceId}`)?.checked||false;
+  const canEnroll = document.getElementById(`ase-${deviceId}`)?.checked||false;
+  const d = await api('/supervisor/update','POST',{deviceId,name,approved,canEnroll});
+  if (d.ok) { toast(`${name} updated ✓`); loadAppSups(); }
+  else toast('Update failed', false);
+}
 
-  async function deleteSupervisor(deviceId) {
-    if (!confirm('Remove this supervisor from the system?')) return;
-    try {
-      await fetch(`${PY_SERVER}/supervisor/delete`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({deviceId})
-      });
-      loadAppSupervisors();
-    } catch(e) { alert('Error: ' + e.message); }
-  }
+async function deleteAppSup(deviceId) {
+  if (!confirm('Remove this supervisor?')) return;
+  await api('/supervisor/delete','POST',{deviceId});
+  loadAppSups(); toast('Supervisor removed', false);
+}
 
-  // ── Manual Attendance Requests ─────────────────────────────────────────────
-  async function loadManualRequests(status = 'pending') {
-    const el = document.getElementById('manreq-list');
-    if (!el) return;
-    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-    // highlight active filter button
-    ['pending','approved','rejected',''].forEach(s => {
-      const btn = document.getElementById(`mr-btn-${s === '' ? 'all' : s}`);
-      if (btn) {
-        const active = s === status;
-        btn.style.background  = active ? '#3b82f6' : '';
-        btn.style.borderColor = active ? '#3b82f6' : '';
-        btn.style.color       = active ? '#fff' : '';
-        btn.className = active ? 'btn sm' : 'btn sm n';
-      }
-    });
-    try {
-      const url = status ? `${PY_SERVER}/manual-requests?status=${status}` : `${PY_SERVER}/manual-requests`;
-      const r    = await fetch(url);
-      const data = await r.json();
-      if (!data.ok || !data.requests || data.requests.length === 0) {
-        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:30px">No ${status || ''} requests found.</p>`;
-        return;
-      }
-      el.innerHTML = data.requests.map(req => {
-        const ts     = req.timestamp ? new Date(req.timestamp).toLocaleString() : 'Unknown time';
-        const isPend = req.status === 'pending';
-        const isApp  = req.status === 'approved';
-        const borderCol = isPend ? '#fed7aa' : isApp ? '#bbf7d0' : '#fecaca';
-        const bgCol     = isPend ? '#fff7ed' : isApp ? '#f0fdf4' : '#fef2f2';
-        const badge     = isPend ? '⏳ Pending' : isApp ? '✅ Approved' : '❌ Rejected';
-        const badgeCol  = isPend ? '#f97316'   : isApp ? '#22c55e'   : '#ef4444';
-        return `
-          <div id="mr-card-${req.id}" style="border:1px solid ${borderCol};border-radius:14px;padding:16px;margin-bottom:14px;background:${bgCol}">
-            <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
-              <!-- Photo -->
-              <div style="flex-shrink:0">
-                <img id="mr-img-${req.id}" src="" alt="Loading photo..."
-                  style="width:110px;height:110px;object-fit:cover;border-radius:10px;border:2px solid ${borderCol};cursor:pointer"
-                  onclick="viewFullPhoto('${req.id}')"
-                  onerror="this.style.display='none'">
-                <div id="mr-img-load-${req.id}" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:10px;font-size:11px;color:#94a3b8">
-                  <button class="btn sm n" onclick="loadPhoto('${req.id}')" style="font-size:10px">📷 Load Photo</button>
-                </div>
-              </div>
-              <!-- Details -->
-              <div style="flex:1;min-width:180px">
-                <div style="font-weight:700;font-size:16px;margin-bottom:2px">${req.empName || 'Unknown'}</div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:6px">ID: ${req.empUid || '—'}</div>
-                <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                  <span style="background:${req.type === 'in' ? '#dcfce7' : '#fff7ed'};color:${req.type === 'in' ? '#16a34a' : '#ea580c'};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">
-                    ${req.type === 'in' ? '📍 CHECK IN' : '👋 CHECK OUT'}
-                  </span>
-                  <span style="background:#f1f5f9;color:${badgeCol};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span>
-                </div>
-                <div style="font-size:12px;color:#475569;line-height:1.7">
-                  🏗️ <strong>${req.siteName || '—'}</strong><br>
-                  👷 Supervisor: ${req.supervisorName || '—'}<br>
-                  🕐 ${ts}
-                </div>
-                ${req.reviewedAt ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">Reviewed: ${new Date(req.reviewedAt).toLocaleString()}</div>` : ''}
-              </div>
-              <!-- Actions -->
-              ${isPend ? `
-              <div style="display:flex;flex-direction:column;gap:8px;min-width:120px">
-                <button onclick="reviewManualRequest('${req.id}','approved')"
-                  style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">
-                  ✅ Approve<br><span style="font-size:10px;font-weight:400">Record attendance</span>
-                </button>
-                <button onclick="reviewManualRequest('${req.id}','rejected')"
-                  style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer">
-                  ❌ Reject
-                </button>
-              </div>` : ''}
-            </div>
-          </div>`;
-      }).join('');
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}<br>Make sure Railway server is running.</p>`;
-    }
-  }
+async function restoreAppSupsIfEmpty() {
+  try {
+    const d = await api('/supervisor/list');
+    if (d.ok && d.supervisors?.length) return;
+    const cached = localStorage.getItem('bdi_appsups_cache');
+    if (!cached) return;
+    const list = JSON.parse(cached);
+    if (!list?.length) return;
+    const r = await api('/supervisor/restore','POST',{supervisors:list});
+    if (r.ok) toast(`Restored ${r.restored} supervisor(s) after server restart`);
+  } catch {}
+}
 
-  async function loadPhoto(reqId) {
-    const img     = document.getElementById(`mr-img-${reqId}`);
-    const loadDiv = document.getElementById(`mr-img-load-${reqId}`);
-    try {
-      const r    = await fetch(`${PY_SERVER}/manual-request/${reqId}/photo`);
-      const data = await r.json();
-      if (data.ok && data.photo_b64) {
-        img.src = data.photo_b64;
-        img.style.display = 'block';
-        if (loadDiv) loadDiv.style.display = 'none';
-      }
-    } catch(e) { console.error('loadPhoto error:', e); }
-  }
-
-  function viewFullPhoto(reqId) {
-    const img = document.getElementById(`mr-img-${reqId}`);
-    if (!img || !img.src || img.src === window.location.href) return;
-    const win = window.open('');
-    win.document.write(`<img src="${img.src}" style="max-width:100%;max-height:100vh">`);
-  }
-
-  async function reviewManualRequest(reqId, decision) {
-    const label = decision === 'approved' ? 'approve' : 'reject';
-    if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} this attendance request?`)) return;
-    try {
-      const r    = await fetch(`${PY_SERVER}/manual-request/review`, {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({id: reqId, status: decision, reviewedBy: 'Admin'})
-      });
-      const data = await r.json();
-      if (data.ok) {
-        const card = document.getElementById(`mr-card-${reqId}`);
-        if (card) {
-          const msg = decision === 'approved'
-            ? '✅ Approved — attendance recorded!'
-            : '❌ Rejected';
-          card.innerHTML = `<p style="text-align:center;padding:12px;color:${decision === 'approved' ? '#22c55e' : '#ef4444'};font-weight:700">${msg}</p>`;
-          setTimeout(() => card.remove(), 2000);
-        }
-      } else {
-        alert('Error: ' + (data.error || 'Unknown error'));
-      }
-    } catch(e) { alert('Error: ' + e.message); }
-  }
-
-  // ── Man Hours Report ────────────────────────────────────────────────────────
-  async function loadManHours() {
-    const date = document.getElementById('mh-date').value;
-    const el   = document.getElementById('manhours-list');
-    el.innerHTML = '<p style="text-align:center;color:#64748b;padding:16px">Loading...</p>';
-    try {
-      const r    = await fetch(`${PY_SERVER}/app/manhours?date=${date}`);
-      const data = await r.json();
-      if (!data.ok || data.manhours.length === 0) {
-        el.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px">No records found for ${date}.</p>`;
-        return;
-      }
-      const totalHours = data.manhours.reduce((s, e) => s + e.totalHours, 0);
-      el.innerHTML = `
-        <div style="background:#eff6ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
-          <strong>${data.manhours.length} employees</strong> &bull;
-          Total: <strong>${totalHours.toFixed(1)} man-hours</strong> on ${date}
+/* ══════════════════════════════════════════════════════════════
+   SITES
+══════════════════════════════════════════════════════════════ */
+function renderSites() {
+  const el = document.getElementById('sites-list');
+  if (!el) return;
+  if (!SITES.length) { el.innerHTML='<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:13px;padding:40px"><i class="ti ti-building-off"></i>No sites yet — add one above</div>'; return; }
+  el.innerHTML = SITES.map(s => {
+    const assignedEmps = EMPS.filter(e=>(e.sites||[]).includes(s.id)).length;
+    const assignedSups = SUPS.filter(x=>(x.sites||[]).includes(s.id));
+    return `<div class="card" style="border-left:3px solid var(--or)">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span class="bdg bdg-or">${esc(s.code)}</span>
+            <strong style="font-size:14px;color:var(--text)">${esc(s.name)}</strong>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:5px">
+            <i class="ti ti-map-pin" style="font-size:11px"></i> ${esc(s.loc||s.address||'—')}
+            &nbsp;·&nbsp; <span style="font-family:'JetBrains Mono',monospace">${parseFloat(s.lat||0).toFixed(4)}, ${parseFloat(s.lng||0).toFixed(4)}</span>
+            &nbsp;·&nbsp; <span class="bdg bdg-b" style="font-size:10px">${s.radius||s.radiusMeters||'?'} km zone</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted)">
+            <i class="ti ti-users" style="color:var(--navy)"></i> ${assignedEmps} employees
+            &nbsp;·&nbsp;
+            <i class="ti ti-hard-hat" style="color:var(--or)"></i>
+            ${assignedSups.length ? assignedSups.map(x=>`<span class="bdg bdg-or" style="font-size:10px;padding:1px 7px">${esc(x.name)}</span>`).join(' ') : '<span style="color:var(--red)">No supervisor</span>'}
+          </div>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr style="background:#f8fafc">
-            <th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0">Employee</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check IN</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Check OUT</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0">Hours</th>
-          </tr></thead>
-          <tbody>
-            ${data.manhours.map(emp => `
-              <tr style="border-bottom:1px solid #f1f5f9">
-                <td style="padding:8px;font-weight:600">${emp.empName}</td>
-                <td style="padding:8px;text-align:center;color:#22c55e">
-                  ${emp.pairs.map(p => new Date(p.in).toLocaleTimeString()).join('<br>') || '—'}
-                </td>
-                <td style="padding:8px;text-align:center;color:#f97316">
-                  ${emp.pairs.map(p => p.out ? new Date(p.out).toLocaleTimeString() : '—').join('<br>') || '—'}
-                </td>
-                <td style="padding:8px;text-align:center;font-weight:700;color:#3b82f6">
-                  ${emp.totalHours.toFixed(2)}h
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>`;
-    } catch(e) {
-      el.innerHTML = `<p style="color:red;text-align:center;padding:16px">Error: ${e.message}</p>`;
+        <div style="display:flex;gap:7px;flex-shrink:0;align-items:flex-start">
+          <a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" class="btn btn-gray btn-sm"><i class="ti ti-map"></i>Map</a>
+          <button class="btn btn-red btn-sm" onclick="delSite('${esc(s.id)}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addSite() {
+  const name   = document.getElementById('sns').value.trim();
+  const code   = document.getElementById('snc').value.trim().toUpperCase();
+  const loc    = document.getElementById('snl').value.trim();
+  const lat    = parseFloat(document.getElementById('snlat').value);
+  const lng    = parseFloat(document.getElementById('snlng').value);
+  const radius = parseFloat(document.getElementById('srad').value);
+  if (!name||!code||isNaN(lat)||isNaN(lng)) { toast('Fill all required fields (Name, Code, Lat, Lng)', false); return; }
+  if (SITES.find(s=>s.code===code)) { toast('Site code already exists', false); return; }
+  SITES.push({ id:'S'+Date.now(), code, name, loc:loc||'UAE', lat, lng, radius: radius||2 });
+  ['sns','snc','snl','snlat','snlng'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('srad').value=2;
+  document.getElementById('srad-v').textContent='2.0 km';
+  renderSites(); populateSiteSelects(); renderDash();
+  toast(`${name} added ✓`);
+  await pushAll();
+}
+
+async function delSite(siteId) {
+  const s = SITES.find(x=>x.id===siteId);
+  if (!s||!confirm(`Delete site "${s.name}"?`)) return;
+  SITES = SITES.filter(x=>x.id!==siteId);
+  renderSites(); populateSiteSelects(); renderDash();
+  toast(`${s.name} deleted`, false);
+  await pushAll();
+}
+
+function useMyLoc() {
+  const msg = document.getElementById('loc-msg');
+  msg.textContent = 'Acquiring GPS…';
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('snlat').value = pos.coords.latitude.toFixed(5);
+    document.getElementById('snlng').value = pos.coords.longitude.toFixed(5);
+    msg.textContent = `✓ ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (±${Math.round(pos.coords.accuracy)}m)`;
+    msg.style.color = 'var(--green)';
+  }, () => { msg.textContent = 'GPS unavailable — enter coordinates manually'; msg.style.color = 'var(--red)'; });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REPORTS
+══════════════════════════════════════════════════════════════ */
+async function loadReport() {
+  const from = document.getElementById('r-from')?.value||'';
+  const to   = document.getElementById('r-to')?.value||'';
+  try {
+    // Fetch app punches
+    let url = '/app/punches';
+    if (from) url += `?date=${from}`;
+    const d1 = await api(url);
+    const appPunches = (d1.records||[]).filter(r=>{
+      if (!from && !to) return true;
+      const t = (r.time||'').slice(0,10);
+      return (!from||t>=from) && (!to||t<=to);
+    });
+    // Fetch data records
+    const d2 = await api('/data');
+    const dataRecs = (d2.records||[]).filter(r=>{
+      const t = (r.time||r.timestamp||'').slice(0,10);
+      return (!from||t>=from) && (!to||t<=to);
+    });
+    // Merge (deduplicate by time)
+    const seen = new Set();
+    const all = [];
+    for (const r of [...appPunches, ...dataRecs]) {
+      const key = (r.empUid||'')+(r.time||r.timestamp||'');
+      if (!seen.has(key)) { seen.add(key); all.push(r); }
+    }
+    all.sort((a,b)=>(b.time||b.timestamp||'').localeCompare(a.time||a.timestamp||''));
+    _reportRecs = all;
+    // Populate site dropdowns for both views
+    const siteOpts = '<option value="">All Sites</option>' +
+      SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.code||s.name)}</option>`).join('');
+    const rSite = document.getElementById('r-site'); if(rSite) rSite.innerHTML = siteOpts;
+    const rHrsSite = document.getElementById('r-hrs-site'); if(rHrsSite) rHrsSite.innerHTML = siteOpts;
+
+    if (_reportView === 'hrs') { renderManhours(); return; }
+    filterReport();
+    // Stats (punch log view)
+    const inC = all.filter(r=>r.type==='in').length;
+    const outC = all.filter(r=>r.type==='out').length;
+    document.getElementById('rep-stats').innerHTML = `
+      <div class="kpi g" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${inC}</div><div class="kpi-l">Check INs</div></div>
+      <div class="kpi o" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${outC}</div><div class="kpi-l">Check OUTs</div></div>
+      <div class="kpi b" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${all.length}</div><div class="kpi-l">Total Records</div></div>`;
+  } catch(e) {
+    document.getElementById('rep-tbl').innerHTML = `<tr><td colspan="8"><div class="empty"><i class="ti ti-wifi-off"></i>Cannot load records</div></td></tr>`;
+  }
+}
+
+/* Pair IN+OUT records → one row per session */
+function pairPunches(records) {
+  const byEmp = {};
+  for (const r of records) {
+    const k = r.empUid || r.uid || '_unk';
+    if (!byEmp[k]) byEmp[k] = { ins: [], outs: [] };
+    if (r.type === 'in')  byEmp[k].ins.push(r);
+    if (r.type === 'out') byEmp[k].outs.push(r);
+  }
+  const pairs = [];
+  for (const emp of Object.values(byEmp)) {
+    const ins  = emp.ins.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const outs = emp.outs.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const usedOuts = new Set();
+    for (const inR of ins) {
+      const outIdx = outs.findIndex((o,i)=>!usedOuts.has(i)&&(o.time||'')>(inR.time||''));
+      if (outIdx >= 0) {
+        usedOuts.add(outIdx);
+        pairs.push({ inR, outR: outs[outIdx] });
+      } else {
+        pairs.push({ inR, outR: null }); // still checked in
+      }
     }
   }
+  return pairs.sort((a,b)=>(b.inR.time||'').localeCompare(a.inR.time||''));
+}
+
+function filterReport() {
+  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-site')?.value||'';
+  const type = document.getElementById('r-type')?.value||''; // 'in'=active, 'out'=completed
+  const list = _reportRecs.filter(r =>
+    (!q || (r.empName||'').toLowerCase().includes(q) || (r.empId||'').toLowerCase().includes(q)) &&
+    (!site || r.siteId===site)
+  );
+  const tb = document.getElementById('rep-tbl');
+  let pairs = pairPunches(list);
+  // Filter: 'in' = still active (no checkout), 'out' = completed
+  if (type === 'in')  pairs = pairs.filter(p => !p.outR);
+  if (type === 'out') pairs = pairs.filter(p =>  p.outR);
+  if (!pairs.length) { tb.innerHTML=`<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
+
+  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : null;
+  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString([],{month:'short',day:'numeric',year:'2-digit'}) : '—';
+  const gpsCell = r => {
+    if (!r || r.lat == null) return `<div style="font-size:10px;color:var(--muted)">No GPS</div>`;
+    return `<a href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank"
+              style="font-size:10px;color:var(--blue);display:flex;align-items:center;gap:3px;white-space:nowrap;text-decoration:none">
+              <i class="ti ti-map-pin" style="font-size:11px"></i>
+              ${parseFloat(r.lat).toFixed(5)}, ${parseFloat(r.lng).toFixed(5)}
+            </a>`;
+  };
+  const punchCell = (r, color, label) => {
+    if (!r) return `<div style="color:#94a3b8;font-size:12px">⏳ Active</div>`;
+    const autoTag = r.source==='auto-checkout' ? `<span style="font-size:9px;background:#e2e8f0;color:#64748b;padding:1px 5px;border-radius:4px;margin-left:4px">auto</span>` : '';
+    return `<div style="color:${color};font-weight:700;font-size:14px">${fmtTime(r.time)||'—'}${autoTag}</div>
+            ${gpsCell(r)}`;
+  };
+
+  tb.innerHTML = pairs.map(({inR, outR}) => {
+    return `<tr>
+      <td style="font-weight:600">${esc(inR.empName||'—')}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(inR.empId||'—')}</td>
+      <td>${punchCell(inR, '#16a34a', 'IN')}</td>
+      <td>${punchCell(outR, '#ea580c', 'OUT')}</td>
+      <td style="font-size:12px">${esc(inR.siteName||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(inR.supervisorName||'—')}</td>
+      <td style="font-size:12px;color:var(--blue)">${fmtDate(inR.time)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportCSV() {
+  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-site')?.value||'';
+  const type = document.getElementById('r-type')?.value||'';
+  const list = _reportRecs.filter(r =>
+    (!q || (r.empName||'').toLowerCase().includes(q)||(r.empId||'').toLowerCase().includes(q)) &&
+    (!site||r.siteId===site)
+  );
+  let pairs = pairPunches(list);
+  if (type === 'in')  pairs = pairs.filter(p => !p.outR);
+  if (type === 'out') pairs = pairs.filter(p =>  p.outR);
+
+  const fmtISO = iso => iso ? new Date(iso).toLocaleString() : '';
+  const rows = [['Employee','ID','Date','Check In Time','Check In Lat','Check In Lng','Check In Maps','Check Out Time','Check Out Lat','Check Out Lng','Check Out Maps','Duration (mins)','Site','Supervisor']];
+  pairs.forEach(({inR, outR}) => {
+    const durMins = (outR && inR.time && outR.time)
+      ? Math.round((new Date(outR.time)-new Date(inR.time))/60000) : '';
+    const fmtT = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+    rows.push([
+      inR.empName||'', inR.empId||'',
+      inR.time ? new Date(inR.time).toLocaleDateString() : '',
+      fmtT(inR.time),
+      inR.lat!=null ? inR.lat : '', inR.lng!=null ? inR.lng : '',
+      inR.lat!=null ? `https://maps.google.com/?q=${inR.lat},${inR.lng}` : '',
+      fmtT(outR?.time),
+      outR?.lat!=null ? outR.lat : '', outR?.lng!=null ? outR.lng : '',
+      outR?.lat!=null ? `https://maps.google.com/?q=${outR.lat},${outR.lng}` : '',
+      durMins, inR.siteName||'', inR.supervisorName||'',
+    ]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{href:'data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv),download:`bdi-attendance-${new Date().toISOString().slice(0,10)}.csv`});
+  a.click();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAN-HOURS
+══════════════════════════════════════════════════════════════ */
+let _reportView = 'log'; // 'log' | 'hrs'
+
+function setReportView(v) {
+  _reportView = v;
+  document.getElementById('rv-log').className = v==='log' ? 'btn btn-or btn-sm' : 'btn btn-gray btn-sm';
+  document.getElementById('rv-hrs').className = v==='hrs' ? 'btn btn-or btn-sm' : 'btn btn-gray btn-sm';
+  document.getElementById('r-log-filters').style.display  = v==='log' ? '' : 'none';
+  document.getElementById('r-hrs-filters').style.display  = v==='hrs' ? '' : 'none';
+  document.getElementById('r-log-view').style.display     = v==='log' ? '' : 'none';
+  document.getElementById('r-hrs-view').style.display     = v==='hrs' ? '' : 'none';
+  if (v==='hrs') { populateHrsSiteSelect(); renderManhours(); }
+}
+
+function populateHrsSiteSelect() {
+  const sel = document.getElementById('r-hrs-site');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Sites</option>' +
+    SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.code||s.name)}</option>`).join('');
+  sel.value = cur;
+}
+
+/* Calculate man-hours from raw punch records.
+   Returns array of { uid, name, empId, dept, sites[], days, totalMins, sessions[] } */
+function calcManhours(records) {
+  // Group by empUid
+  const byEmp = {};
+  for (const r of records) {
+    const uid = r.empUid || r.uid || '';
+    if (!uid) continue;
+    if (!byEmp[uid]) byEmp[uid] = { uid, name: r.empName||uid, empId: r.empId||'', dept: r.empDept||'', sites: new Set(), ins: [], outs: [] };
+    if (r.siteId) byEmp[uid].sites.add(r.siteId);
+    if (r.type === 'in')  byEmp[uid].ins.push(new Date(r.time||r.timestamp));
+    if (r.type === 'out') byEmp[uid].outs.push(new Date(r.time||r.timestamp));
+  }
+
+  const result = [];
+  for (const [, emp] of Object.entries(byEmp)) {
+    const ins  = emp.ins.sort((a,b)=>a-b);
+    const outs = emp.outs.sort((a,b)=>a-b);
+    // Pair each IN with the first OUT that comes after it
+    const sessions = [];
+    const usedOuts = new Set();
+    for (const inT of ins) {
+      const outT = outs.find((o,i) => o > inT && !usedOuts.has(i));
+      if (outT !== undefined) {
+        const idx = outs.indexOf(outT);
+        usedOuts.add(idx);
+        const mins = Math.round((outT - inT) / 60000);
+        sessions.push({ in: inT, out: outT, mins });
+      } else {
+        sessions.push({ in: inT, out: null, mins: null }); // open (no checkout)
+      }
+    }
+    const totalMins = sessions.reduce((s,x)=> s + (x.mins||0), 0);
+    const days = new Set(ins.map(d=>d.toISOString().slice(0,10))).size;
+    // Get name/dept from EMPS if available
+    const empObj = EMPS.find(e=>e.uid===emp.uid);
+    result.push({
+      uid: emp.uid,
+      name: empObj?.name || emp.name,
+      empId: empObj?.id || emp.empId,
+      dept: empObj?.dept || emp.dept,
+      sites: [...emp.sites],
+      days,
+      totalMins,
+      sessions
+    });
+  }
+  return result.sort((a,b)=>b.totalMins - a.totalMins);
+}
+
+function fmtDur(mins) {
+  if (!mins) return '—';
+  const h = Math.floor(mins/60), m = mins%60;
+  return `${h}h ${m.toString().padStart(2,'0')}m`;
+}
+
+function renderManhours() {
+  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-hrs-site')?.value||'';
+  const tb   = document.getElementById('hrs-tbl');
+  if (!tb) return;
+
+  // Filter raw records by site
+  let recs = _reportRecs;
+  if (site) recs = recs.filter(r=>r.siteId===site);
+
+  const data = calcManhours(recs).filter(e=>
+    !q || e.name.toLowerCase().includes(q) || (e.empId||'').toLowerCase().includes(q)
+  );
+
+  if (!data.length) {
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-clock-off"></i>No man-hour data for selected period</div></td></tr>`;
+    return;
+  }
+
+  const totalHours = data.reduce((s,e)=>s+e.totalMins,0);
+  // Summary KPIs
+  document.getElementById('rep-stats').innerHTML = `
+    <div class="kpi b" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${data.length}</div><div class="kpi-l">Employees</div></div>
+    <div class="kpi g" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${fmtDur(totalHours)}</div><div class="kpi-l">Total Man-Hours</div></div>
+    <div class="kpi o" style="flex:1;min-width:90px;padding:10px 14px"><div class="kpi-v" style="font-size:20px">${data.filter(e=>e.sessions.some(s=>s.out===null)).length}</div><div class="kpi-l">Still Checked IN</div></div>`;
+
+  tb.innerHTML = data.map(e => {
+    const siteNames = e.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    const empObj = EMPS.find(x=>x.uid===e.uid);
+    const dept = empObj?.dept || e.dept || '—';
+    const paired = e.sessions.filter(s=>s.out).length;
+    const open   = e.sessions.filter(s=>!s.out).length;
+    const sessionDetail = e.sessions.map(s=>{
+      const inStr  = s.in.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const outStr = s.out ? s.out.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '…';
+      const date   = s.in.toLocaleDateString([],{month:'short',day:'numeric'});
+      const dur    = s.mins ? fmtDur(s.mins) : '⏳ active';
+      return `<span style="font-size:10px;color:var(--muted);white-space:nowrap">${date} ${inStr}→${outStr} (${dur})</span>`;
+    }).join('<br>');
+
+    return `<tr>
+      <td><div style="font-weight:600">${esc(e.name)}</div></td>
+      <td><span class="bdg bdg-or" style="font-size:10px">${esc(e.empId||'—')}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${esc(dept)}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
+      <td style="font-weight:700;text-align:center">${e.days}</td>
+      <td><span style="font-weight:800;font-size:16px;color:${e.totalMins>=480?'var(--gr)':'var(--or)'}">${fmtDur(e.totalMins)}</span>
+          ${open?`<br><span style="font-size:10px;color:#f97316">⏳ ${open} open</span>`:''}
+          ${paired?`<br><span style="font-size:10px;color:var(--muted)">${paired} session${paired>1?'s':''}</span>`:''}
+      </td>
+      <td style="font-size:10px;line-height:1.8">${sessionDetail||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportManhours() {
+  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-hrs-site')?.value||'';
+  let recs = _reportRecs;
+  if (site) recs = recs.filter(r=>r.siteId===site);
+  const data = calcManhours(recs).filter(e=>
+    !q || e.name.toLowerCase().includes(q) || (e.empId||'').toLowerCase().includes(q)
+  );
+  const rows = [['Employee','Employee ID','Department','Sites','Days Worked','Total Hours','Total Minutes','Sessions (IN→OUT)']];
+  data.forEach(e => {
+    const siteNames = e.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join('|');
+    const empObj = EMPS.find(x=>x.uid===e.uid);
+    const sessionStr = e.sessions.map(s=>{
+      const inStr = s.in.toISOString();
+      const outStr = s.out ? s.out.toISOString() : 'OPEN';
+      return `${inStr}→${outStr}(${s.mins!=null?s.mins+'min':'active'})`;
+    }).join(' | ');
+    rows.push([
+      e.name, empObj?.id||e.empId||'', empObj?.dept||e.dept||'', siteNames,
+      e.days,
+      e.totalMins ? (e.totalMins/60).toFixed(2) : '0',
+      e.totalMins||0,
+      sessionStr
+    ]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{
+    href:'data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv),
+    download:`manhours-${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MANUAL REQUESTS
+══════════════════════════════════════════════════════════════ */
+async function loadManReqs(status='pending') {
+  const el = document.getElementById('manreq-list');
+  el.innerHTML = '<div class="empty"><i class="ti ti-loader-2"></i>Loading…</div>';
+  try {
+    const url = status ? `/manual-requests?status=${status}` : '/manual-requests';
+    const d = await api(url);
+    if (!d.ok||!d.requests?.length) {
+      el.innerHTML = `<div class="empty"><i class="ti ti-camera-off"></i>No ${status||''} requests</div>`; return;
+    }
+    el.innerHTML = d.requests.map(req => {
+      const ts = req.timestamp ? new Date(req.timestamp).toLocaleString() : '—';
+      const isPend = req.status==='pending';
+      return `<div style="border:1px solid ${isPend?'#fed7aa':req.status==='approved'?'#bbf7d0':'#fecaca'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${isPend?'#fff7ed':req.status==='approved'?'#f0fdf4':'#fef2f2'}">
+        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:3px">${esc(req.empName||'—')}</div>
+            <div style="font-size:12px;color:var(--muted)">
+              <span class="bdg ${req.type==='in'?'bdg-g':'bdg-o'}">${req.type==='in'?'CHECK IN':'CHECK OUT'}</span>
+              &nbsp; ${esc(req.siteName||'—')} &nbsp;·&nbsp; ${esc(req.supervisorName||'—')}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px">${ts}</div>
+            ${req.reviewNote?`<div style="font-size:11px;color:var(--muted);margin-top:4px">Note: ${esc(req.reviewNote)}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <span class="bdg ${isPend?'bdg-o':req.status==='approved'?'bdg-g':'bdg-r'}">${req.status.toUpperCase()}</span>
+            ${req.hasPhoto?`<button class="btn btn-gray btn-sm" onclick="viewPhoto('${esc(req.id)}','${esc(req.empName||'')}')"><i class="ti ti-photo"></i>Photo</button>`:''}
+            ${isPend?`
+              <button class="btn btn-green btn-sm" onclick="reviewReq('${esc(req.id)}','approve')"><i class="ti ti-check"></i>Approve</button>
+              <button class="btn btn-red btn-sm" onclick="reviewReq('${esc(req.id)}','reject')"><i class="ti ti-x"></i>Reject</button>
+            `:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><i class="ti ti-wifi-off"></i>Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function reviewReq(id, action) {
+  const note = action==='reject' ? (prompt('Reason for rejection (optional):') || '') : '';
+  const d = await api('/manual-request/review','POST',{id, action, note});
+  if (d.ok) { toast(action==='approve'?'✅ Approved':'❌ Rejected', action==='approve'); loadManReqs(); renderDash(); }
+  else toast('Action failed', false);
+}
+
+async function viewPhoto(id, name) {
+  try {
+    const d = await api(`/manual-request/${id}/photo`);
+    if (d.ok && d.photo_b64) {
+      document.getElementById('photo-modal-title').textContent = `Photo — ${name}`;
+      document.getElementById('photo-modal-img').src = d.photo_b64.startsWith('data:') ? d.photo_b64 : `data:image/jpeg;base64,${d.photo_b64}`;
+      document.getElementById('photo-modal').classList.add('show');
+    } else toast('No photo available', false);
+  } catch { toast('Could not load photo', false); }
+}
+function closePhotoModal() { document.getElementById('photo-modal').classList.remove('show'); }
+document.getElementById('photo-modal').addEventListener('click', e => { if(e.target.id==='photo-modal') closePhotoModal(); });
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS — FACE BACKUP / RESTORE
+══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   ENROLLED FACES — LIST & DELETE
+══════════════════════════════════════════════════════════════ */
+async function loadEnrolledFaces() {
+  const wrap = document.getElementById('enrolled-faces-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:12px 0"><i class="ti ti-loader" style="animation:spin 1s linear infinite;margin-right:6px"></i>Loading…</div>`;
+  try {
+    const d = await api('/list');
+    if (!d || !d.ok) throw new Error('Bad response');
+    // d.enrolled is { uid: sampleCount, ... }
+    const enrolled = d.enrolled || {};
+    const uids = Object.keys(enrolled);
+    if (uids.length === 0) {
+      wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center"><i class="ti ti-face-id-error" style="font-size:24px;display:block;margin-bottom:6px"></i>No faces enrolled yet.</div>`;
+      return;
+    }
+    // Build lookup: uid → employee name/id
+    const empMap = {};
+    EMPS.forEach(e => { empMap[e.uid] = e; });
+
+    let rows = uids.map(uid => {
+      const emp = empMap[uid];
+      const name = emp ? emp.name : `Unknown (${uid})`;
+      const empId = emp ? (emp.empId || emp.id || '—') : '—';
+      const dept  = emp ? (emp.dept || emp.department || '') : '';
+      const samples = enrolled[uid];
+      return `
+        <tr>
+          <td style="padding:10px 8px">
+            <div style="font-weight:600;color:var(--text);font-size:13px">${name}</div>
+            ${dept ? `<div style="font-size:11px;color:var(--muted)">${dept}</div>` : ''}
+          </td>
+          <td style="padding:10px 8px;font-size:12px;color:var(--muted);font-family:monospace">${empId}</td>
+          <td style="padding:10px 8px;font-size:12px;color:var(--muted);font-family:monospace;font-size:11px">${uid}</td>
+          <td style="padding:10px 8px;text-align:center">
+            <span style="background:rgba(22,163,74,.1);color:var(--green);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${samples} sample${samples!==1?'s':''}</span>
+          </td>
+          <td style="padding:10px 8px;text-align:right;white-space:nowrap">
+            <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:4px" onclick="openEditFaceModal('${uid}','${name.replace(/'/g,"\\'")}','${empId.replace(/'/g,"\\'")}')">
+              <i class="ti ti-pencil"></i>Edit
+            </button>
+            <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${name.replace(/'/g,"\\'")}')">
+              <i class="ti ti-trash"></i>Delete
+            </button>
+          </td>
+        </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;padding:4px 0">
+        <strong style="color:var(--text)">${uids.length}</strong> employee face${uids.length!==1?'s':''} enrolled on server
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--light);border-bottom:1px solid var(--border)">
+              <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Employee</th>
+              <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">ID</th>
+              <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">UID</th>
+              <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Samples</th>
+              <th style="padding:9px 8px;text-align:right;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Action</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    wrap.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px 0">⚠️ Could not load enrolled faces — server offline?</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EDIT ENROLLED FACE — name & employee ID
+══════════════════════════════════════════════════════════════ */
+function openEditFaceModal(uid, currentName, currentId) {
+  document.getElementById('edit-face-uid').value = uid;
+  document.getElementById('edit-face-name').value = currentName;
+  document.getElementById('edit-face-id').value = currentId;
+  document.getElementById('edit-face-modal').style.display = 'flex';
+  document.getElementById('edit-face-name').focus();
+}
+
+function closeEditFaceModal() {
+  document.getElementById('edit-face-modal').style.display = 'none';
+}
+
+function saveEditedFace() {
+  const uid = document.getElementById('edit-face-uid').value;
+  const newName = document.getElementById('edit-face-name').value.trim();
+  const newId = document.getElementById('edit-face-id').value.trim();
+  if (!newName || !newId) { toast('Name and Employee ID are required', false); return; }
+
+  const emp = EMPS.find(e => e.uid === uid);
+  if (!emp) { toast('Employee not found', false); return; }
+
+  // Check for duplicate ID (ignore self)
+  const dup = EMPS.find(e => e.uid !== uid && e.id.toUpperCase() === newId.toUpperCase());
+  if (dup) { toast('Employee ID already in use by ' + dup.name, false); return; }
+
+  emp.name = newName;
+  emp.id = newId;
+  saveData();
+  closeEditFaceModal();
+  loadEnrolledFaces();
+  toast(`Updated: ${newName}`);
+}
+
+async function deleteFace(uid, name) {
+  if (!confirm(`Delete face enrollment for:\n\n${name}\n\nThis cannot be undone. The employee will no longer be recognized by the camera.`)) return;
+  try {
+    const d = await api('/delete', 'POST', { uid });
+    if (d.ok) {
+      toast(`🗑️ Face deleted for ${name}`);
+      loadEnrolledFaces(); // refresh list
+      checkServer();       // update enrolled count in topbar
+    } else {
+      toast('Delete failed: ' + (d.error || 'unknown error'), false);
+    }
+  } catch(e) {
+    toast('Delete failed — server offline?', false);
+  }
+}
+
+async function backupFaces() {
+  try {
+    const d = await api('/export-encodings?secret=bdi-import-2024');
+    if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
+      localStorage.setItem('bdi_face_backup', JSON.stringify(d.encodings));
+      localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
+      toast(`✅ Face backup saved — ${Object.keys(d.encodings).length} employee(s)`);
+      loadFaceBackupInfo();
+    } else toast('No face data on server to backup', false);
+  } catch { toast('Backup failed — server offline?', false); }
+}
+
+async function restoreFaces() {
+  const backed = localStorage.getItem('bdi_face_backup');
+  if (!backed) { toast('No local backup found', false); return; }
+  try {
+    const encodings = JSON.parse(backed);
+    const count = Object.keys(encodings).length;
+    if (!count) { toast('Backup is empty', false); return; }
+    const d = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+    if (d.ok) { toast(`✅ Restored ${d.imported} face encoding(s)`); checkServer(); }
+    else toast('Restore failed: '+(d.error||'unknown'), false);
+  } catch(e) { toast('Restore error: '+e.message, false); }
+}
+
+async function restoreFacesIfEmpty() {
+  try {
+    const d = await api('/status');
+    if (!d.ok || d.enrolled > 0) { if(d.enrolled>0) backupFaces(); return; }
+    const backed = localStorage.getItem('bdi_face_backup');
+    if (!backed) return;
+    const encodings = JSON.parse(backed);
+    if (!Object.keys(encodings).length) return;
+    const r = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+    if (r.ok) toast(`Auto-restored ${r.imported} face encoding(s) after server restart`);
+  } catch {}
+}
+
+function loadFaceBackupInfo() {
+  const el = document.getElementById('face-backup-info');
+  const t  = localStorage.getItem('bdi_face_backup_time');
+  const c  = localStorage.getItem('bdi_face_backup');
+  if (!c) { el.textContent = 'No backup found in browser storage.'; return; }
+  try {
+    const count = Object.keys(JSON.parse(c)).length;
+    el.innerHTML = `<span style="color:var(--green);font-weight:600">✓ Backup exists</span> — ${count} employee face(s) · Last saved: ${t ? new Date(t).toLocaleString() : 'unknown'}`;
+  } catch { el.textContent = 'Could not read backup.'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS — DATA BACKUP
+══════════════════════════════════════════════════════════════ */
+function exportJSON() {
+  const data = { employees:EMPS, sites:SITES, supervisors:SUPS, records:RECS, exported: new Date().toISOString() };
+  const a = Object.assign(document.createElement('a'),{href:'data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data,null,2)),download:`bdi-backup-${new Date().toISOString().slice(0,10)}.json`});
+  a.click();
+}
+
+function importJSON(input) {
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.employees) EMPS  = data.employees;
+      if (data.sites)     SITES = data.sites;
+      if (data.supervisors) SUPS = data.supervisors;
+      if (data.records)   RECS  = data.records;
+      renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+      await pushAll();
+      toast(`Imported ${EMPS.length} employees, ${SITES.length} sites ✓`);
+    } catch { toast('Invalid JSON file', false); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SYSTEM INFO
+══════════════════════════════════════════════════════════════ */
+async function loadSysInfo() {
+  try {
+    const d = await api('/status');
+    document.getElementById('sys-info').innerHTML = `
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:var(--muted);width:160px">Server</td><td style="font-weight:600;color:var(--green)">● Online</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Enrolled Faces</td><td style="font-weight:600">${d.enrolled||0}</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Face Recognition</td><td style="font-weight:600;color:${d.face_recognition?'var(--green)':'var(--red)'}">${d.face_recognition?'Available':'Not Available'}</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Employees in DB</td><td style="font-weight:600">${EMPS.length}</td></tr>
+        <tr><td style="padding:5px 0;color:var(--muted)">Sites</td><td style="font-weight:600">${SITES.length}</td></tr>
+      </table>`;
+  } catch { document.getElementById('sys-info').textContent = 'Server offline'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SPIN ANIMATION
+══════════════════════════════════════════════════════════════ */
+const style = document.createElement('style');
+style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(style);
 </script>
+<!-- ══ EDIT FACE MODAL ══════════════════════════════════════════ -->
+<div id="edit-face-modal" onclick="if(event.target===this)closeEditFaceModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:360px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:9px">
+        <i class="ti ti-pencil" style="font-size:18px;color:var(--or)"></i>
+        <span style="font-size:15px;font-weight:700;color:var(--text)">Edit Employee Info</span>
+      </div>
+      <button onclick="closeEditFaceModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px">&times;</button>
+    </div>
+    <input type="hidden" id="edit-face-uid">
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Full Name</label>
+      <input id="edit-face-name" type="text" placeholder="Employee full name"
+        style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='var(--or)'" onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')saveEditedFace()">
+    </div>
+    <div style="margin-bottom:22px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Employee ID</label>
+      <input id="edit-face-id" type="text" placeholder="e.g. BDI-001"
+        style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;box-sizing:border-box;font-family:monospace"
+        onfocus="this.style.borderColor='var(--or)'" onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')saveEditedFace()">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveEditedFace()" style="flex:1;padding:10px;background:var(--or);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+        <i class="ti ti-check"></i> Save Changes
+      </button>
+      <button onclick="closeEditFaceModal()" style="padding:10px 16px;background:var(--light);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
