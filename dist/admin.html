@@ -319,6 +319,12 @@ tr:hover td{background:#f8fafc}
               <option>Engineering</option><option>Operations</option>
               <option>HSE</option><option>Mechanical</option><option>Admin</option>
             </select>
+            <button id="sort-name-btn" onclick="empToggleSort('name')" title="Sort by Name" style="display:inline-flex;align-items:center;gap:4px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap">
+              <i class="ti ti-arrow-up-down" id="sort-name-icon" style="font-size:13px"></i> Name
+            </button>
+            <button id="sort-id-btn" onclick="empToggleSort('id')" title="Sort by ID" style="display:inline-flex;align-items:center;gap:4px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap">
+              <i class="ti ti-arrow-up-down" id="sort-id-icon" style="font-size:13px"></i> ID
+            </button>
           </div>
           <div class="tw"><table>
             <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th></th></tr></thead>
@@ -794,13 +800,50 @@ function populateSiteSelects() {
 /* ══════════════════════════════════════════════════════════════
    EMPLOYEES
 ══════════════════════════════════════════════════════════════ */
+let empSortField = null; // 'name' | 'id' | null
+let empSortDir   = 'asc'; // 'asc' | 'desc'
+
+function empToggleSort(field) {
+  if (empSortField === field) {
+    empSortDir = empSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    empSortField = field;
+    empSortDir = 'asc';
+  }
+  renderEmps();
+}
+
 function renderEmps() {
   const q = (document.getElementById('emp-srch')?.value||'').toLowerCase();
   const df = document.getElementById('emp-dept')?.value||'';
-  const list = EMPS.filter(e =>
+  let list = EMPS.filter(e =>
     (!q || e.name.toLowerCase().includes(q) || (e.id||'').toLowerCase().includes(q) || (e.role||'').toLowerCase().includes(q)) &&
     (!df || e.dept === df)
   );
+
+  // Apply sort
+  if (empSortField) {
+    list = [...list].sort((a, b) => {
+      const av = (empSortField === 'id' ? (a.id||a.uid) : a.name).toLowerCase();
+      const bv = (empSortField === 'id' ? (b.id||b.uid) : b.name).toLowerCase();
+      return empSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }
+
+  // Update sort button visuals
+  ['name','id'].forEach(f => {
+    const btn  = document.getElementById(`sort-${f}-btn`);
+    const icon = document.getElementById(`sort-${f}-icon`);
+    if (!btn || !icon) return;
+    const active = empSortField === f;
+    btn.style.background      = active ? 'rgba(232,119,34,.12)' : '#fff';
+    btn.style.color           = active ? 'var(--or)' : 'var(--muted)';
+    btn.style.borderColor     = active ? 'rgba(232,119,34,.4)' : 'var(--border)';
+    icon.className = active
+      ? (empSortDir === 'asc' ? 'ti ti-arrow-up' : 'ti ti-arrow-down')
+      : 'ti ti-arrow-up-down';
+    icon.style.fontSize = '13px';
+  });
   document.getElementById('emp-count').textContent = `${list.length} of ${EMPS.length}`;
   const tb = document.getElementById('emp-tbl');
   if (!list.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>${EMPS.length?'No match':'No employees yet — add one above'}</div></td></tr>`; return; }
