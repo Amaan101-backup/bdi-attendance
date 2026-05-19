@@ -1633,69 +1633,98 @@ async function loadEnrolledFaces() {
   const wrap = document.getElementById('enrolled-faces-wrap');
   if (!wrap) return;
   wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:12px 0"><i class="ti ti-loader" style="animation:spin 1s linear infinite;margin-right:6px"></i>Loading…</div>`;
+
+  // ── Merge server faces + browser-enrolled faces from localStorage ──
+  // Server faces: { uid → sampleCount }
+  let serverEnrolled = {};
+  let serverOnline = false;
   try {
     const d = await api('/list');
-    if (!d || !d.ok) throw new Error('Bad response');
-    // d.enrolled is { uid: sampleCount, ... }
-    const enrolled = d.enrolled || {};
-    const uids = Object.keys(enrolled);
-    if (uids.length === 0) {
-      wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center"><i class="ti ti-face-id-error" style="font-size:24px;display:block;margin-bottom:6px"></i>No faces enrolled yet.</div>`;
-      return;
+    if (d && d.ok) { serverEnrolled = d.enrolled || {}; serverOnline = true; }
+  } catch(e) { /* server offline */ }
+
+  // Browser faces: EMPS entries with faceReg=true and a descriptor
+  const browserEnrolled = {}; // uid → { name, id, dept, samples }
+  EMPS.forEach(e => {
+    if (e.faceReg && e.descriptor) {
+      const sampleCount = e.descriptors ? e.descriptors.length : 1;
+      browserEnrolled[e.uid] = { name: e.name, id: e.id||e.uid, dept: e.dept||'', samples: sampleCount };
     }
-    // Build lookup: uid → employee name/id
-    const empMap = {};
-    EMPS.forEach(e => { empMap[e.uid] = e; });
+  });
 
-    let rows = uids.map(uid => {
-      const emp = empMap[uid];
-      const name = emp ? emp.name : `Unknown (${uid})`;
-      const empId = emp ? (emp.empId || emp.id || '—') : '—';
-      const dept  = emp ? (emp.dept || emp.department || '') : '';
-      const samples = enrolled[uid];
-      return `
-        <tr>
-          <td style="padding:10px 8px">
-            <div style="font-weight:600;color:var(--text);font-size:13px">${name}</div>
-            ${dept ? `<div style="font-size:11px;color:var(--muted)">${dept}</div>` : ''}
-          </td>
-          <td style="padding:10px 8px;font-size:12px;color:var(--muted);font-family:monospace">${empId}</td>
-          <td style="padding:10px 8px;font-size:12px;color:var(--muted);font-family:monospace;font-size:11px">${uid}</td>
-          <td style="padding:10px 8px;text-align:center">
-            <span style="background:rgba(22,163,74,.1);color:var(--green);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${samples} sample${samples!==1?'s':''}</span>
-          </td>
-          <td style="padding:10px 8px;text-align:right;white-space:nowrap">
-            <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:4px" onclick="openEditFaceModal('${uid}','${name.replace(/'/g,"\\'")}','${empId.replace(/'/g,"\\'")}')">
-              <i class="ti ti-pencil"></i>Edit
-            </button>
-            <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${name.replace(/'/g,"\\'")}')">
-              <i class="ti ti-trash"></i>Delete
-            </button>
-          </td>
-        </tr>`;
-    }).join('');
+  // Merge: all unique UIDs from both sources
+  const allUids = [...new Set([...Object.keys(serverEnrolled), ...Object.keys(browserEnrolled)])];
 
-    wrap.innerHTML = `
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;padding:4px 0">
-        <strong style="color:var(--text)">${uids.length}</strong> employee face${uids.length!==1?'s':''} enrolled on server
-      </div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="background:var(--light);border-bottom:1px solid var(--border)">
-              <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Employee</th>
-              <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">ID</th>
-              <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">UID</th>
-              <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Samples</th>
-              <th style="padding:9px 8px;text-align:right;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Action</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-  } catch(e) {
-    wrap.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px 0">⚠️ Could not load enrolled faces — server offline?</div>`;
+  if (allUids.length === 0) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center"><i class="ti ti-face-id-error" style="font-size:24px;display:block;margin-bottom:6px"></i>No faces enrolled yet.</div>`;
+    return;
   }
+
+  const empMap = {};
+  EMPS.forEach(e => { empMap[e.uid] = e; });
+
+  let rows = allUids.map(uid => {
+    const emp = empMap[uid];
+    const browser = browserEnrolled[uid];
+    const name  = emp ? emp.name  : (browser ? browser.name  : `Unknown (${uid})`);
+    const empId = emp ? (emp.id || emp.uid) : (browser ? browser.id : '—');
+    const dept  = emp ? (emp.dept||'')      : (browser ? browser.dept : '');
+    const onServer  = uid in serverEnrolled;
+    const onBrowser = uid in browserEnrolled;
+    const samples   = onServer ? serverEnrolled[uid] : (browser ? browser.samples : '—');
+    const source    = onServer && onBrowser ? 'Server + Browser'
+                    : onServer  ? 'Server'
+                    : 'Browser only';
+    const srcColor  = onServer ? 'var(--green)' : '#f59e0b';
+
+    return `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:10px 8px">
+          <div style="font-weight:600;color:var(--text);font-size:13px">${esc(name)}</div>
+          ${dept ? `<div style="font-size:11px;color:var(--muted)">${esc(dept)}</div>` : ''}
+        </td>
+        <td style="padding:10px 8px;font-size:12px;color:var(--muted);font-family:monospace">${esc(empId)}</td>
+        <td style="padding:10px 8px;font-size:11px;color:var(--muted);font-family:monospace">${esc(uid)}</td>
+        <td style="padding:10px 8px;text-align:center">
+          <span style="background:rgba(22,163,74,.1);color:var(--green);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${samples} sample${samples!==1?'s':''}</span>
+        </td>
+        <td style="padding:10px 8px;text-align:center">
+          <span style="font-size:11px;font-weight:500;color:${srcColor}">${source}</span>
+        </td>
+        <td style="padding:10px 8px;text-align:right;white-space:nowrap">
+          <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:4px" onclick="openEditFaceModal('${uid}','${name.replace(/'/g,"\\'")}','${empId.replace(/'/g,"\\'")}')">
+            <i class="ti ti-pencil"></i>Edit
+          </button>
+          ${onServer ? `<button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${name.replace(/'/g,"\\'")}')">
+            <i class="ti ti-trash"></i>Delete
+          </button>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+
+  const serverCount  = Object.keys(serverEnrolled).length;
+  const browserCount = Object.keys(browserEnrolled).length;
+  const statusLine = serverOnline
+    ? `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;·&nbsp; <span style="color:var(--green)">${serverCount} on server</span> &nbsp;·&nbsp; <span style="color:#f59e0b">${browserCount} in browser</span>`
+    : `<strong style="color:var(--text)">${allUids.length}</strong> in browser &nbsp;<span style="color:var(--red);font-size:11px">(server offline — showing local only)</span>`;
+
+  wrap.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;padding:4px 0">${statusLine}</div>
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--light);border-bottom:1px solid var(--border)">
+            <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Employee</th>
+            <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">ID</th>
+            <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">UID</th>
+            <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Samples</th>
+            <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Source</th>
+            <th style="padding:9px 8px;text-align:right;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Action</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
