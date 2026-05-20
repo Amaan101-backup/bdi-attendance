@@ -1,0 +1,20 @@
+# Exclude files not needed for Railway Docker build
+dist/
+.git/
+*.bat
+*.csv
+attendance_log.csv
+face_encodings.json
+employees.json
+app_data.json
+python_attendance.json
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+env/
+cloudflared.exe
+*.cert.pem
+*.log
+node_modules/
