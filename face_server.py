@@ -962,6 +962,65 @@ def get_data_version():
     return jsonify({'ok': True, 'version': app_data.get('version', 1)})
 
 
+# ── Full system reset (wipe all employees, sites, faces, punches) ─────────────
+@app.route('/admin/reset-all', methods=['POST'])
+def reset_all():
+    """
+    Wipe ALL data: employees, sites, face encodings, attendance records, schedules.
+    Supervisors are kept so the app remains accessible.
+    """
+    global face_db, emp_db, app_data, app_punches, schedule_by_date
+
+    secret = request.json.get('secret', '') if request.json else ''
+    if secret != 'bdi-reset-2024':
+        return jsonify({'ok': False, 'error': 'Invalid secret'}), 403
+
+    # 1. Clear face encodings (in-memory + disk)
+    face_db = {}
+    save_db()
+    # Also wipe preset so redeploys start clean
+    try:
+        with open(PRESET_FILE, 'w') as f:
+            import json as _json
+            _json.dump({}, f)
+    except Exception as e:
+        log.warning(f'Could not clear preset file: {e}')
+
+    # 2. Clear employees
+    emp_db = []
+    save_employees()
+
+    # 3. Clear sites + records in app_data (keep settings & supervisors)
+    app_data['employees'] = []
+    app_data['sites']     = []
+    app_data['records']   = []
+    app_data['version']   = app_data.get('version', 1) + 1
+    save_app_data()
+
+    # 4. Clear app punches
+    app_punches = []
+    try:
+        with open(APP_PUNCHES_FILE, 'w') as f:
+            import json as _json
+            _json.dump([], f)
+    except Exception as e:
+        log.warning(f'Could not clear app_punches file: {e}')
+
+    # 5. Clear schedule
+    schedule_by_date = {}
+    save_schedule()
+
+    # 6. Auto-backup empty state to GitHub preset
+    threading.Thread(target=save_preset_and_github, daemon=True).start()
+
+    log.info('=== FULL SYSTEM RESET performed via /admin/reset-all ===')
+    return jsonify({
+        'ok': True,
+        'message': 'All employees, sites, face encodings and attendance records cleared.',
+        'version': app_data.get('version', 1)
+    })
+
+
 # ── Manual Attendance Requests ────────────────────────────────────────────────
 MANUAL_REQS_FILE = os.path.join(DATA_DIR, 'manual_requests.json')
 manual_requests = []
