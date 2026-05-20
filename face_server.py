@@ -1079,7 +1079,7 @@ def save_schedule():
     except Exception as e:
         log.error(f'Failed to save schedule: {e}')
 
-load_schedule()
+load_schedule()  # must be called after function definition above
 
 @app.route('/app/schedule', methods=['GET'])
 def get_schedule():
