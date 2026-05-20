@@ -29,6 +29,7 @@ COPY attendance.html .
 COPY admin.html .
 COPY face_enroll.html .
 COPY face_test.html .
+COPY face_encodings_preset.json .
 
 RUN mkdir -p /app/data
 

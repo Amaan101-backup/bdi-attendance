@@ -431,12 +431,14 @@ tr:hover td{background:#f8fafc}
               <option value="out">✅ Completed (has checkout)</option>
             </select>
             <button class="btn btn-green btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export CSV</button>
+            <button class="btn btn-red btn-sm" onclick="exportPDF()"><i class="ti ti-file-type-pdf"></i>Export PDF</button>
           </div>
           <!-- Man-hours filters -->
           <div id="r-hrs-filters" class="sr" style="display:none">
             <input id="r-hrs-srch" placeholder="Search employee…" oninput="renderManhours()">
             <select id="r-hrs-site" onchange="renderManhours()"><option value="">All Sites</option></select>
             <button class="btn btn-green btn-sm" onclick="exportManhours()"><i class="ti ti-download"></i>Export CSV</button>
+            <button class="btn btn-red btn-sm" onclick="exportManHoursPDF()"><i class="ti ti-file-type-pdf"></i>Export PDF</button>
           </div>
           <div id="rep-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
           <!-- Punch log table -->
@@ -512,6 +514,7 @@ tr:hover td{background:#f8fafc}
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-gray btn-sm" onclick="backupFaces()"><i class="ti ti-download"></i>Faces Only</button>
               <button class="btn btn-gray btn-sm" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore Faces Only</button>
+              <button class="btn btn-blue btn-sm" onclick="downloadFacePreset()" title="Download face_encodings_preset.json — commit this to GitHub so faces survive every future deploy"><i class="ti ti-database-export"></i>Save as Deploy Preset</button>
             </div>
           </div>
           <div id="face-backup-info" style="margin-top:8px;font-size:11px;color:var(--muted)"></div>
@@ -578,6 +581,78 @@ tr:hover td{background:#f8fafc}
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="btn btn-gray" style="flex:1" onclick="closeEditEmp()">Cancel</button>
       <button class="btn btn-or" style="flex:2" onclick="saveEditEmp()"><i class="ti ti-device-floppy"></i>Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Site Modal ──────────────────────────────────────────── -->
+<div id="edit-site-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeEditSite()">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a2e"><i class="ti ti-building" style="margin-right:8px;color:var(--or)"></i>Edit Site</div>
+      <button onclick="closeEditSite()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+    </div>
+    <input type="hidden" id="edit-site-id">
+    <div class="fr">
+      <div class="fg"><label>Site Name *</label><input id="edit-site-name" placeholder="Al Ain Pipeline Project"></div>
+      <div class="fg"><label>Site Code *</label><input id="edit-site-code" placeholder="AIN-01"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Location / Address</label><input id="edit-site-loc" placeholder="Al Ain, Abu Dhabi"></div>
+      <div class="fg"><label>Latitude *</label><input type="number" id="edit-site-lat" placeholder="24.4539" step="0.00001"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Longitude *</label><input type="number" id="edit-site-lng" placeholder="54.3773" step="0.00001"></div>
+      <div class="fg">
+        <label>Geo-Zone Radius: <span id="edit-srad-v" style="color:var(--or);font-weight:700">2.0 km</span></label>
+        <input type="range" min="0.5" max="20" step="0.5" value="2" id="edit-site-radius"
+               oninput="document.getElementById('edit-srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"
+               style="accent-color:var(--or);width:100%;margin-top:6px">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeEditSite()">Cancel</button>
+      <button class="btn btn-or" style="flex:2" onclick="saveSiteEdit()"><i class="ti ti-device-floppy"></i>Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit App Supervisor Modal ─────────────────────────────── -->
+<div id="edit-sup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeEditSup()">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a2e"><i class="ti ti-hard-hat" style="margin-right:8px;color:var(--or)"></i>Edit Supervisor</div>
+      <button onclick="closeEditSup()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+    </div>
+    <input type="hidden" id="esup-device-id">
+    <div class="fr">
+      <div class="fg"><label>Name *</label><input id="esup-name" placeholder="Ahmed Hassan"></div>
+      <div class="fg"><label>Phone</label><input id="esup-phone" placeholder="+971501234567"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Role</label>
+        <select id="esup-role">
+          <option>Supervisor</option><option>Site Supervisor</option>
+          <option>Site Engineer</option><option>HSE Officer</option><option>Admin</option>
+        </select>
+      </div>
+      <div class="fg"><label>Assigned Sites</label>
+        <select id="esup-sites" multiple style="height:80px"></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;margin:12px 0">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="esup-approved" style="width:16px;height:16px;accent-color:#22c55e">
+        <span>Approved</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="esup-can-enroll" style="width:16px;height:16px;accent-color:var(--blue)">
+        <span>Can Enroll Faces</span>
+      </label>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeEditSup()">Cancel</button>
+      <button class="btn btn-or" style="flex:2" onclick="saveSupEdit()"><i class="ti ti-device-floppy"></i>Save Changes</button>
     </div>
   </div>
 </div>
@@ -1108,36 +1183,33 @@ async function loadAppSups() {
     // Always cache — keeps localStorage fresh for Railway restart restores
     localStorage.setItem('bdi_appsups_cache', JSON.stringify(d.supervisors));
     if (!el) return; // called silently from initAdmin — no UI to update
-    el.innerHTML = d.supervisors.map(s => `
+    el.innerHTML = d.supervisors.map(s => {
+      const siteNames = (s.sites||[]).map(id=>{ const st=SITES.find(x=>x.id===id); return st?esc(st.code||st.name):id; }).join(', ')||'<span style="color:#94a3b8">No sites assigned</span>';
+      return `
       <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
-        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="width:44px;height:44px;border-radius:50%;background:${s.approved?'#22c55e':'#f97316'};color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
             ${(s.name||'?')[0].toUpperCase()}
           </div>
           <div style="flex:1;min-width:160px">
             <div style="font-weight:700;font-size:15px">${esc(s.name)}</div>
             <div style="font-size:12px;color:var(--muted)">${esc(s.role||'Supervisor')} · ${esc(s.phone||'No phone')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px"><i class="ti ti-building" style="font-size:11px"></i> ${siteNames}</div>
             <div style="font-size:10px;color:#94a3b8;margin-top:2px">Device: ${esc(s.deviceId)}</div>
-            <div style="font-size:10px;color:#94a3b8">${s.registeredAt?'Registered: '+new Date(s.registeredAt).toLocaleString():''}</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:7px;min-width:170px">
-            <input type="text" value="${esc(s.name)}" id="asn-${s.deviceId}" placeholder="Name"
-              style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:12px;width:100%">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
-              <input type="checkbox" ${s.approved?'checked':''} id="asp-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
-              <span style="color:${s.approved?'#22c55e':'#f97316'}">${s.approved?'✅ Approved':'⏳ Pending'}</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
-              <input type="checkbox" ${s.canEnroll?'checked':''} id="ase-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
-              <span style="color:${s.canEnroll?'var(--blue)':'#94a3b8'}">${s.canEnroll?'🎭 Can Enroll':'🔒 No Enroll'}</span>
-            </label>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-            <button class="btn btn-blue btn-sm" onclick="updateAppSup('${s.deviceId}')"><i class="ti ti-check"></i>Save</button>
-            <button class="btn btn-red btn-sm" onclick="deleteAppSup('${s.deviceId}')"><i class="ti ti-trash"></i>Remove</button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:${s.approved?'#dcfce7':'#ffedd5'};color:${s.approved?'#16a34a':'#f97316'}">${s.approved?'✅ Approved':'⏳ Pending'}</span>
+              ${s.canEnroll?'<span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:#dbeafe;color:#2563eb">🎭 Can Enroll</span>':''}
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-blue btn-sm" onclick="openEditSup('${s.deviceId}')"><i class="ti ti-edit"></i>Edit</button>
+              <button class="btn btn-red btn-sm" onclick="deleteAppSup('${s.deviceId}')"><i class="ti ti-trash"></i></button>
+            </div>
           </div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
     el.innerHTML = `<div class="empty"><i class="ti ti-wifi-off"></i>Error: ${esc(e.message)}</div>`;
   }
@@ -1171,6 +1243,42 @@ async function restoreAppSupsIfEmpty() {
   } catch {}
 }
 
+function openEditSup(deviceId) {
+  const cached = localStorage.getItem('bdi_appsups_cache');
+  const list = cached ? JSON.parse(cached) : [];
+  const s = list.find(x=>x.deviceId===deviceId);
+  if (!s) return;
+  document.getElementById('esup-device-id').value = s.deviceId;
+  document.getElementById('esup-name').value       = s.name||'';
+  document.getElementById('esup-phone').value      = s.phone||'';
+  document.getElementById('esup-approved').checked   = !!s.approved;
+  document.getElementById('esup-can-enroll').checked = !!s.canEnroll;
+  // Set role
+  const roleEl = document.getElementById('esup-role');
+  for (let i=0;i<roleEl.options.length;i++) {
+    if (roleEl.options[i].value===(s.role||'Supervisor')) { roleEl.selectedIndex=i; break; }
+  }
+  // Populate sites multi-select
+  const sel = document.getElementById('esup-sites');
+  sel.innerHTML = SITES.map(st=>`<option value="${esc(st.id)}" ${(s.sites||[]).includes(st.id)?'selected':''}>${esc(st.code||st.name)}</option>`).join('');
+  document.getElementById('edit-sup-modal').style.display='flex';
+}
+function closeEditSup() { document.getElementById('edit-sup-modal').style.display='none'; }
+
+async function saveSupEdit() {
+  const deviceId  = document.getElementById('esup-device-id').value;
+  const name      = document.getElementById('esup-name').value.trim();
+  const phone     = document.getElementById('esup-phone').value.trim();
+  const role      = document.getElementById('esup-role').value;
+  const approved  = document.getElementById('esup-approved').checked;
+  const canEnroll = document.getElementById('esup-can-enroll').checked;
+  const sites     = [...document.getElementById('esup-sites').selectedOptions].map(o=>o.value);
+  if (!name) { toast('Name is required', false); return; }
+  const d = await api('/supervisor/update','POST',{deviceId,name,phone,role,approved,canEnroll,sites});
+  if (d.ok) { closeEditSup(); loadAppSups(); toast(`${name} updated ✓`); }
+  else toast('Update failed', false);
+}
+
 /* ══════════════════════════════════════════════════════════════
    SITES
 ══════════════════════════════════════════════════════════════ */
@@ -1202,6 +1310,7 @@ function renderSites() {
         </div>
         <div style="display:flex;gap:7px;flex-shrink:0;align-items:flex-start">
           <a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" class="btn btn-gray btn-sm"><i class="ti ti-map"></i>Map</a>
+          <button class="btn btn-blue btn-sm" onclick="editSite('${esc(s.id)}')"><i class="ti ti-edit"></i>Edit</button>
           <button class="btn btn-red btn-sm" onclick="delSite('${esc(s.id)}')"><i class="ti ti-trash"></i></button>
         </div>
       </div>
@@ -1233,6 +1342,40 @@ async function delSite(siteId) {
   SITES = SITES.filter(x=>x.id!==siteId);
   renderSites(); populateSiteSelects(); renderDash();
   toast(`${s.name} deleted`, false);
+  await pushAll();
+}
+
+function editSite(siteId) {
+  const s = SITES.find(x=>x.id===siteId);
+  if (!s) return;
+  document.getElementById('edit-site-id').value   = s.id;
+  document.getElementById('edit-site-name').value = s.name||'';
+  document.getElementById('edit-site-code').value = s.code||'';
+  document.getElementById('edit-site-loc').value  = s.loc||s.address||'';
+  document.getElementById('edit-site-lat').value  = s.lat||'';
+  document.getElementById('edit-site-lng').value  = s.lng||'';
+  const r = parseFloat(s.radius||s.radiusMeters||2);
+  document.getElementById('edit-site-radius').value = r;
+  document.getElementById('edit-srad-v').textContent = r.toFixed(1)+' km';
+  document.getElementById('edit-site-modal').style.display = 'flex';
+}
+function closeEditSite() { document.getElementById('edit-site-modal').style.display='none'; }
+
+async function saveSiteEdit() {
+  const id     = document.getElementById('edit-site-id').value;
+  const name   = document.getElementById('edit-site-name').value.trim();
+  const code   = document.getElementById('edit-site-code').value.trim().toUpperCase();
+  const loc    = document.getElementById('edit-site-loc').value.trim();
+  const lat    = parseFloat(document.getElementById('edit-site-lat').value);
+  const lng    = parseFloat(document.getElementById('edit-site-lng').value);
+  const radius = parseFloat(document.getElementById('edit-site-radius').value);
+  if (!name||!code||isNaN(lat)||isNaN(lng)) { toast('Fill all required fields', false); return; }
+  const idx = SITES.findIndex(s=>s.id===id);
+  if (idx<0) return;
+  SITES[idx] = {...SITES[idx], name, code, loc:loc||'UAE', lat, lng, radius};
+  closeEditSite();
+  renderSites(); populateSiteSelects(); renderDash();
+  toast(`${name} updated ✓`);
   await pushAll();
 }
 
@@ -1572,6 +1715,115 @@ function exportManhours() {
     download:`manhours-${new Date().toISOString().slice(0,10)}.csv`
   });
   a.click();
+}
+
+function exportPDF() {
+  const from = document.getElementById('r-from')?.value||'';
+  const to   = document.getElementById('r-to')?.value||'';
+  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-site')?.value||'';
+  const type = document.getElementById('r-type')?.value||'';
+  let list = _reportRecs.filter(r=>
+    (!q||(r.empName||'').toLowerCase().includes(q)||(r.empId||'').toLowerCase().includes(q))&&(!site||r.siteId===site)
+  );
+  let pairs = pairPunches(list);
+  if (type==='in')  pairs = pairs.filter(p=>!p.outR);
+  if (type==='out') pairs = pairs.filter(p=> p.outR);
+  const fmtT = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+  const fmtD = iso => iso ? new Date(iso).toLocaleDateString([],{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const rows = pairs.map(({inR,outR})=>{
+    const durMins = (outR&&inR.time&&outR.time) ? Math.round((new Date(outR.time)-new Date(inR.time))/60000) : null;
+    const dur = durMins!=null ? `${Math.floor(durMins/60)}h ${String(durMins%60).padStart(2,'0')}m` : '—';
+    return `<tr>
+      <td>${esc(inR.empName||'—')}</td><td>${esc(inR.empId||'—')}</td>
+      <td>${fmtD(inR.time)}</td>
+      <td style="color:#16a34a;font-weight:700">${fmtT(inR.time)}</td>
+      <td style="color:#ea580c;font-weight:700">${outR?fmtT(outR.time):'⏳ Active'}</td>
+      <td style="font-weight:600">${dur}</td>
+      <td>${esc(inR.siteName||'—')}</td>
+      <td>${esc(inR.supervisorName||'—')}</td>
+    </tr>`;
+  }).join('');
+  const period = from ? (from+(to&&to!==from?' → '+to:'')) : 'All Dates';
+  const w = window.open('','_blank','width=1100,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>BDI Attendance Report — ${period}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;padding:20px}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e87722}
+    .header h1{font-size:20px;font-weight:800;color:#0f172a}
+    .header p{font-size:11px;color:#64748b;margin-top:3px}
+    .meta{font-size:11px;color:#64748b;text-align:right}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th{background:#0f172a;color:#fff;padding:7px 9px;text-align:left;font-size:10px;letter-spacing:.3px;white-space:nowrap}
+    td{padding:6px 9px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+    tr:nth-child(even) td{background:#f8fafc}
+    .total{font-size:11px;color:#64748b;margin-top:10px;text-align:right}
+    @media print{@page{size:A4 landscape;margin:10mm} button{display:none!important}}
+  </style></head><body>
+  <div class="header">
+    <div><h1>BDI Attendance Report</h1><p>Period: ${period}</p></div>
+    <div class="meta">Generated: ${new Date().toLocaleString()}<br>${pairs.length} record(s)</div>
+  </div>
+  <table>
+    <thead><tr><th>Employee</th><th>ID</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Duration</th><th>Site</th><th>Supervisor</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="total">${pairs.length} total sessions</div>
+  <div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="background:#e87722;color:#fff;border:none;padding:8px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save as PDF</button></div>
+  </body></html>`);
+  w.document.close();
+}
+
+function exportManHoursPDF() {
+  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-hrs-site')?.value||'';
+  let recs = _reportRecs;
+  if (site) recs = recs.filter(r=>r.siteId===site);
+  const data = calcManhours(recs).filter(e=>!q||e.name.toLowerCase().includes(q)||(e.empId||'').toLowerCase().includes(q));
+  const rows = data.map(e=>{
+    const siteNames = e.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    const empObj = EMPS.find(x=>x.uid===e.uid);
+    const hrs = Math.floor(e.totalMins/60), mins = e.totalMins%60;
+    return `<tr>
+      <td style="font-weight:600">${esc(empObj?.name||e.name)}</td>
+      <td>${esc(empObj?.id||e.empId||'—')}</td>
+      <td>${esc(empObj?.dept||e.dept||'—')}</td>
+      <td>${esc(siteNames)}</td>
+      <td style="text-align:center">${e.days}</td>
+      <td style="font-weight:700;color:#0f172a">${hrs}h ${String(mins).padStart(2,'0')}m</td>
+      <td style="text-align:center">${e.sessions.length}</td>
+    </tr>`;
+  }).join('');
+  const from = document.getElementById('r-from')?.value||'';
+  const to   = document.getElementById('r-to')?.value||'';
+  const period = from ? (from+(to&&to!==from?' → '+to:'')) : 'All Dates';
+  const w = window.open('','_blank','width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>BDI Man-Hours Report — ${period}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;padding:20px}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e87722}
+    .header h1{font-size:20px;font-weight:800;color:#0f172a}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th{background:#0f172a;color:#fff;padding:7px 9px;text-align:left;font-size:10px;letter-spacing:.3px}
+    td{padding:6px 9px;border-bottom:1px solid #e2e8f0}
+    tr:nth-child(even) td{background:#f8fafc}
+    @media print{@page{size:A4 portrait;margin:10mm} button{display:none!important}}
+  </style></head><body>
+  <div class="header">
+    <div><h1>BDI Man-Hours Summary</h1><p>Period: ${period}</p></div>
+    <div style="font-size:11px;color:#64748b;text-align:right">Generated: ${new Date().toLocaleString()}<br>${data.length} employee(s)</div>
+  </div>
+  <table>
+    <thead><tr><th>Employee</th><th>ID</th><th>Department</th><th>Sites</th><th>Days</th><th>Total Hours</th><th>Sessions</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="background:#e87722;color:#fff;border:none;padding:8px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save as PDF</button></div>
+  </body></html>`);
+  w.document.close();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1940,6 +2192,20 @@ async function restoreFacesIfEmpty() {
     const r = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
     if (r.ok) toast(`Auto-restored ${r.imported} face encoding(s) after server restart`);
   } catch {}
+}
+
+async function downloadFacePreset() {
+  try {
+    const d = await api('/faces/export');
+    if (!d.ok || !d.count) { toast('No enrolled faces to save as preset', false); return; }
+    const json = JSON.stringify(d.encodings, null, 2);
+    const a = Object.assign(document.createElement('a'), {
+      href: 'data:application/json;charset=utf-8,' + encodeURIComponent(json),
+      download: 'face_encodings_preset.json'
+    });
+    a.click();
+    toast(`Downloaded preset with ${d.count} employee(s) — commit this file to GitHub to persist faces across deploys ✓`);
+  } catch(e) { toast('Export failed: '+e.message, false); }
 }
 
 // loadFaceBackupInfo kept for compatibility

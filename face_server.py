@@ -111,6 +111,7 @@ def attendance_bridge():
 
 # ── Storage ─────────────────────────────────────────────────────────────────
 ENCODINGS_FILE = os.path.join(DATA_DIR, 'face_encodings.json')
+PRESET_FILE    = os.path.join(BASE_DIR, 'face_encodings_preset.json')
 face_db = {}   # uid → list of 128-dim encodings (numpy arrays)
 
 def load_db():
@@ -123,6 +124,18 @@ def load_db():
             log.info(f'Loaded {len(face_db)} enrolled employee(s) from disk')
         except Exception as e:
             log.error(f'Failed to load encodings: {e}')
+            face_db = {}
+    elif os.path.exists(PRESET_FILE):
+        # No live data — load from preset baked into Docker image
+        try:
+            with open(PRESET_FILE, 'r') as f:
+                raw = json.load(f)
+            if raw:
+                face_db = {uid: [np.array(enc) for enc in encs] for uid, encs in raw.items()}
+                save_db()  # persist to DATA_DIR so it becomes the live copy
+                log.info(f'Loaded {len(face_db)} enrolled employee(s) from PRESET')
+        except Exception as e:
+            log.error(f'Failed to load preset: {e}')
             face_db = {}
 
 def save_db():
@@ -387,6 +400,12 @@ def export_encodings():
     secret = request.args.get('secret', '')
     if secret != 'bdi-import-2024':
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
+    raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
+
+@app.route('/faces/export', methods=['GET'])
+def faces_export():
+    """Admin: export current face encodings for preset/backup download."""
     raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
     return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
 
