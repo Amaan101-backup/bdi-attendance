@@ -1023,7 +1023,6 @@ load_app_data()
 load_supervisors()
 load_app_punches()
 load_manual_requests()
-load_schedule()
 
 # ── Sites API ────────────────────────────────────────────────────────────────
 @app.route('/app/sites', methods=['GET'])
@@ -1079,6 +1078,8 @@ def save_schedule():
             json.dump(schedule_by_date, f)
     except Exception as e:
         log.error(f'Failed to save schedule: {e}')
+
+load_schedule()
 
 @app.route('/app/schedule', methods=['GET'])
 def get_schedule():
