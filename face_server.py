@@ -21,6 +21,8 @@ import os
 import io
 import webbrowser
 import threading
+import urllib.request
+import urllib.error
 from PIL import Image, ExifTags
 import logging
 
@@ -408,6 +410,79 @@ def faces_export():
     """Admin: export current face encodings for preset/backup download."""
     raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
     return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
+
+@app.route('/faces/backup', methods=['POST'])
+def faces_backup():
+    """Save current encodings as preset on server AND commit to GitHub."""
+    raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    count = len(raw)
+
+    # ── 1. Save locally as preset (survives next deploy via Docker COPY) ──────
+    local_ok = False
+    try:
+        with open(PRESET_FILE, 'w') as f:
+            json.dump(raw, f)
+        local_ok = True
+        log.info(f'Saved {count} face preset(s) to {PRESET_FILE}')
+    except Exception as e:
+        log.error(f'Failed to save preset locally: {e}')
+
+    # ── 2. Commit face_encodings_preset.json to GitHub ────────────────────────
+    github_token  = os.environ.get('GITHUB_TOKEN', '')
+    github_repo   = os.environ.get('GITHUB_REPO', '')    # e.g. "owner/repo"
+    github_branch = os.environ.get('GITHUB_BRANCH', 'master')
+
+    if not github_token or not github_repo:
+        return jsonify({
+            'ok': True, 'count': count,
+            'local': local_ok, 'github': False,
+            'github_reason': 'GITHUB_TOKEN or GITHUB_REPO not set in Railway env vars'
+        })
+
+    file_path    = 'face_encodings_preset.json'
+    api_url      = f'https://api.github.com/repos/{github_repo}/contents/{file_path}'
+    auth_headers = {
+        'Authorization': f'token {github_token}',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'BDI-Attendance-Server'
+    }
+
+    # Get current file SHA (required for update, omit for create)
+    sha = None
+    try:
+        req = urllib.request.Request(f'{api_url}?ref={github_branch}', headers=auth_headers)
+        with urllib.request.urlopen(req) as r:
+            sha = json.loads(r.read()).get('sha')
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            log.warning(f'GitHub get-sha returned {e.code}')
+
+    # Build commit payload
+    encoded_content = base64.b64encode(json.dumps(raw, indent=2).encode()).decode()
+    payload = {
+        'message': f'Auto-backup: {count} face enrollment(s)',
+        'content': encoded_content,
+        'branch':  github_branch,
+    }
+    if sha:
+        payload['sha'] = sha
+
+    try:
+        body = json.dumps(payload).encode()
+        req  = urllib.request.Request(api_url, data=body, headers=auth_headers, method='PUT')
+        with urllib.request.urlopen(req) as r:
+            resp_data = json.loads(r.read())
+        commit_url = resp_data.get('commit', {}).get('html_url', '')
+        log.info(f'GitHub backup committed: {commit_url}')
+        return jsonify({'ok': True, 'count': count, 'local': local_ok, 'github': True, 'commit_url': commit_url})
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        log.error(f'GitHub commit failed {e.code}: {err}')
+        return jsonify({'ok': True, 'count': count, 'local': local_ok, 'github': False, 'github_reason': f'HTTP {e.code}: {err[:200]}'})
+    except Exception as e:
+        log.error(f'GitHub backup error: {e}')
+        return jsonify({'ok': True, 'count': count, 'local': local_ok, 'github': False, 'github_reason': str(e)})
 
 
 @app.route('/delete', methods=['POST'])

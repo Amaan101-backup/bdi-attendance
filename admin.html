@@ -509,12 +509,28 @@ tr:hover td{background:#f8fafc}
             <button class="btn btn-blue" onclick="restoreAllData()"><i class="ti ti-cloud-upload"></i>Restore All to Server</button>
           </div>
           <div id="full-backup-info" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8">Checking backup…</div>
+
+          <!-- Face → GitHub backup -->
+          <div style="margin-top:14px;border:1px solid #dbeafe;border-radius:10px;padding:14px;background:#f0f9ff">
+            <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:4px"><i class="ti ti-brand-github"></i> Face Enrollment Backup → GitHub</div>
+            <p style="font-size:11px;color:#3b82f6;margin-bottom:10px">Saves enrolled faces to the Railway server AND commits <code>face_encodings_preset.json</code> to GitHub so they survive every future deploy automatically.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-sm" id="github-backup-btn" onclick="backupFacesToGitHub()"
+                style="background:#1e40af;color:#fff;border-color:#1e40af;font-weight:700">
+                <i class="ti ti-brand-github"></i> Backup Faces to GitHub
+              </button>
+              <button class="btn btn-gray btn-sm" onclick="downloadFacePreset()" title="Manual download — commit this file yourself">
+                <i class="ti ti-download"></i> Download Preset File
+              </button>
+            </div>
+            <div id="github-backup-status" style="margin-top:8px;font-size:11px;display:none"></div>
+          </div>
+
           <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
-            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Individual Backup</div>
+            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Browser Backup (localStorage)</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-gray btn-sm" onclick="backupFaces()"><i class="ti ti-download"></i>Faces Only</button>
-              <button class="btn btn-gray btn-sm" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore Faces Only</button>
-              <button class="btn btn-blue btn-sm" onclick="downloadFacePreset()" title="Download face_encodings_preset.json — commit this to GitHub so faces survive every future deploy"><i class="ti ti-database-export"></i>Save as Deploy Preset</button>
+              <button class="btn btn-gray btn-sm" onclick="backupFaces()"><i class="ti ti-download"></i>Faces to Browser</button>
+              <button class="btn btn-gray btn-sm" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore from Browser</button>
             </div>
           </div>
           <div id="face-backup-info" style="margin-top:8px;font-size:11px;color:var(--muted)"></div>
@@ -2192,6 +2208,33 @@ async function restoreFacesIfEmpty() {
     const r = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
     if (r.ok) toast(`Auto-restored ${r.imported} face encoding(s) after server restart`);
   } catch {}
+}
+
+async function backupFacesToGitHub() {
+  const btn = document.getElementById('github-backup-btn');
+  const status = document.getElementById('github-backup-status');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Backing up…';
+  status.style.display = 'none';
+  try {
+    const d = await api('/faces/backup', 'POST');
+    status.style.display = 'block';
+    if (d.github) {
+      status.innerHTML = `<span style="color:#16a34a;font-weight:700">✅ ${d.count} enrollment(s) saved to Railway + committed to GitHub</span>`
+        + (d.commit_url ? ` <a href="${d.commit_url}" target="_blank" style="color:#2563eb;font-size:11px">View commit →</a>` : '');
+    } else if (d.local) {
+      status.innerHTML = `<span style="color:#f97316;font-weight:700">⚠ Saved to Railway server but GitHub push skipped</span><br>`
+        + `<span style="color:#64748b">${d.github_reason||''}</span><br>`
+        + `<span style="color:#64748b;font-size:10px">Add <strong>GITHUB_TOKEN</strong> and <strong>GITHUB_REPO</strong> env vars in Railway to enable GitHub push.</span>`;
+    } else {
+      status.innerHTML = `<span style="color:#ef4444">❌ Backup failed</span>`;
+    }
+  } catch(e) {
+    status.style.display = 'block';
+    status.innerHTML = `<span style="color:#ef4444">❌ Error: ${esc(e.message)}</span>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-brand-github"></i> Backup Faces to GitHub';
 }
 
 async function downloadFacePreset() {
