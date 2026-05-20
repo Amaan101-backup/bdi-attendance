@@ -140,6 +140,58 @@ def load_db():
             log.error(f'Failed to load preset: {e}')
             face_db = {}
 
+def save_preset_and_github():
+    """Save face encodings to preset file locally, then commit to GitHub if configured.
+    Called automatically after every enroll/delete so data is never lost on redeploy."""
+    raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    # Always save to preset file (baked into next Docker image via COPY)
+    try:
+        with open(PRESET_FILE, 'w') as f:
+            json.dump(raw, f)
+        log.info(f'Auto-saved {len(raw)} face(s) to preset file')
+    except Exception as e:
+        log.error(f'Failed to auto-save preset: {e}')
+
+    # Auto-commit to GitHub if env vars are set
+    github_token  = os.environ.get('GITHUB_TOKEN', '')
+    github_repo   = os.environ.get('GITHUB_REPO', '')
+    github_branch = os.environ.get('GITHUB_BRANCH', 'master')
+    if not github_token or not github_repo:
+        return  # GitHub not configured — silent skip
+
+    file_path    = 'face_encodings_preset.json'
+    api_url      = f'https://api.github.com/repos/{github_repo}/contents/{file_path}'
+    auth_headers = {
+        'Authorization': f'token {github_token}',
+        'Accept':        'application/vnd.github.v3+json',
+        'Content-Type':  'application/json',
+        'User-Agent':    'BDI-Attendance-Server'
+    }
+    sha = None
+    try:
+        req = urllib.request.Request(f'{api_url}?ref={github_branch}', headers=auth_headers)
+        with urllib.request.urlopen(req) as r:
+            sha = json.loads(r.read()).get('sha')
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            log.warning(f'GitHub get-sha returned {e.code}')
+    except Exception:
+        pass
+
+    encoded_content = base64.b64encode(json.dumps(raw, indent=2).encode()).decode()
+    payload = {'message': f'Auto-backup: {len(raw)} face enrollment(s)', 'content': encoded_content, 'branch': github_branch}
+    if sha:
+        payload['sha'] = sha
+    try:
+        body = json.dumps(payload).encode()
+        req  = urllib.request.Request(api_url, data=body, headers=auth_headers, method='PUT')
+        with urllib.request.urlopen(req) as r:
+            resp_data = json.loads(r.read())
+        log.info(f'Auto GitHub backup committed: {resp_data.get("commit", {}).get("html_url", "")}')
+    except Exception as e:
+        log.error(f'Auto GitHub backup failed: {e}')
+
+
 def save_db():
     try:
         raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
@@ -231,6 +283,8 @@ def enroll():
 
         save_db()
         log.info(f'Enrolled {name} ({uid}) — {len(face_db[uid])} sample(s) total')
+        # Auto-save preset + GitHub backup so enrollment survives next deploy
+        threading.Thread(target=save_preset_and_github, daemon=True).start()
         return jsonify({'ok': True, 'uid': uid, 'samples': len(face_db[uid])})
 
     except Exception as e:
@@ -485,6 +539,170 @@ def faces_backup():
         return jsonify({'ok': True, 'count': count, 'local': local_ok, 'github': False, 'github_reason': str(e)})
 
 
+@app.route('/backup/full', methods=['GET'])
+def backup_full():
+    """Export complete server snapshot as one JSON — all data needed to fully restore."""
+    raw_faces = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    snapshot = {
+        'version':         '2.0',
+        'timestamp':       __import__('datetime').datetime.utcnow().isoformat() + 'Z',
+        'type':            'bdi_full_backup',
+        'face_encodings':  raw_faces,
+        'employees':       app_data.get('employees', []),
+        'sites':           app_data.get('sites', []),
+        'records':         app_data.get('records', []),
+        'settings':        app_data.get('settings', {}),
+        'ec':              app_data.get('ec', 100),
+        'sc':              app_data.get('sc', 20),
+        'supervisors':     app_supervisors,
+        'schedule':        schedule_by_date,
+        'app_punches':     app_punches,
+        'manual_requests': manual_requests,
+    }
+    return jsonify({'ok': True, 'backup': snapshot, 'stats': {
+        'employees':   len(snapshot['employees']),
+        'sites':       len(snapshot['sites']),
+        'face_encodings': len(raw_faces),
+        'supervisors': len(app_supervisors),
+        'app_punches': len(app_punches),
+        'schedule_dates': len(schedule_by_date),
+        'manual_requests': len(manual_requests),
+    }})
+
+@app.route('/backup/restore', methods=['POST'])
+def backup_restore():
+    """Restore all server data from a /backup/full snapshot."""
+    global app_data, app_supervisors, schedule_by_date, app_punches, manual_requests, face_db
+    data = request.json or {}
+    bk   = data.get('backup', data)  # accept top-level or wrapped
+
+    errors = []
+
+    # Face encodings
+    raw_faces = bk.get('face_encodings', {})
+    if raw_faces:
+        try:
+            face_db = {uid: [np.array(enc) for enc in encs] for uid, encs in raw_faces.items()}
+            save_db()
+            log.info(f'Restored {len(face_db)} face encoding(s)')
+        except Exception as e:
+            errors.append(f'face_encodings: {e}')
+
+    # app_data (employees, sites, records, settings)
+    for field in ['employees', 'sites', 'records', 'settings', 'ec', 'sc']:
+        if field in bk:
+            app_data[field] = bk[field]
+    app_data['version'] = app_data.get('version', 1) + 1
+    save_app_data()
+
+    # Supervisors
+    if 'supervisors' in bk:
+        app_supervisors = bk['supervisors']
+        save_supervisors()
+
+    # Schedule
+    if 'schedule' in bk:
+        schedule_by_date = bk['schedule']
+        save_schedule()
+
+    # App punches
+    if 'app_punches' in bk:
+        app_punches = bk['app_punches']
+        save_app_punches()
+
+    # Manual requests
+    if 'manual_requests' in bk:
+        manual_requests = bk['manual_requests']
+        save_manual_requests()
+
+    log.info('Full server restore complete')
+    return jsonify({
+        'ok': True,
+        'errors': errors,
+        'restored': {
+            'employees':   len(app_data.get('employees', [])),
+            'sites':       len(app_data.get('sites', [])),
+            'face_encodings': len(face_db),
+            'supervisors': len(app_supervisors),
+            'app_punches': len(app_punches),
+            'schedule_dates': len(schedule_by_date),
+        }
+    })
+
+@app.route('/backup/github', methods=['POST'])
+def backup_github():
+    """Commit full backup JSON to GitHub repo."""
+    data     = request.json or {}
+    filename = data.get('filename', 'bdi-full-backup.json')
+
+    # Build snapshot
+    raw_faces = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    snapshot  = {
+        'version':         '2.0',
+        'timestamp':       __import__('datetime').datetime.utcnow().isoformat() + 'Z',
+        'type':            'bdi_full_backup',
+        'face_encodings':  raw_faces,
+        'employees':       app_data.get('employees', []),
+        'sites':           app_data.get('sites', []),
+        'records':         app_data.get('records', []),
+        'settings':        app_data.get('settings', {}),
+        'supervisors':     app_supervisors,
+        'schedule':        schedule_by_date,
+        'app_punches':     app_punches,
+        'manual_requests': manual_requests,
+    }
+
+    github_token  = os.environ.get('GITHUB_TOKEN', '')
+    github_repo   = os.environ.get('GITHUB_REPO', '')
+    github_branch = os.environ.get('GITHUB_BRANCH', 'master')
+
+    if not github_token or not github_repo:
+        return jsonify({'ok': False, 'reason': 'GITHUB_TOKEN or GITHUB_REPO not set in Railway env vars'})
+
+    api_url = f'https://api.github.com/repos/{github_repo}/contents/{filename}'
+    headers = {
+        'Authorization': f'token {github_token}',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'BDI-Attendance-Server',
+    }
+
+    sha = None
+    try:
+        req = urllib.request.Request(f'{api_url}?ref={github_branch}', headers=headers)
+        with urllib.request.urlopen(req) as r:
+            sha = json.loads(r.read()).get('sha')
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            log.warning(f'GitHub get-sha {e.code}')
+
+    content  = base64.b64encode(json.dumps(snapshot, indent=2).encode()).decode()
+    emp_cnt  = len(snapshot['employees'])
+    face_cnt = len(raw_faces)
+    payload  = {
+        'message': f'Auto-backup: {emp_cnt} employees, {face_cnt} faces – {snapshot["timestamp"][:10]}',
+        'content': content,
+        'branch':  github_branch,
+    }
+    if sha:
+        payload['sha'] = sha
+
+    try:
+        body = json.dumps(payload).encode()
+        req  = urllib.request.Request(api_url, data=body, headers=headers, method='PUT')
+        with urllib.request.urlopen(req) as r:
+            resp = json.loads(r.read())
+        commit_url = resp.get('commit', {}).get('html_url', '')
+        log.info(f'Full backup committed: {commit_url}')
+        return jsonify({'ok': True, 'commit_url': commit_url, 'filename': filename,
+                        'stats': {'employees': emp_cnt, 'faces': face_cnt}})
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        return jsonify({'ok': False, 'reason': f'HTTP {e.code}: {err[:300]}'})
+    except Exception as e:
+        return jsonify({'ok': False, 'reason': str(e)})
+
+
 @app.route('/delete', methods=['POST'])
 def delete():
     """Remove a person's encodings from the database."""
@@ -493,6 +711,7 @@ def delete():
         del face_db[uid]
         save_db()
         log.info(f'Deleted encodings for {uid}')
+        threading.Thread(target=save_preset_and_github, daemon=True).start()
         return jsonify({'ok': True})
     return jsonify({'ok': False, 'error': 'UID not found'})
 

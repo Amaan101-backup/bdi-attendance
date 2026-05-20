@@ -305,6 +305,7 @@ tr:hover td{background:#f8fafc}
           <div class="ct"><i class="ti ti-list"></i>Employee Directory
             <span class="ct-action" style="display:flex;gap:7px;align-items:center">
               <span style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
+              <button class="btn btn-gray btn-sm" onclick="loadFaces().then(()=>renderEmps())" title="Refresh face enrollment status"><i class="ti ti-refresh"></i>Face Status</button>
               <button class="btn btn-gray btn-sm" onclick="exportEmps()"><i class="ti ti-download"></i>Export CSV</button>
               <button class="btn btn-gray btn-sm" onclick="downloadEmpTemplate()"><i class="ti ti-file-spreadsheet"></i>Template</button>
               <label class="btn btn-or btn-sm" style="cursor:pointer;margin:0"><i class="ti ti-upload"></i>Import CSV
@@ -327,7 +328,7 @@ tr:hover td{background:#f8fafc}
             </button>
           </div>
           <div class="tw"><table>
-            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th>Face</th><th></th></tr></thead>
             <tbody id="emp-tbl"></tbody>
           </table></div>
         </div>
@@ -402,6 +403,8 @@ tr:hover td{background:#f8fafc}
           <div class="btn-row">
             <button class="btn btn-or" onclick="addSite()"><i class="ti ti-circle-plus"></i>Add Site</button>
             <button class="btn btn-gray" onclick="useMyLoc()"><i class="ti ti-map-pin"></i>Use My GPS</button>
+            <button class="btn btn-blue" onclick="syncSitesToERP()" title="Push all sites directly into the HSE ERP system"><i class="ti ti-refresh"></i>Sync → ERP</button>
+            <button class="btn btn-gray" onclick="exportSitesToERP()" title="Download sites as JSON backup"><i class="ti ti-file-export"></i>Export JSON</button>
           </div>
           <div id="loc-msg" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
         </div>
@@ -545,6 +548,39 @@ tr:hover td{background:#f8fafc}
             </label>
           </div>
         </div>
+        <!-- ── ERP Sync ─────────────────────────────────────── -->
+        <div class="card" id="erp-sync-card">
+          <div class="ct"><i class="ti ti-building-skyscraper" style="color:#3b82f6"></i>ERP Integration — Sync Sites
+            <span class="ct-action">
+              <button class="btn btn-gray btn-sm" onclick="testErpConnection()"><i class="ti ti-plug"></i>Test</button>
+            </span>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            Push all sites from this Attendance system directly into the <strong>HSE ERP</strong> with one click.
+            Sites already in ERP will be skipped automatically.
+          </p>
+          <div style="display:grid;gap:10px;margin-bottom:14px">
+            <div class="fg" style="margin:0">
+              <label>ERP API URL</label>
+              <input id="erp-api-url" placeholder="https://hse-erp-api.ansariaaman99.workers.dev"
+                     value="https://hse-erp-api.ansariaaman99.workers.dev"
+                     style="font-family:'JetBrains Mono',monospace;font-size:12px">
+            </div>
+            <div class="fg" style="margin:0">
+              <label>ERP Session Token <span class="hint">(copy from ERP → browser localStorage: hse_erp_session_token)</span></label>
+              <input id="erp-token" type="password" placeholder="Paste your ERP session token here"
+                     style="font-family:'JetBrains Mono',monospace;font-size:12px">
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-blue" onclick="syncSitesToERP()" id="erp-sync-btn">
+              <i class="ti ti-refresh"></i>Sync Sites → ERP
+            </button>
+            <button class="btn btn-gray" onclick="saveErpConfig()"><i class="ti ti-device-floppy"></i>Save Config</button>
+          </div>
+          <div id="erp-sync-log" style="margin-top:12px;font-size:12px;line-height:1.9;display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;max-height:200px;overflow-y:auto"></div>
+        </div>
+
         <div class="card">
           <div class="ct"><i class="ti ti-info-circle"></i>System Info</div>
           <div id="sys-info" style="font-size:13px;color:var(--muted)">Loading…</div>
@@ -686,6 +722,7 @@ const SERVER = ''; // relative URLs — works whether local or Railway
 ══════════════════════════════════════════════════════════════ */
 let EMPS = [], SITES = [], SUPS = [], RECS = [];
 let _reportRecs = []; // full unfiltered report records
+let FACES = {};        // { empId: sampleCount } — loaded from /faces/export
 
 /* ══════════════════════════════════════════════════════════════
    UTILS
@@ -782,6 +819,18 @@ async function checkServer() {
 /* ══════════════════════════════════════════════════════════════
    LOAD ALL DATA FROM SERVER
 ══════════════════════════════════════════════════════════════ */
+async function loadFaces() {
+  try {
+    const d = await fetch('/faces/export').then(r=>r.json());
+    if (d.ok && d.encodings) {
+      FACES = {};
+      for (const [id, encs] of Object.entries(d.encodings)) {
+        FACES[id] = Array.isArray(encs) ? encs.length : 0;
+      }
+    }
+  } catch(e) { /* silent — face server might not be reachable */ }
+}
+
 async function loadAll() {
   try {
     const d = await api('/data');
@@ -790,21 +839,58 @@ async function loadAll() {
     if (d.sites      && d.sites.length)        SITES = d.sites;
     if (d.supervisors&& d.supervisors.length)  SUPS  = d.supervisors;
     if (d.records    && d.records.length)      RECS  = d.records;
+    loadFaces().then(() => renderEmps()); // refresh face badges after faces load
     renderEmps(); renderSups(); renderSites(); renderDash();
     populateSiteSelects();
-    // Auto-restore from localStorage if server empty
+    // Auto-restore from localStorage if server returned empty data
+    let restored = false;
     if (!d.employees || d.employees.length === 0) {
       const cached = localStorage.getItem('bdi_emp_backup');
-      if (cached) {
-        const emps = JSON.parse(cached);
-        if (emps.length) { EMPS = emps; await pushAll(); toast(`Restored ${emps.length} employees from cache`); renderEmps(); }
+      if (cached) { try { const emps = JSON.parse(cached); if (emps.length) { EMPS = emps; restored = true; } } catch{} }
+    }
+    if (!d.sites || d.sites.length === 0) {
+      // Try full backup first (has all sites), then the simple sites backup
+      const fullBk = localStorage.getItem('bdi_full_backup');
+      if (fullBk) {
+        try {
+          const snap = JSON.parse(fullBk);
+          if ((snap.sites||[]).length) { SITES = snap.sites; restored = true; }
+          if (!EMPS.length && (snap.employees||[]).length) { EMPS = snap.employees; restored = true; }
+          if (!SUPS.length  && (snap.supervisors||[]).length) { SUPS = snap.supervisors; restored = true; }
+        } catch{}
       }
+      if (!SITES.length) {
+        const cached = localStorage.getItem('bdi_sites_backup');
+        if (cached) { try { const sites = JSON.parse(cached); if (sites.length) { SITES = sites; restored = true; } } catch{} }
+      }
+    }
+    if (!d.supervisors || d.supervisors.length === 0) {
+      if (!SUPS.length) {
+        const cached = localStorage.getItem('bdi_sups_backup');
+        if (cached) { try { const sups = JSON.parse(cached); if (sups.length) { SUPS = sups; restored = true; } } catch{} }
+      }
+    }
+    if (restored) {
+      renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+      await pushAll();
+      toast(`Restored ${EMPS.length} employees, ${SITES.length} sites from local backup`);
     }
   } catch(e) {
     // Load from localStorage fallback
-    const cached = localStorage.getItem('bdi_emp_backup');
-    if (cached) { try { EMPS = JSON.parse(cached); renderEmps(); } catch{} }
-    toast('Could not reach server — loaded from cache', false);
+    const fullBk = localStorage.getItem('bdi_full_backup');
+    if (fullBk) {
+      try {
+        const snap = JSON.parse(fullBk);
+        if ((snap.employees||[]).length)   EMPS = snap.employees;
+        if ((snap.sites||[]).length)       SITES = snap.sites;
+        if ((snap.supervisors||[]).length) SUPS  = snap.supervisors;
+        renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+      } catch{}
+    } else {
+      const cached = localStorage.getItem('bdi_emp_backup');
+      if (cached) { try { EMPS = JSON.parse(cached); renderEmps(); } catch{} }
+    }
+    toast('Could not reach server — loaded from local backup', false);
   }
 }
 
@@ -834,6 +920,7 @@ async function initAdmin() {
   loadBackupInfo();
   loadSysInfo();
   loadReport();
+  loadErpConfig();
   // Auto-backup face every 5 min
   setInterval(backupAllData, 5*60*1000);
 }
@@ -953,22 +1040,149 @@ function renderEmps() {
   if (!list.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>${EMPS.length?'No match':'No employees yet — add one above'}</div></td></tr>`; return; }
   tb.innerHTML = list.map(e => {
     const siteNames = (e.sites||[]).map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    const empId = e.id || e.uid;
+    const faceCount = FACES[empId] ?? FACES[(empId||'').toUpperCase()] ?? FACES[(empId||'').toLowerCase()] ?? null;
+    const faceBadge = faceCount != null
+      ? `<span class="bdg" style="background:#dcfce7;color:#16a34a;font-size:10px"><i class="ti ti-scan" style="font-size:11px"></i> ${faceCount} sample${faceCount!==1?'s':''}</span>`
+      : `<span class="bdg bdg-gy" style="font-size:10px"><i class="ti ti-scan-eye" style="font-size:11px"></i> Not enrolled</span>`;
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:32px;height:32px;border-radius:50%;background:rgba(232,119,34,.15);color:var(--or);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(e.name)}</div>
         <div><div style="font-weight:600;color:var(--text)">${esc(e.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(e.phone||'')}</div></div>
       </div></td>
-      <td><span class="bdg bdg-or">${esc(e.id||e.uid)}</span></td>
+      <td><span class="bdg bdg-or">${esc(empId)}</span></td>
       <td><span class="bdg bdg-b">${esc(e.dept||'—')}</span></td>
       <td style="font-size:12px">${esc(e.role||'—')}</td>
       <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
       <td><span class="bdg bdg-gy">Registered</span></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-gray btn-sm" onclick="openEditEmp('${esc(e.uid)}')" style="margin-right:4px"><i class="ti ti-edit"></i></button>
-        <button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')"><i class="ti ti-trash"></i></button>
+      <td>${faceBadge}</td>
+      <td style="white-space:nowrap;display:flex;gap:3px;align-items:center">
+        <button class="btn btn-gray btn-sm" onclick="openEditEmp('${esc(e.uid)}')" title="Edit employee"><i class="ti ti-edit"></i></button>
+        ${faceCount != null ? `<button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe" onclick="exportEmpFace('${esc(empId)}','${esc(e.name)}')" title="Export face encodings"><i class="ti ti-download"></i></button>` : ''}
+        <label class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;cursor:pointer;margin:0" title="Import face encodings from file">
+          <i class="ti ti-upload"></i>
+          <input type="file" accept=".json" style="display:none" onchange="importEmpFace(this,'${esc(empId)}','${esc(e.name)}')">
+        </label>
+        ${faceCount != null ? `<button class="btn btn-sm" style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa" onclick="deleteEmpFace('${esc(empId)}','${esc(e.name)}')" title="Delete face enrollment"><i class="ti ti-face-id-error"></i></button>` : ''}
+        <button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')" title="Delete employee"><i class="ti ti-trash"></i></button>
       </td>
     </tr>`;
   }).join('');
+}
+
+/* ── Per-employee face export ──────────────────────────────────────────────── */
+async function exportEmpFace(empId, empName) {
+  try {
+    const d = await fetch('/faces/export').then(r => r.json());
+    if (!d.ok || !d.encodings) { toast('Could not load face data from server', false); return; }
+
+    // Try exact match, then case-insensitive
+    const encodings = d.encodings[empId]
+                   ?? d.encodings[empId.toUpperCase()]
+                   ?? d.encodings[empId.toLowerCase()];
+
+    if (!encodings || encodings.length === 0) {
+      toast(`${empName} has no face encodings on server`, false);
+      return;
+    }
+
+    const payload = {
+      type: 'face_enrollment',
+      employee_id: empId,
+      employee_name: empName,
+      exported_at: new Date().toISOString(),
+      sample_count: encodings.length,
+      encodings: encodings
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `face-${(empId||'').replace(/[^a-z0-9]/gi,'_')}-${(empName||'').replace(/\s+/g,'_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Face encodings exported for ${empName} (${encodings.length} sample${encodings.length!==1?'s':''})`);
+  } catch(e) {
+    toast('Export failed: ' + e.message, false);
+  }
+}
+
+/* ── Per-employee face import ──────────────────────────────────────────────── */
+async function importEmpFace(input, empId, empName) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    let encodings = null;
+
+    // Format 1: { type:'face_enrollment', employee_id, encodings: [[...], ...] }
+    if (data.type === 'face_enrollment' && Array.isArray(data.encodings)) {
+      encodings = data.encodings;
+    }
+    // Format 2: { "EMP001": [[...], ...] }  (exported from /faces/export)
+    else if (data.encodings && typeof data.encodings === 'object') {
+      encodings = data.encodings[empId]
+               ?? data.encodings[empId.toUpperCase()]
+               ?? data.encodings[empId.toLowerCase()]
+               ?? Object.values(data.encodings)[0]; // fallback: first key in file
+    }
+    // Format 3: raw object { "EMP001": [[...]] }
+    else if (typeof data === 'object' && !Array.isArray(data)) {
+      const val = data[empId] ?? data[empId.toUpperCase()] ?? data[empId.toLowerCase()];
+      if (val) encodings = val;
+    }
+
+    if (!encodings || !encodings.length) {
+      toast(`No face encodings found in file for ${empName}`, false);
+      return;
+    }
+
+    if (!confirm(`Import ${encodings.length} face sample${encodings.length!==1?'s':''} for ${empName} (${empId})?\n\nThis will replace any existing enrollment for this employee.`)) return;
+
+    // POST to /import-faces  { "empId": [[...], ...] }
+    const payload = {};
+    payload[empId] = encodings;
+    const res = await fetch('/import-faces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json());
+
+    if (res.ok) {
+      FACES[empId] = encodings.length;
+      renderEmps();
+      toast(`Face enrollment imported for ${empName} — ${encodings.length} sample${encodings.length!==1?'s':''} ✓`);
+    } else {
+      toast('Import failed: ' + (res.error || 'Server error'), false);
+    }
+  } catch(e) {
+    toast('Import failed: ' + e.message, false);
+  }
+}
+
+/* ── Per-employee face delete ─────────────────────────────────────────────── */
+async function deleteEmpFace(empId, empName) {
+  if (!confirm(`Delete face enrollment for ${empName} (${empId})?\n\nThey will need to re-enroll via the mobile app.`)) return;
+  try {
+    const res = await fetch('/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: empId })
+    }).then(r => r.json());
+    if (res.ok) {
+      delete FACES[empId];
+      renderEmps();
+      toast(`Face enrollment deleted for ${empName}`, false);
+    } else {
+      toast('Delete failed: ' + (res.error || 'Unknown'), false);
+    }
+  } catch(e) {
+    toast('Delete failed: ' + e.message, false);
+  }
 }
 
 async function addEmp() {
@@ -1350,6 +1564,157 @@ async function addSite() {
   renderSites(); populateSiteSelects(); renderDash();
   toast(`${name} added ✓`);
   await pushAll();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ERP SYNC
+══════════════════════════════════════════════════════════════ */
+const ERP_URL_KEY   = 'bdi_erp_api_url';
+const ERP_TOKEN_KEY = 'bdi_erp_token';
+
+function loadErpConfig() {
+  const url   = localStorage.getItem(ERP_URL_KEY)   || 'https://hse-erp-api.ansariaaman99.workers.dev';
+  const token = localStorage.getItem(ERP_TOKEN_KEY) || '';
+  document.getElementById('erp-api-url').value = url;
+  document.getElementById('erp-token').value   = token;
+}
+
+function saveErpConfig() {
+  const url   = document.getElementById('erp-api-url').value.trim().replace(/\/$/, '');
+  const token = document.getElementById('erp-token').value.trim();
+  localStorage.setItem(ERP_URL_KEY,   url);
+  localStorage.setItem(ERP_TOKEN_KEY, token);
+  toast('ERP config saved ✓');
+}
+
+function getErpCreds() {
+  return {
+    url:   (document.getElementById('erp-api-url')?.value || localStorage.getItem(ERP_URL_KEY) || '').trim().replace(/\/$/,''),
+    token: (document.getElementById('erp-token')?.value   || localStorage.getItem(ERP_TOKEN_KEY) || '').trim()
+  };
+}
+
+function erpLog(msg, ok=true) {
+  const el = document.getElementById('erp-sync-log');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML += `<div style="color:${ok?'#16a34a':'#dc2626'}">${ok?'✅':'❌'} ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function testErpConnection() {
+  const { url, token } = getErpCreds();
+  if (!url)   { toast('Enter ERP API URL first', false); return; }
+  if (!token) { toast('Enter ERP Session Token first', false); return; }
+  const el = document.getElementById('erp-sync-log');
+  if (el) { el.style.display='block'; el.innerHTML=''; }
+  erpLog('Testing connection…', true);
+  try {
+    const r = await fetch(`${url}/api/sites`, { headers:{ Authorization:`Bearer ${token}` } });
+    if (r.ok) {
+      const sites = await r.json();
+      erpLog(`Connected ✓ — ERP has ${sites.length} site(s) currently`, true);
+    } else {
+      erpLog(`HTTP ${r.status} — check token or API URL`, false);
+    }
+  } catch(e) {
+    erpLog(`Network error: ${e.message}`, false);
+  }
+}
+
+async function syncSitesToERP() {
+  if (!SITES.length) { toast('No sites to sync', false); return; }
+  const { url, token } = getErpCreds();
+  if (!url)   { toast('Enter ERP API URL in Settings → ERP Integration', false); go('settings'); return; }
+  if (!token) { toast('Enter ERP Session Token in Settings → ERP Integration', false); go('settings'); return; }
+
+  const btn = document.getElementById('erp-sync-btn');
+  if (btn) btn.disabled = true;
+  const el = document.getElementById('erp-sync-log');
+  if (el) { el.style.display='block'; el.innerHTML=''; }
+
+  erpLog(`Starting sync of ${SITES.length} site(s)…`);
+
+  // 1. Fetch existing ERP sites
+  let erpExisting = [];
+  try {
+    const r = await fetch(`${url}/api/sites`, { headers:{ Authorization:`Bearer ${token}` } });
+    if (!r.ok) { erpLog(`Cannot reach ERP API (HTTP ${r.status}) — save config and try again`, false); if(btn) btn.disabled=false; return; }
+    erpExisting = await r.json();
+    erpLog(`ERP currently has ${erpExisting.length} site(s)`);
+  } catch(e) {
+    erpLog(`Connection failed: ${e.message}`, false); if(btn) btn.disabled=false; return;
+  }
+
+  const existingNames = new Set(erpExisting.map(s => (s.ProjectName||'').toLowerCase()));
+  const existingIDs   = new Set(erpExisting.map(s => (s.SiteID||'').toLowerCase()));
+
+  let added=0, skipped=0, failed=0;
+
+  for (const s of SITES) {
+    const workerCount = EMPS.filter(e => (e.sites||[]).includes(s.id)).length;
+    const siteID      = 'SITE-' + (s.code||('ATT'+Date.now())).replace(/[^A-Z0-9]/gi,'').toUpperCase();
+    const name        = s.name || s.code;
+
+    if (existingIDs.has(siteID.toLowerCase()) || existingNames.has(name.toLowerCase())) {
+      erpLog(`⏭ Skipped "${name}" — already in ERP`); skipped++; continue;
+    }
+
+    const payload = {
+      SiteID:           siteID,
+      ProjectName:      name,
+      Location:         (s.loc || s.address || 'UAE') + (s.code ? ` (${s.code})` : ''),
+      ProjectManagerID: 'USR-004',
+      Status:           'Active',
+      SafetyScore:      85,
+      WorkerCount:      workerCount
+    };
+
+    try {
+      const r = await fetch(`${url}/api/sites`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) { erpLog(`Added "${name}" (${siteID})`); added++; }
+      else      { const d=await r.json().catch(()=>({})); erpLog(`Failed "${name}": ${d.error||'HTTP '+r.status}`, false); failed++; }
+    } catch(e) { erpLog(`Error "${name}": ${e.message}`, false); failed++; }
+  }
+
+  erpLog(`Done — ${added} added · ${skipped} skipped · ${failed} failed`, failed===0);
+  toast(failed===0 ? `Synced ${added} site(s) to ERP ✓` : `Sync done with ${failed} error(s)`, failed===0);
+  if (btn) btn.disabled = false;
+}
+
+function exportSitesToERP() {
+  if (!SITES.length) { toast('No sites to export', false); return; }
+  const erpSites = SITES.map((s, i) => {
+    const workerCount = EMPS.filter(e => (e.sites || []).includes(s.id)).length;
+    // Build a clean SiteID from the site code (e.g. AIN-01 → SITE-AIN01)
+    const siteId = 'SITE-' + (s.code || ('ATT' + String(i + 1).padStart(3, '0'))).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    return {
+      SiteID:           siteId,
+      ProjectName:      s.name || s.code,
+      Location:         (s.loc || s.address || 'UAE') + (s.code ? ' (' + s.code + ')' : ''),
+      ProjectManagerID: 'USR-004',
+      Status:           'Active',
+      SafetyScore:      85,
+      WorkerCount:      workerCount,
+      _source:          'attendance-admin',
+      _originalCode:    s.code,
+      _lat:             s.lat,
+      _lng:             s.lng,
+      _radius:          s.radius
+    };
+  });
+  const blob = new Blob([JSON.stringify(erpSites, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'bdi_sites_erp_import.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`Exported ${erpSites.length} sites → bdi_sites_erp_import.json ✓`);
 }
 
 async function delSite(siteId) {
@@ -2136,10 +2501,31 @@ async function restoreAllIfEmpty() {
     const d = await api('/status');
     if (!d.ok) return;
     const dataD = await api('/data');
-    const isEmpty = (dataD.sites||[]).length === 0 && d.enrolled === 0;
-    if (isEmpty) {
+    const sitesEmpty = (dataD.sites||[]).length === 0;
+    const empsEmpty  = (dataD.employees||[]).length === 0;
+    const facesEmpty = d.enrolled === 0;
+    // Restore if app data is missing (sites/employees gone), even if faces still exist
+    if (sitesEmpty || empsEmpty) {
       const hasBk = localStorage.getItem('bdi_full_backup') || localStorage.getItem('bdi_face_backup');
-      if (hasBk) { await restoreAllData(); toast('Auto-restored data after server restart'); }
+      if (hasBk) {
+        const snap = localStorage.getItem('bdi_full_backup');
+        if (snap) {
+          const s = JSON.parse(snap);
+          await api('/data', 'POST', s);
+          if ((s.sites||[]).length)       SITES = s.sites;
+          if ((s.employees||[]).length)   EMPS  = s.employees;
+          if ((s.supervisors||[]).length) SUPS  = s.supervisors;
+          renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+          toast(`Auto-restored: ${(s.employees||[]).length} employees, ${(s.sites||[]).length} sites after server restart`);
+        }
+        if (facesEmpty) {
+          const fBk = localStorage.getItem('bdi_face_backup');
+          if (fBk) {
+            const encodings = JSON.parse(fBk);
+            await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+          }
+        }
+      }
     } else {
       // Server has data — take a fresh backup
       backupAllData();
