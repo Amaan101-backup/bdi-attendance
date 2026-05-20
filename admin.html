@@ -1695,6 +1695,9 @@ async function loadEnrolledFaces() {
           <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:4px" onclick="openEditFaceModal('${uid}','${name.replace(/'/g,"\\'")}','${empId.replace(/'/g,"\\'")}')">
             <i class="ti ti-pencil"></i>Edit
           </button>
+          <button class="btn btn-sm" style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);margin-right:4px" onclick="openLinkModal('${uid}','${name.replace(/'/g,"\'")}',${ onServer})">
+            <i class="ti ti-link"></i>Link
+          </button>
           ${onServer ? `<button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${name.replace(/'/g,"\\'")}')">
             <i class="ti ti-trash"></i>Delete
           </button>` : ''}
@@ -1920,5 +1923,107 @@ document.head.appendChild(style);
     </div>
   </div>
 </div>
+
+<!-- ══ LINK FACE MODAL ══════════════════════════════════════════ -->
+<div id="link-face-modal" onclick="if(event.target===this)closeLinkModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:400px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:9px">
+        <i class="ti ti-link" style="font-size:18px;color:#7c3aed"></i>
+        <span style="font-size:15px;font-weight:700;color:var(--text)">Link Face to Employee</span>
+      </div>
+      <button onclick="closeLinkModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px">&times;</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:18px">
+      Select which employee this face enrollment belongs to. The face UID on the server will be re-keyed to match the selected employee.
+    </p>
+    <input type="hidden" id="link-face-old-uid">
+    <input type="hidden" id="link-face-on-server">
+    <div style="margin-bottom:10px;padding:10px 12px;background:var(--light);border:1px solid var(--border);border-radius:8px;font-size:12px">
+      <span style="color:var(--muted)">Current UID:</span>
+      <strong id="link-face-uid-display" style="font-family:monospace;color:var(--text);margin-left:6px"></strong>
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Select Employee to Link</label>
+      <select id="link-emp-select" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:#fff;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'">
+        <option value="">— Choose employee —</option>
+      </select>
+      <div style="margin-top:6px;font-size:11px;color:var(--muted)">
+        The face will be re-linked to the selected employee's UID so they can be recognized.
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveLinkFace()" style="flex:1;padding:10px;background:#7c3aed;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+        <i class="ti ti-link"></i> Link Employee
+      </button>
+      <button onclick="closeLinkModal()" style="padding:10px 16px;background:var(--light);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   LINK FACE TO EMPLOYEE
+══════════════════════════════════════════════════════════════ */
+function openLinkModal(uid, currentName, onServer) {
+  document.getElementById('link-face-old-uid').value = uid;
+  document.getElementById('link-face-on-server').value = onServer ? '1' : '0';
+  document.getElementById('link-face-uid-display').textContent = uid;
+
+  // Populate employee dropdown — exclude employees already correctly linked
+  const sel = document.getElementById('link-emp-select');
+  sel.innerHTML = '<option value="">— Choose employee —</option>' +
+    EMPS.map(e => `<option value="${esc(e.uid)}">${esc(e.name)} (${esc(e.id||e.uid)})</option>`).join('');
+
+  document.getElementById('link-face-modal').style.display = 'flex';
+  sel.focus();
+}
+
+function closeLinkModal() {
+  document.getElementById('link-face-modal').style.display = 'none';
+}
+
+async function saveLinkFace() {
+  const oldUid  = document.getElementById('link-face-old-uid').value;
+  const newUid  = document.getElementById('link-emp-select').value;
+  const onServer = document.getElementById('link-face-on-server').value === '1';
+
+  if (!newUid) { toast('Please select an employee', false); return; }
+  if (oldUid === newUid) { closeLinkModal(); toast('Already linked to this employee'); return; }
+
+  const emp = EMPS.find(e => e.uid === newUid);
+  if (!emp) { toast('Employee not found', false); return; }
+
+  // 1. Re-key on server if the face is there
+  if (onServer) {
+    try {
+      const d = await api('/rename-face', 'POST', { old_uid: oldUid, new_uid: newUid });
+      if (!d.ok) { toast('Server error: ' + (d.error || 'rename failed'), false); return; }
+    } catch(e) {
+      toast('Server offline — could not re-key face on server', false); return;
+    }
+  }
+
+  // 2. Mark old browser EMPS entry as un-enrolled if uid changed
+  const oldEmp = EMPS.find(e => e.uid === oldUid);
+  if (oldEmp && oldUid !== newUid) {
+    oldEmp.faceReg = false;
+    oldEmp.descriptor = null;
+    oldEmp.descriptors = null;
+  }
+
+  // 3. Mark new employee as face-enrolled
+  emp.faceReg = true;
+  if (!emp.descriptor) emp.descriptor = []; // placeholder so it shows as enrolled
+
+  saveData();
+  closeLinkModal();
+  loadEnrolledFaces();
+  toast(`Linked face to ${emp.name}`);
+}
+</script>
 </body>
 </html>

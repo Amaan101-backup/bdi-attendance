@@ -409,6 +409,28 @@ def list_enrolled():
     return jsonify({'ok': True, 'enrolled': {uid: len(encs) for uid, encs in face_db.items()}})
 
 
+@app.route('/rename-face', methods=['POST'])
+def rename_face():
+    """Re-key a face encoding from old_uid to new_uid (used to link faces to employees)."""
+    old_uid = request.json.get('old_uid', '').strip()
+    new_uid = request.json.get('new_uid', '').strip()
+    if not old_uid or not new_uid:
+        return jsonify({'ok': False, 'error': 'old_uid and new_uid required'})
+    if old_uid not in face_db:
+        return jsonify({'ok': False, 'error': f'UID {old_uid} not found on server'})
+    if old_uid == new_uid:
+        return jsonify({'ok': True, 'message': 'Same UID, nothing changed'})
+    # Merge encodings if new_uid already exists, otherwise move
+    if new_uid in face_db:
+        face_db[new_uid] = (face_db[new_uid] + face_db[old_uid])[-5:]  # keep max 5 samples
+    else:
+        face_db[new_uid] = face_db[old_uid]
+    del face_db[old_uid]
+    save_db()
+    log.info(f'Renamed face UID {old_uid} → {new_uid}')
+    return jsonify({'ok': True, 'old_uid': old_uid, 'new_uid': new_uid})
+
+
 # ── Employee sync (HTML → Python) ────────────────────────────────────────────
 EMPLOYEES_FILE = os.path.join(DATA_DIR, 'employees.json')
 emp_db = []   # list of employee dicts from HTML system
