@@ -1839,9 +1839,7 @@ async function backupAllData() {
 }
 
 async function restoreAllData() {
-  if (!confirm('Restore all backed-up data to server?
-
-This will overwrite server data with your local backup.')) return;
+  if (!confirm('Restore all backed-up data to server?\n\nThis will overwrite server data with your local backup.')) return;
   let msg = [];
   // Restore face encodings
   const fBacked = localStorage.getItem('bdi_face_backup');
