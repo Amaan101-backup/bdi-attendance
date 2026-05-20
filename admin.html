@@ -1987,27 +1987,31 @@ function closeLinkModal() {
 }
 
 async function saveLinkFace() {
-  const oldUid  = document.getElementById('link-face-old-uid').value;
-  const newUid  = document.getElementById('link-emp-select').value;
+  const oldUid   = document.getElementById('link-face-old-uid').value;
+  const newUid   = document.getElementById('link-emp-select').value;
   const onServer = document.getElementById('link-face-on-server').value === '1';
 
   if (!newUid) { toast('Please select an employee', false); return; }
   if (oldUid === newUid) { closeLinkModal(); toast('Already linked to this employee'); return; }
 
-  const emp = EMPS.find(e => e.uid === newUid);
-  if (!emp) { toast('Employee not found', false); return; }
+  // Find or create EMPS entry for the target employee
+  let emp = EMPS.find(e => e.uid === newUid);
+  if (!emp) {
+    emp = { uid: newUid, name: newUid, id: newUid, dept: '', role: '', phone: '', sites: [], faceReg: false };
+    EMPS.push(emp);
+  }
 
-  // 1. Re-key on server if the face is there
+  // 1. Re-key on server (best-effort — don't block link if it fails)
   if (onServer) {
     try {
       const d = await api('/rename-face', 'POST', { old_uid: oldUid, new_uid: newUid });
-      if (!d.ok) { toast('Server error: ' + (d.error || 'rename failed'), false); return; }
+      if (!d.ok) console.warn('rename-face skipped:', d.error);
     } catch(e) {
-      toast('Server offline — could not re-key face on server', false); return;
+      console.warn('Server offline during rename, continuing with local update');
     }
   }
 
-  // 2. Mark old browser EMPS entry as un-enrolled if uid changed
+  // 2. Clear face data from old EMPS entry
   const oldEmp = EMPS.find(e => e.uid === oldUid);
   if (oldEmp && oldUid !== newUid) {
     oldEmp.faceReg = false;
@@ -2015,9 +2019,9 @@ async function saveLinkFace() {
     oldEmp.descriptors = null;
   }
 
-  // 3. Mark new employee as face-enrolled
+  // 3. Mark target employee as enrolled
   emp.faceReg = true;
-  if (!emp.descriptor) emp.descriptor = []; // placeholder so it shows as enrolled
+  if (!emp.descriptor) emp.descriptor = [];
 
   saveData();
   closeLinkModal();
