@@ -35,9 +35,8 @@ except ImportError as e:
 # Serve static files from same directory as this script
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 
-# Data directory — use /app/data on cloud (Railway mounts persistent volume there)
-# Falls back to same directory when running locally
-DATA_DIR  = os.environ.get('DATA_DIR', BASE_DIR)
+# Data directory — /app/data by default so Railway volume mount persists JSON files
+DATA_DIR  = os.environ.get('DATA_DIR', os.path.join(BASE_DIR, 'data'))
 PORT      = int(os.environ.get('PORT', 5000))
 
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -605,7 +604,7 @@ def get_app_data():
         'ok': True,
         'employees':   app_data.get('employees', []),
         'sites':       app_data.get('sites', []),
-        'supervisors': app_data.get('supervisors', []),
+        'supervisors': app_supervisors,
         'records':     merged,
         'settings':    app_data.get('settings', {}),
         'ec':          app_data.get('ec', 100),
@@ -616,9 +615,28 @@ def get_app_data():
 @app.route('/data', methods=['POST'])
 def set_app_data():
     """Device pushes updated app state to server (on any save)."""
-    global app_data
+    global app_data, app_supervisors
     data = request.json
-    app_data = data
+
+    # Merge supervisors into the unified app_supervisors list
+    incoming_sups = data.pop('supervisors', None)
+    if incoming_sups is not None:
+        for s in incoming_sups:
+            did = s.get('deviceId')
+            if did:
+                existing = next((x for x in app_supervisors if x['deviceId'] == did), None)
+                if existing:
+                    existing.update({k: v for k, v in s.items() if k != 'deviceId'})
+                else:
+                    app_supervisors.append(s)
+            # supervisors without deviceId are ERP-only entries; store in app_data
+            else:
+                app_data.setdefault('supervisors', [])
+                if not any(x.get('name') == s.get('name') for x in app_data['supervisors']):
+                    app_data['supervisors'].append(s)
+        save_supervisors()
+
+    app_data.update({k: v for k, v in data.items() if k != 'supervisors'})
     app_data['version'] = app_data.get('version', 1) + 1
     save_app_data()
     log.info(f'App data saved — {len(data.get("employees",[]))} employees, '
@@ -799,6 +817,9 @@ def supervisor_register():
     }
     app_supervisors.append(sup)
     save_supervisors()
+    # Keep app_data version counter ticking so ERP detects the change
+    app_data['version'] = app_data.get('version', 1) + 1
+    save_app_data()
     log.info(f'New supervisor registered: {name} ({device_id})')
     return jsonify({'ok': True, 'supervisor': sup, 'isNew': True})
 
