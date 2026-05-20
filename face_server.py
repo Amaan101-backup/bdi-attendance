@@ -963,7 +963,7 @@ def get_data_version():
 
 
 # ── Full system reset (wipe all employees, sites, faces, punches) ─────────────
-@app.route('/admin/reset-all', methods=['POST'])
+@app.route('/sys/reset-all', methods=['POST'])
 def reset_all():
     """
     Wipe ALL data: employees, sites, face encodings, attendance records, schedules.
