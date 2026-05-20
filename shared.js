@@ -848,9 +848,9 @@ function initSup(){
       <div class="sup-strip-sites">Assigned: ${sup.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'None'}</div>
       <div class="sup-strip-hint">You mark attendance on behalf of your site employees</div>
     </div>`;
-  document.getElementById('sup-strip').innerHTML=stripHTML;
-  document.getElementById('sup-strip2').innerHTML=stripHTML;
-  document.getElementById('sup-strip-enr').innerHTML=stripHTML;
+  ['sup-strip','sup-strip2','sup-strip-enr','sup-strip-sch','sup-strip-rep'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.innerHTML=stripHTML;
+  });
   const mySiteOpts='<option value="">— Select your active site —</option>'+
     SITES.filter(s=>sup.sites.includes(s.id)).map(s=>`<option value="${s.id}">${s.name} (${s.code})</option>`).join('');
   document.getElementById('s-site-sel').innerHTML=mySiteOpts;
@@ -859,11 +859,14 @@ function initSup(){
 }
 
 function sTab(t){
-  ['mark','enroll','bulk','log'].forEach(k=>document.getElementById('sp-'+k).classList.toggle('active',k===t));
-  document.querySelectorAll('#scr-sup .stab').forEach((b,i)=>b.classList.toggle('active',['mark','enroll','bulk','log'][i]===t));
+  const tabs=['mark','enroll','bulk','schedule','log','sup-report'];
+  tabs.forEach(k=>{const el=document.getElementById('sp-'+k);if(el)el.classList.toggle('active',k===t);});
+  document.querySelectorAll('#scr-sup .stab').forEach((b,i)=>b.classList.toggle('active',tabs[i]===t));
   if(t==='log')renderMyLog();
   if(t==='bulk')renderBList();
   if(t==='enroll')initEnroll();
+  if(t==='schedule')loadScheduleView();
+  if(t==='sup-report'){rpInitSites();rpSetPeriod('today');}
 }
 
 function sSiteChange(){

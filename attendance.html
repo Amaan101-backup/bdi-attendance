@@ -81,7 +81,9 @@
     <button class="stab active" onclick="sTab('mark')"><i class="ti ti-face-id"></i> Face + Geo Mark</button>
     <button class="stab" onclick="sTab('enroll')"><i class="ti ti-user-plus"></i> Enrollment</button>
     <button class="stab" onclick="sTab('bulk')"><i class="ti ti-list-check"></i> Bulk / Manual</button>
+    <button class="stab" onclick="sTab('schedule')"><i class="ti ti-calendar-check"></i> Schedule</button>
     <button class="stab" onclick="sTab('log')"><i class="ti ti-history"></i> My Log</button>
+    <button class="stab" onclick="sTab('sup-report')"><i class="ti ti-file-analytics"></i> Report</button>
   </div>
   <div class="shell">
 
@@ -227,6 +229,67 @@
       </div>
     </div>
 
+    <!-- SCHEDULE -->
+    <div id="sp-schedule" class="page">
+      <div id="sup-strip-sch" class="sup-strip"></div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          <span><i class="ti ti-calendar-check"></i> Today's Schedule vs Attendance</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" id="sch-date" style="border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;font-size:11px;color:var(--navy)" onchange="loadScheduleView()">
+            <button class="btn sm n" onclick="loadScheduleView()"><i class="ti ti-refresh"></i> Refresh</button>
+          </div>
+        </div>
+        <div id="sch-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"></div>
+      </div>
+      <div id="sch-table-wrap" class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>ID</th><th>Designation</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead>
+          <tbody id="sch-tbody"></tbody>
+        </table></div>
+        <div id="sch-empty" style="display:none;text-align:center;padding:40px;color:var(--gray);font-size:13px">
+          <i class="ti ti-calendar-off" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i>
+          No schedule found for this date. Sync from admin portal to push schedule.
+        </div>
+      </div>
+    </div>
+
+    <!-- SUPERVISOR REPORT -->
+    <div id="sp-sup-report" class="page">
+      <div id="sup-strip-rep" class="sup-strip"></div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-lbl"><i class="ti ti-file-analytics"></i> Attendance Report</div>
+        <!-- Period buttons -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn sm o" id="rp-btn-today"  onclick="rpSetPeriod('today')">Today</button>
+          <button class="btn sm n" id="rp-btn-week"   onclick="rpSetPeriod('week')">This Week</button>
+          <button class="btn sm n" id="rp-btn-month"  onclick="rpSetPeriod('month')">This Month</button>
+          <button class="btn sm n" id="rp-btn-custom" onclick="rpSetPeriod('custom')">Custom</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="date" id="rp-start" style="border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;font-size:11px;color:var(--navy)">
+          <span style="color:var(--gray);font-size:11px">—</span>
+          <input type="date" id="rp-end"   style="border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;font-size:11px;color:var(--navy)">
+          <select id="rp-site" style="border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;font-size:11px;color:var(--navy)">
+            <option value="">All My Sites</option>
+          </select>
+          <button class="btn sm o" onclick="loadSupReport()"><i class="ti ti-search"></i> Load</button>
+          <button class="btn sm n" id="rp-export-btn" onclick="exportSupReport()" style="display:none"><i class="ti ti-download"></i> CSV</button>
+        </div>
+      </div>
+      <div id="rp-summary" style="display:none;background:var(--off);border-radius:var(--r);padding:10px 14px;margin-bottom:10px;display:none;gap:20px;font-size:12px;border:1px solid var(--border)"></div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>ID</th><th>Name</th><th>Designation</th><th>Site</th><th>Total Hrs</th><th>Check In</th><th>Check Out</th></tr></thead>
+          <tbody id="rp-tbody"></tbody>
+        </table></div>
+        <div id="rp-empty" style="display:none;text-align:center;padding:40px;color:var(--gray);font-size:13px">
+          <i class="ti ti-inbox" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i>
+          No records found. Select a period and click Load.
+        </div>
+      </div>
+    </div>
+
     <!-- MY LOG -->
     <div id="sp-log" class="page">
       <div class="stats-row" id="my-stats"></div>
@@ -258,7 +321,285 @@
     if (rca) rca.style.display = 'none';
     if (rce) rce.style.display = 'none';
     setRole('supervisor');
+    // Init schedule date to today
+    const schDate = document.getElementById('sch-date');
+    if (schDate) schDate.value = new Date().toISOString().slice(0,10);
   };
+
+  /* ═══════════════ SCHEDULE VIEW ═══════════════ */
+  async function loadScheduleView() {
+    const dateEl = document.getElementById('sch-date');
+    const date = dateEl ? dateEl.value : new Date().toISOString().slice(0,10);
+    const tbody = document.getElementById('sch-tbody');
+    const empty = document.getElementById('sch-empty');
+    const stats = document.getElementById('sch-stats');
+    if (!tbody) return;
+
+    // Get supervisor's sites
+    const sup = curUser;
+    const mySiteIds = sup ? (sup.sites || []) : [];
+
+    // Fetch schedule from server for all supervisor sites
+    let scheduled = [];
+    for (const siteId of mySiteIds) {
+      try {
+        const r = await fetch(`${PY_SERVER}/app/schedule?date=${date}&siteId=${encodeURIComponent(siteId)}`);
+        const d = await r.json();
+        if (d.ok && d.employees && d.employees.length) {
+          const siteName = SITES.find(s=>s.id===siteId)?.name || siteId;
+          d.employees.forEach(e => scheduled.push({...e, siteId, siteName}));
+        }
+      } catch(e) { /* server offline */ }
+    }
+
+    // Fallback: use EMPS assigned to supervisor's sites if no schedule from server
+    if (!scheduled.length) {
+      EMPS.filter(e => (e.sites||[]).some(sid => mySiteIds.includes(sid))).forEach(e => {
+        const siteId = (e.sites||[]).find(sid => mySiteIds.includes(sid)) || '';
+        scheduled.push({ uid: e.uid, name: e.name, empId: e.id||e.uid, designation: e.role||'', siteId, siteName: SITES.find(s=>s.id===siteId)?.name||'' });
+      });
+    }
+
+    if (!scheduled.length) {
+      tbody.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      if (stats) stats.innerHTML = '';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    // Get today's punch records
+    const dayStart = new Date(date + 'T00:00:00').getTime();
+    const dayEnd   = new Date(date + 'T23:59:59').getTime();
+    const dayRecs  = RECS.filter(r => {
+      const t = r.time instanceof Date ? r.time.getTime() : new Date(r.time).getTime();
+      return t >= dayStart && t <= dayEnd;
+    });
+
+    let cntIn=0, cntOut=0, cntMissing=0;
+    tbody.innerHTML = scheduled.map(emp => {
+      const empRecs = dayRecs.filter(r => r.empUid === emp.uid);
+      const inRec   = empRecs.filter(r=>r.type==='in').sort((a,b)=>new Date(a.time)-new Date(b.time))[0];
+      const outRec  = empRecs.filter(r=>r.type==='out').sort((a,b)=>new Date(b.time)-new Date(a.time))[0];
+      let status, statusHtml;
+      if (inRec && outRec) {
+        status = 'done'; cntOut++;
+        statusHtml = `<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">✓ In &amp; Out</span>`;
+      } else if (inRec) {
+        status = 'in'; cntIn++;
+        statusHtml = `<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">⏳ Checked In</span>`;
+      } else {
+        status = 'missing'; cntMissing++;
+        statusHtml = `<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">✗ Not Punched</span>`;
+      }
+      const fmtT = iso => iso ? new Date(iso instanceof Date ? iso : iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+      const inTime  = inRec  ? fmtT(inRec.time)  : '<span style="color:#ccc">—</span>';
+      const outTime = outRec ? fmtT(outRec.time) : (inRec ? '<span style="color:#f59e0b;font-size:10px">Active</span>' : '<span style="color:#ccc">—</span>');
+      return `<tr>
+        <td><strong>${esc(emp.name)}</strong><div style="font-size:10px;color:#888">${esc(emp.siteName||'')}</div></td>
+        <td><span style="font-family:monospace;font-size:11px;color:#64748b">${esc(emp.empId||emp.uid)}</span></td>
+        <td style="font-size:11px;color:#64748b">${esc(emp.designation||'—')}</td>
+        <td style="font-size:12px">${inTime}</td>
+        <td style="font-size:12px">${outTime}</td>
+        <td>${statusHtml}</td>
+      </tr>`;
+    }).join('');
+
+    if (stats) stats.innerHTML = `
+      <div style="background:#dcfce7;color:#15803d;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">${cntOut} Completed</div>
+      <div style="background:#fef9c3;color:#a16207;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">${cntIn} Active</div>
+      <div style="background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">${cntMissing} Not Punched</div>
+      <div style="background:#f1f5f9;color:#475569;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">${scheduled.length} Scheduled</div>`;
+  }
+
+  /* ═══════════════ SUPERVISOR REPORT ═══════════════ */
+  let _rpData = [];
+
+  function rpInitSites() {
+    const sel = document.getElementById('rp-site');
+    if (!sel || !curUser) return;
+    const mySiteIds = curUser.sites || [];
+    sel.innerHTML = '<option value="">All My Sites</option>' +
+      SITES.filter(s => mySiteIds.includes(s.id))
+           .map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  }
+
+  function rpSetPeriod(period) {
+    const today = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    let start, end;
+    if (period === 'today') {
+      start = end = fmt(today);
+    } else if (period === 'week') {
+      const dow = today.getDay();
+      start = fmt(new Date(today.getTime() - dow*86400000));
+      end   = fmt(new Date(today.getTime() + (6-dow)*86400000));
+    } else if (period === 'month') {
+      start = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+      end   = fmt(new Date(today.getFullYear(), today.getMonth()+1, 0));
+    } else {
+      // custom — just activate button, don't change dates
+      ['today','week','month','custom'].forEach(p => {
+        const b = document.getElementById('rp-btn-'+p);
+        if (b) { b.className = p === period ? 'btn sm o' : 'btn sm n'; }
+      });
+      return;
+    }
+    document.getElementById('rp-start').value = start;
+    document.getElementById('rp-end').value   = end;
+    ['today','week','month','custom'].forEach(p => {
+      const b = document.getElementById('rp-btn-'+p);
+      if (b) b.className = p === period ? 'btn sm o' : 'btn sm n';
+    });
+    loadSupReport();
+  }
+
+  async function loadSupReport() {
+    const start   = document.getElementById('rp-start').value;
+    const end     = document.getElementById('rp-end').value;
+    const siteId  = document.getElementById('rp-site').value;
+    const tbody   = document.getElementById('rp-tbody');
+    const empty   = document.getElementById('rp-empty');
+    const summary = document.getElementById('rp-summary');
+    if (!start || !end || !tbody) return;
+
+    // Limit to supervisor's own sites
+    const sup = curUser;
+    const mySiteIds = sup ? (sup.sites || []) : [];
+    const effectiveSite = siteId && mySiteIds.includes(siteId) ? siteId : '';
+
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;font-size:12px"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Loading…</td></tr>';
+    if (empty) empty.style.display = 'none';
+
+    let data = [];
+    try {
+      const params = new URLSearchParams({ start, end });
+      if (effectiveSite) params.set('siteId', effectiveSite);
+      const r = await fetch(`${PY_SERVER}/app/report?${params}`);
+      const d = await r.json();
+      if (d.ok) data = d.report || [];
+    } catch(e) {
+      // Fallback: compute from local RECS
+      data = _buildLocalReport(start, end, effectiveSite, mySiteIds);
+    }
+
+    // Filter to supervisor's sites only
+    if (mySiteIds.length && !effectiveSite) {
+      data = data.filter(e => {
+        // Keep if any session has a siteId in supervisor's sites, or if siteName matches
+        return mySiteIds.some(sid => {
+          const site = SITES.find(s=>s.id===sid);
+          return e.siteName === (site?.name||'') || e.sessions?.some(s=>s.checkIn?.siteId===sid||s.checkOut?.siteId===sid);
+        });
+      });
+    }
+
+    _rpData = data;
+    const expBtn = document.getElementById('rp-export-btn');
+    if (expBtn) expBtn.style.display = data.length ? 'inline-flex' : 'none';
+
+    if (!data.length) {
+      tbody.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      if (summary) summary.style.display = 'none';
+      return;
+    }
+
+    const totalHours = data.reduce((s,e)=>s+e.totalHours,0);
+    const normalHours = data.reduce((s,e)=>s+Math.min(e.totalHours,9),0);
+    const otHours = data.reduce((s,e)=>s+Math.max(0,e.totalHours-9),0);
+    if (summary) {
+      summary.style.display = 'flex';
+      summary.innerHTML = `
+        <span style="font-weight:600">${data.length} employees</span>
+        <span>Total: <strong>${totalHours.toFixed(1)}h</strong></span>
+        <span>Normal: <strong>${normalHours.toFixed(1)}h</strong></span>
+        <span style="color:#dc2626">OT: <strong>${otHours.toFixed(1)}h</strong></span>`;
+    }
+
+    const fmtT = iso => {
+      if (!iso) return '—';
+      try { return new Date(iso instanceof Date ? iso : iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); } catch { return '—'; }
+    };
+    const fmtH = h => { const hh=Math.floor(h),mm=Math.round((h-hh)*60); return mm?`${hh}h ${mm}m`:`${hh}h`; };
+
+    tbody.innerHTML = data.flatMap(e =>
+      e.sessions.map((s, si) => {
+        const inT  = fmtT(s.checkIn?.time);
+        const outT = fmtT(s.checkOut?.time);
+        const inGps  = s.checkIn?.lat  != null ? `<a href="https://maps.google.com/?q=${s.checkIn.lat},${s.checkIn.lng}" target="_blank" style="color:#3b82f6;font-size:10px">📍 ${s.checkIn.lat.toFixed(4)},${s.checkIn.lng.toFixed(4)}</a>` : '';
+        const outGps = s.checkOut?.lat != null ? `<a href="https://maps.google.com/?q=${s.checkOut.lat},${s.checkOut.lng}" target="_blank" style="color:#3b82f6;font-size:10px">📍 ${s.checkOut.lat.toFixed(4)},${s.checkOut.lng.toFixed(4)}</a>` : '';
+        const firstRow = si === 0;
+        const rowSpan  = e.sessions.length;
+        return `<tr>
+          ${firstRow ? `
+          <td rowspan="${rowSpan}" style="font-family:monospace;font-size:11px;color:#64748b">${esc(e.empId||e.empUid)}</td>
+          <td rowspan="${rowSpan}" style="font-weight:600;color:#1e293b">${esc(e.empName)}</td>
+          <td rowspan="${rowSpan}" style="font-size:11px;color:#64748b">${esc(e.designation||'—')}</td>
+          <td rowspan="${rowSpan}" style="font-size:11px;color:#64748b">${esc(e.siteName||'—')}</td>
+          <td rowspan="${rowSpan}" style="font-weight:700;color:#1e293b">${fmtH(e.totalHours)}</td>` : ''}
+          <td>
+            <div style="font-size:12px;font-weight:600;color:#16a34a">${inT}</div>
+            ${inGps}
+          </td>
+          <td>
+            <div style="font-size:12px;font-weight:600;color:#475569">${outT !== '—' ? outT : '<span style="color:#f59e0b;font-size:10px">⏳ Active</span>'}</div>
+            ${outGps}
+          </td>
+        </tr>`;
+      })
+    ).join('');
+  }
+
+  function _buildLocalReport(start, end, siteId, mySiteIds) {
+    const s0 = new Date(start+'T00:00:00').getTime();
+    const e0 = new Date(end+'T23:59:59').getTime();
+    let recs = RECS.filter(r => {
+      const t = r.time instanceof Date ? r.time.getTime() : new Date(r.time).getTime();
+      return t >= s0 && t <= e0 && (mySiteIds.length===0 || mySiteIds.includes(r.siteId)) && (!siteId || r.siteId===siteId);
+    });
+    const byEmp = {};
+    recs.forEach(r => {
+      if (!byEmp[r.empUid]) byEmp[r.empUid] = {ins:[],outs:[],name:r.empName||r.empUid,site:r.siteName||''};
+      if (r.type==='in') byEmp[r.empUid].ins.push(r);
+      else byEmp[r.empUid].outs.push(r);
+    });
+    return Object.entries(byEmp).map(([uid,d]) => {
+      const ins  = d.ins.sort((a,b)=>new Date(a.time)-new Date(b.time));
+      const outs = d.outs.sort((a,b)=>new Date(a.time)-new Date(b.time));
+      const maxP = Math.max(ins.length,outs.length);
+      let totalMins=0; const sessions=[];
+      for(let i=0;i<maxP;i++){
+        const ir=ins[i]||null, or=outs[i]||null;
+        let mins=0;
+        if(ir&&or){mins=Math.max(0,(new Date(or.time)-new Date(ir.time))/60000);totalMins+=mins;}
+        sessions.push({checkIn:ir?{...ir,time:ir.time instanceof Date?ir.time.toISOString():ir.time}:null,checkOut:or?{...or,time:or.time instanceof Date?or.time.toISOString():or.time}:null,minutes:Math.round(mins)});
+      }
+      const emp = EMPS.find(e=>e.uid===uid)||{};
+      return {empUid:uid,empId:emp.id||emp.empId||uid,empName:d.name,designation:emp.role||'',dept:emp.dept||'',siteName:d.site,totalHours:Math.round(totalMins/60*100)/100,totalMinutes:Math.round(totalMins),sessions};
+    }).sort((a,b)=>a.empName.localeCompare(b.empName));
+  }
+
+  function exportSupReport() {
+    if (!_rpData.length) return;
+    const rows = [['ID','Name','Designation','Site','Total Hours','Check In Time','Check In GPS','Check Out Time','Check Out GPS']];
+    _rpData.forEach(e => {
+      e.sessions.forEach(s => {
+        const fmtT = iso => iso ? new Date(iso instanceof Date?iso:iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+        rows.push([
+          e.empId, e.empName, e.designation, e.siteName,
+          e.totalHours.toFixed(2),
+          fmtT(s.checkIn?.time), s.checkIn?.lat!=null?`${s.checkIn.lat},${s.checkIn.lng}`:'',
+          fmtT(s.checkOut?.time), s.checkOut?.lat!=null?`${s.checkOut.lat},${s.checkOut.lng}`:'',
+        ]);
+      });
+    });
+    const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download=`bdi-report-${document.getElementById('rp-start').value}-to-${document.getElementById('rp-end').value}.csv`;
+    a.click();
+  }
 </script>
 </body>
 </html>

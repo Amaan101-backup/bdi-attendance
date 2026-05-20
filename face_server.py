@@ -1023,6 +1023,168 @@ load_app_data()
 load_supervisors()
 load_app_punches()
 load_manual_requests()
+load_schedule()
+
+# ── Sites API ────────────────────────────────────────────────────────────────
+@app.route('/app/sites', methods=['GET'])
+def get_sites():
+    """Return current sites list from app_data."""
+    return jsonify({'ok': True, 'sites': app_data.get('sites', [])})
+
+@app.route('/app/sites', methods=['POST'])
+def set_sites():
+    """Bulk-replace sites from ERP sync."""
+    global app_data
+    sites = request.json.get('sites', [])
+    app_data['sites'] = sites
+    app_data['version'] = app_data.get('version', 1) + 1
+    save_app_data()
+    log.info(f'Sites synced from ERP: {len(sites)} sites')
+    return jsonify({'ok': True, 'count': len(sites)})
+
+@app.route('/app/sites/<site_id>', methods=['PUT'])
+def update_site(site_id):
+    """Edit a single site."""
+    global app_data
+    data  = request.json or {}
+    sites = app_data.get('sites', [])
+    idx   = next((i for i, s in enumerate(sites) if s.get('id') == site_id), None)
+    if idx is None:
+        return jsonify({'ok': False, 'error': 'Site not found'}), 404
+    sites[idx].update({k: v for k, v in data.items() if k != 'id'})
+    app_data['sites'] = sites
+    app_data['version'] = app_data.get('version', 1) + 1
+    save_app_data()
+    log.info(f'Site updated: {site_id}')
+    return jsonify({'ok': True, 'site': sites[idx]})
+
+
+# ── Schedule Storage ──────────────────────────────────────────────────────────
+SCHEDULE_FILE = os.path.join(DATA_DIR, 'schedule.json')
+schedule_by_date = {}  # date -> { siteId -> [{uid, name, empId, designation}, ...] }
+
+def load_schedule():
+    global schedule_by_date
+    if os.path.exists(SCHEDULE_FILE):
+        try:
+            with open(SCHEDULE_FILE, 'r') as f:
+                schedule_by_date = json.load(f)
+            log.info(f'Loaded schedule for {len(schedule_by_date)} date(s)')
+        except Exception as e:
+            log.error(f'Failed to load schedule: {e}')
+
+def save_schedule():
+    try:
+        with open(SCHEDULE_FILE, 'w') as f:
+            json.dump(schedule_by_date, f)
+    except Exception as e:
+        log.error(f'Failed to save schedule: {e}')
+
+@app.route('/app/schedule', methods=['GET'])
+def get_schedule():
+    date    = request.args.get('date', '')
+    site_id = request.args.get('siteId', '')
+    if not date:
+        return jsonify({'ok': False, 'error': 'date required'}), 400
+    day = schedule_by_date.get(date, {})
+    if site_id:
+        return jsonify({'ok': True, 'employees': day.get(site_id, []), 'date': date, 'siteId': site_id})
+    return jsonify({'ok': True, 'schedule': day, 'date': date})
+
+@app.route('/app/schedule', methods=['POST'])
+def set_schedule():
+    data      = request.json
+    date      = data.get('date', '')
+    site_id   = data.get('siteId', '')
+    employees = data.get('employees', [])  # [{uid,name,empId,designation}]
+    if not date or not site_id:
+        return jsonify({'ok': False, 'error': 'date and siteId required'}), 400
+    if date not in schedule_by_date:
+        schedule_by_date[date] = {}
+    schedule_by_date[date][site_id] = employees
+    save_schedule()
+    log.info(f'Schedule saved: {date} site={site_id} → {len(employees)} employees')
+    return jsonify({'ok': True, 'count': len(employees)})
+
+
+# ── Attendance Report ─────────────────────────────────────────────────────────
+@app.route('/app/report', methods=['GET'])
+def get_report():
+    from datetime import datetime
+    from collections import defaultdict
+
+    start   = request.args.get('start', '')   # YYYY-MM-DD
+    end     = request.args.get('end', '')      # YYYY-MM-DD
+    site_id = request.args.get('siteId', '')
+
+    def in_range(rec):
+        t = rec.get('time', '')
+        if start and t < start:
+            return False
+        if end and t > end + 'T99:99:99':
+            return False
+        return True
+
+    records = [r for r in app_punches if in_range(r)
+               and (not site_id or r.get('siteId') == site_id)]
+
+    emp_lookup = {}
+    for e in emp_db:
+        uid = e.get('uid') or e.get('id', '')
+        if uid:
+            emp_lookup[uid] = e
+
+    emp_data = defaultdict(lambda: {'ins': [], 'outs': [], 'name': '', 'siteName': ''})
+    for r in records:
+        uid = r.get('empUid', '')
+        if not uid:
+            continue
+        if r.get('type') == 'in':
+            emp_data[uid]['ins'].append(r)
+        else:
+            emp_data[uid]['outs'].append(r)
+        if r.get('empName'):
+            emp_data[uid]['name'] = r['empName']
+        if r.get('siteName'):
+            emp_data[uid]['siteName'] = r['siteName']
+
+    result = []
+    for uid, d in emp_data.items():
+        emp  = emp_lookup.get(uid, {})
+        ins  = sorted(d['ins'],  key=lambda x: x.get('time', ''))
+        outs = sorted(d['outs'], key=lambda x: x.get('time', ''))
+        max_pairs  = max(len(ins), len(outs)) if (ins or outs) else 0
+        total_mins = 0
+        sessions   = []
+        for i in range(max_pairs):
+            in_rec  = ins[i]  if i < len(ins)  else None
+            out_rec = outs[i] if i < len(outs) else None
+            mins = 0
+            if in_rec and out_rec:
+                try:
+                    t_in  = datetime.fromisoformat(in_rec['time'].replace('Z', '+00:00'))
+                    t_out = datetime.fromisoformat(out_rec['time'].replace('Z', '+00:00'))
+                    mins  = max(0, (t_out - t_in).total_seconds() / 60)
+                    total_mins += mins
+                except Exception:
+                    pass
+            sessions.append({'checkIn': in_rec, 'checkOut': out_rec, 'minutes': round(mins)})
+
+        result.append({
+            'empUid':       uid,
+            'empId':        emp.get('empId') or emp.get('id') or uid,
+            'empName':      d['name'] or uid,
+            'designation':  emp.get('role') or emp.get('designation', ''),
+            'dept':         emp.get('dept', ''),
+            'siteName':     d['siteName'],
+            'totalMinutes': round(total_mins),
+            'totalHours':   round(total_mins / 60, 2),
+            'sessions':     sessions,
+        })
+
+    result.sort(key=lambda x: x['empName'])
+    return jsonify({'ok': True, 'report': result, 'count': len(result)})
+
 
 if __name__ == '__main__':
     print("\n" + "="*60)
