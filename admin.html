@@ -493,15 +493,28 @@ tr:hover td{background:#f8fafc}
         </div>
 
         <div class="card">
-          <div class="ct"><i class="ti ti-face-id"></i>Face Encoding Backup</div>
+          <div class="ct"><i class="ti ti-database-export"></i>Full Server Backup
+            <span class="ct-action">
+              <button class="btn btn-gray btn-sm" onclick="loadBackupInfo()"><i class="ti ti-refresh"></i>Refresh</button>
+            </span>
+          </div>
           <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
-            Railway wipes server data on every redeploy. Use these buttons to backup face data to your browser and restore after restart.
+            Railway wipes <strong>all server data</strong> (sites, employees, supervisors, face encodings) on every redeploy.
+            Click <strong>Backup All</strong> to save everything to your browser, then <strong>Restore All</strong> after any redeploy.
           </p>
           <div class="btn-row">
-            <button class="btn btn-or" onclick="backupFaces()"><i class="ti ti-download"></i>Backup Face Data Now</button>
-            <button class="btn btn-blue" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore to Server</button>
+            <button class="btn btn-or" onclick="backupAllData()"><i class="ti ti-device-floppy"></i>Backup All Now</button>
+            <button class="btn btn-blue" onclick="restoreAllData()"><i class="ti ti-cloud-upload"></i>Restore All to Server</button>
           </div>
-          <div id="face-backup-info" style="margin-top:10px;font-size:12px;color:var(--muted)">Checking backup…</div>
+          <div id="full-backup-info" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8">Checking backup…</div>
+          <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Individual Backup</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-gray btn-sm" onclick="backupFaces()"><i class="ti ti-download"></i>Faces Only</button>
+              <button class="btn btn-gray btn-sm" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore Faces Only</button>
+            </div>
+          </div>
+          <div id="face-backup-info" style="margin-top:8px;font-size:11px;color:var(--muted)"></div>
         </div>
         <div class="card">
           <div class="ct"><i class="ti ti-database"></i>Data Backup</div>
@@ -722,16 +735,16 @@ async function initAdmin() {
   await loadAll();
   await restoreAppSupsIfEmpty();
   loadAppSups(); // silently cache supervisors on every admin load
-  await restoreFacesIfEmpty();
+  await restoreAllIfEmpty();
   // Default dates
   const today = new Date().toISOString().slice(0,10);
   const df = document.getElementById('r-from'); if(df) df.value = today;
   const dt = document.getElementById('r-to'); if(dt) dt.value = today;
-  loadFaceBackupInfo();
+  loadBackupInfo();
   loadSysInfo();
   loadReport();
   // Auto-backup face every 5 min
-  setInterval(backupFaces, 5*60*1000);
+  setInterval(backupAllData, 5*60*1000);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1787,14 +1800,120 @@ async function deleteFace(uid, name) {
   }
 }
 
+/* ── FULL BACKUP (faces + app data) ── */
+async function backupAllData() {
+  let faceCount = 0, siteCount = 0, empCount = 0;
+  // Backup face encodings
+  try {
+    const d = await api('/export-encodings?secret=bdi-import-2024');
+    if (d.ok && d.encodings) {
+      localStorage.setItem('bdi_face_backup', JSON.stringify(d.encodings));
+      localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
+      faceCount = Object.keys(d.encodings).length;
+    }
+  } catch {}
+  // Backup app data (sites, employees, supervisors, records)
+  try {
+    const d = await api('/data');
+    if (d.ok) {
+      const snapshot = {
+        employees:   d.employees   || EMPS,
+        sites:       d.sites       || SITES,
+        supervisors: d.supervisors || SUPS,
+        records:     d.records     || [],
+        saved_at:    new Date().toISOString()
+      };
+      localStorage.setItem('bdi_full_backup', JSON.stringify(snapshot));
+      siteCount = snapshot.sites.length;
+      empCount  = snapshot.employees.length;
+    }
+  } catch {
+    // Server offline — backup from localStorage directly
+    const snapshot = { employees: EMPS, sites: SITES, supervisors: SUPS, records: RECS, saved_at: new Date().toISOString() };
+    localStorage.setItem('bdi_full_backup', JSON.stringify(snapshot));
+    siteCount = SITES.length;
+    empCount  = EMPS.length;
+  }
+  toast(`Backup saved — ${empCount} employees, ${siteCount} sites, ${faceCount} faces`);
+  loadBackupInfo();
+}
+
+async function restoreAllData() {
+  if (!confirm('Restore all backed-up data to server?
+
+This will overwrite server data with your local backup.')) return;
+  let msg = [];
+  // Restore face encodings
+  const fBacked = localStorage.getItem('bdi_face_backup');
+  if (fBacked) {
+    try {
+      const encodings = JSON.parse(fBacked);
+      const d = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+      if (d.ok) msg.push(`${d.imported} faces`);
+    } catch {}
+  }
+  // Restore app data
+  const aBacked = localStorage.getItem('bdi_full_backup');
+  if (aBacked) {
+    try {
+      const snap = JSON.parse(aBacked);
+      const d = await api('/data','POST', snap);
+      if (d.ok) msg.push(`${(snap.employees||[]).length} employees, ${(snap.sites||[]).length} sites`);
+    } catch {}
+  }
+  if (msg.length) { toast('Restored to server: ' + msg.join(', ')); checkServer(); loadBackupInfo(); }
+  else toast('Nothing to restore — make a backup first', false);
+}
+
+async function restoreAllIfEmpty() {
+  try {
+    const d = await api('/status');
+    if (!d.ok) return;
+    const dataD = await api('/data');
+    const isEmpty = (dataD.sites||[]).length === 0 && d.enrolled === 0;
+    if (isEmpty) {
+      const hasBk = localStorage.getItem('bdi_full_backup') || localStorage.getItem('bdi_face_backup');
+      if (hasBk) { await restoreAllData(); toast('Auto-restored data after server restart'); }
+    } else {
+      // Server has data — take a fresh backup
+      backupAllData();
+    }
+  } catch {}
+}
+
+function loadBackupInfo() {
+  const el = document.getElementById('full-backup-info');
+  if (!el) return;
+  const fb = localStorage.getItem('bdi_full_backup');
+  const fc = localStorage.getItem('bdi_face_backup');
+  const ft = localStorage.getItem('bdi_face_backup_time');
+  if (!fb && !fc) { el.innerHTML = '<span style="color:var(--red)">⚠ No backup found — click Backup All Now</span>'; return; }
+  let rows = [];
+  if (fb) {
+    try {
+      const s = JSON.parse(fb);
+      const t = s.saved_at ? new Date(s.saved_at).toLocaleString() : '—';
+      rows.push(`<span style="color:var(--green)">✓ App data</span> — ${(s.employees||[]).length} employees, ${(s.sites||[]).length} sites, ${(s.supervisors||[]).length} supervisors &nbsp;·&nbsp; saved ${t}`);
+    } catch {}
+  }
+  if (fc) {
+    try {
+      const t = ft ? new Date(ft).toLocaleString() : '—';
+      const count = Object.keys(JSON.parse(fc)).length;
+      rows.push(`<span style="color:var(--green)">✓ Face encodings</span> — ${count} employee(s) &nbsp;·&nbsp; saved ${t}`);
+    } catch {}
+  }
+  el.innerHTML = rows.join('<br>');
+}
+
 async function backupFaces() {
   try {
     const d = await api('/export-encodings?secret=bdi-import-2024');
     if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
       localStorage.setItem('bdi_face_backup', JSON.stringify(d.encodings));
       localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
-      toast(`✅ Face backup saved — ${Object.keys(d.encodings).length} employee(s)`);
-      loadFaceBackupInfo();
+      toast(`Face backup saved — ${Object.keys(d.encodings).length} employee(s)`);
+      loadBackupInfo();
     } else toast('No face data on server to backup', false);
   } catch { toast('Backup failed — server offline?', false); }
 }
@@ -1807,7 +1926,7 @@ async function restoreFaces() {
     const count = Object.keys(encodings).length;
     if (!count) { toast('Backup is empty', false); return; }
     const d = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
-    if (d.ok) { toast(`✅ Restored ${d.imported} face encoding(s)`); checkServer(); }
+    if (d.ok) { toast(`Restored ${d.imported} face encoding(s)`); checkServer(); }
     else toast('Restore failed: '+(d.error||'unknown'), false);
   } catch(e) { toast('Restore error: '+e.message, false); }
 }
@@ -1825,6 +1944,7 @@ async function restoreFacesIfEmpty() {
   } catch {}
 }
 
+// loadFaceBackupInfo kept for compatibility
 function loadFaceBackupInfo() {
   const el = document.getElementById('face-backup-info');
   const t  = localStorage.getItem('bdi_face_backup_time');
