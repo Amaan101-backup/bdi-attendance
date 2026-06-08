@@ -2327,8 +2327,26 @@ async function loadEnrolledFaces() {
   // Merge: all unique UIDs from all three sources
   const allUids = [...new Set([...Object.keys(serverEnrolled), ...Object.keys(browserEnrolled), ...Object.keys(backupEnrolled)])];
 
+  // ── Show restore banner if server has no faces but backup has some ──
+  const serverCount0 = Object.keys(serverEnrolled).length;
+  const backupCount0 = Object.keys(backupEnrolled).length;
+  let restoreBanner  = '';
+  if (serverOnline && serverCount0 === 0 && backupCount0 > 0) {
+    restoreBanner = `
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <i class="ti ti-alert-triangle" style="color:#f97316;font-size:20px;flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;color:#9a3412;font-size:13px">Server has 0 face encodings — ${backupCount0} faces are in your browser backup</div>
+          <div style="font-size:12px;color:#c2410c;margin-top:2px">Face recognition will not work until you restore. Click the button to push your backup to the server.</div>
+        </div>
+        <button class="btn" style="background:#ea580c;color:#fff;border:none;white-space:nowrap;flex-shrink:0" onclick="restoreFaces().then(()=>loadEnrolledFaces())">
+          <i class="ti ti-cloud-upload"></i> Restore ${backupCount0} Faces to Server
+        </button>
+      </div>`;
+  }
+
   if (allUids.length === 0) {
-    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center"><i class="ti ti-face-id-error" style="font-size:24px;display:block;margin-bottom:6px"></i>No faces enrolled yet.</div>`;
+    wrap.innerHTML = restoreBanner + `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center"><i class="ti ti-face-id-error" style="font-size:24px;display:block;margin-bottom:6px"></i>No faces enrolled yet.</div>`;
     return;
   }
 
@@ -2386,7 +2404,7 @@ async function loadEnrolledFaces() {
     ? `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;·&nbsp; <span style="color:var(--green)">${serverCount} on server</span> &nbsp;·&nbsp; <span style="color:#f59e0b">${backupCount} in backup</span>`
     : `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;<span style="color:var(--red);font-size:11px">(server offline)</span>&nbsp;·&nbsp; <span style="color:#f59e0b">${backupCount} in backup</span>`;
 
-  wrap.innerHTML = `
+  wrap.innerHTML = restoreBanner + `
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;padding:4px 0">${statusLine}</div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -2533,31 +2551,40 @@ async function restoreAllIfEmpty() {
     const sitesEmpty = (dataD.sites||[]).length === 0;
     const empsEmpty  = (dataD.employees||[]).length === 0;
     const facesEmpty = d.enrolled === 0;
-    // Restore if app data is missing (sites/employees gone), even if faces still exist
+
+    // ── Restore app data (employees/sites) if gone ──
     if (sitesEmpty || empsEmpty) {
-      const hasBk = localStorage.getItem('bdi_full_backup') || localStorage.getItem('bdi_face_backup');
-      if (hasBk) {
-        const snap = localStorage.getItem('bdi_full_backup');
-        if (snap) {
-          const s = JSON.parse(snap);
-          await api('/data', 'POST', s);
-          if ((s.sites||[]).length)       SITES = s.sites;
-          if ((s.employees||[]).length)   EMPS  = s.employees;
-          if ((s.supervisors||[]).length) SUPS  = s.supervisors;
-          renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
-          toast(`Auto-restored: ${(s.employees||[]).length} employees, ${(s.sites||[]).length} sites after server restart`);
-        }
-        if (facesEmpty) {
-          const fBk = localStorage.getItem('bdi_face_backup');
-          if (fBk) {
-            const encodings = JSON.parse(fBk);
-            await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
-          }
-        }
+      const snap = localStorage.getItem('bdi_full_backup');
+      if (snap) {
+        const s = JSON.parse(snap);
+        await api('/data', 'POST', s);
+        if ((s.sites||[]).length)       SITES = s.sites;
+        if ((s.employees||[]).length)   EMPS  = s.employees;
+        if ((s.supervisors||[]).length) SUPS  = s.supervisors;
+        renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+        toast(`Auto-restored: ${(s.employees||[]).length} employees, ${(s.sites||[]).length} sites after server restart`);
       }
     } else {
-      // Server has data — take a fresh backup
+      // Server has app data — take a fresh backup
       backupAllData();
+    }
+
+    // ── Restore faces independently — even if employees/sites are present ──
+    if (facesEmpty) {
+      const fBk = localStorage.getItem('bdi_face_backup');
+      if (fBk) {
+        try {
+          const encodings = JSON.parse(fBk);
+          const count = Object.keys(encodings).length;
+          if (count > 0) {
+            const r = await api('/import-encodings', 'POST', { encodings, secret: 'bdi-import-2024' });
+            if (r.ok) {
+              toast(`✓ Auto-restored ${r.imported} face encoding(s) to server`);
+              loadEnrolledFaces(); // refresh the list
+            }
+          }
+        } catch(e) { /* ignore parse errors */ }
+      }
     }
   } catch {}
 }
