@@ -305,6 +305,7 @@ tr:hover td{background:#f8fafc}
           <div class="ct"><i class="ti ti-list"></i>Employee Directory
             <span class="ct-action" style="display:flex;gap:7px;align-items:center">
               <span style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
+              <button class="btn btn-gray btn-sm" onclick="loadFaces().then(()=>renderEmps())" title="Refresh face enrollment status"><i class="ti ti-refresh"></i>Face Status</button>
               <button class="btn btn-gray btn-sm" onclick="exportEmps()"><i class="ti ti-download"></i>Export CSV</button>
               <button class="btn btn-gray btn-sm" onclick="downloadEmpTemplate()"><i class="ti ti-file-spreadsheet"></i>Template</button>
               <label class="btn btn-or btn-sm" style="cursor:pointer;margin:0"><i class="ti ti-upload"></i>Import CSV
@@ -327,7 +328,7 @@ tr:hover td{background:#f8fafc}
             </button>
           </div>
           <div class="tw"><table>
-            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Employee</th><th>ID</th><th>Dept</th><th>Role</th><th>Sites</th><th>Status</th><th>Face</th><th></th></tr></thead>
             <tbody id="emp-tbl"></tbody>
           </table></div>
         </div>
@@ -402,6 +403,8 @@ tr:hover td{background:#f8fafc}
           <div class="btn-row">
             <button class="btn btn-or" onclick="addSite()"><i class="ti ti-circle-plus"></i>Add Site</button>
             <button class="btn btn-gray" onclick="useMyLoc()"><i class="ti ti-map-pin"></i>Use My GPS</button>
+            <button class="btn btn-blue" onclick="syncSitesToERP()" title="Push all sites directly into the HSE ERP system"><i class="ti ti-refresh"></i>Sync → ERP</button>
+            <button class="btn btn-gray" onclick="exportSitesToERP()" title="Download sites as JSON backup"><i class="ti ti-file-export"></i>Export JSON</button>
           </div>
           <div id="loc-msg" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
         </div>
@@ -431,12 +434,14 @@ tr:hover td{background:#f8fafc}
               <option value="out">✅ Completed (has checkout)</option>
             </select>
             <button class="btn btn-green btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export CSV</button>
+            <button class="btn btn-red btn-sm" onclick="exportPDF()"><i class="ti ti-file-type-pdf"></i>Export PDF</button>
           </div>
           <!-- Man-hours filters -->
           <div id="r-hrs-filters" class="sr" style="display:none">
             <input id="r-hrs-srch" placeholder="Search employee…" oninput="renderManhours()">
             <select id="r-hrs-site" onchange="renderManhours()"><option value="">All Sites</option></select>
             <button class="btn btn-green btn-sm" onclick="exportManhours()"><i class="ti ti-download"></i>Export CSV</button>
+            <button class="btn btn-red btn-sm" onclick="exportManHoursPDF()"><i class="ti ti-file-type-pdf"></i>Export PDF</button>
           </div>
           <div id="rep-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
           <!-- Punch log table -->
@@ -507,11 +512,28 @@ tr:hover td{background:#f8fafc}
             <button class="btn btn-blue" onclick="restoreAllData()"><i class="ti ti-cloud-upload"></i>Restore All to Server</button>
           </div>
           <div id="full-backup-info" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8">Checking backup…</div>
+
+          <!-- Face → GitHub backup -->
+          <div style="margin-top:14px;border:1px solid #dbeafe;border-radius:10px;padding:14px;background:#f0f9ff">
+            <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:4px"><i class="ti ti-brand-github"></i> Face Enrollment Backup → GitHub</div>
+            <p style="font-size:11px;color:#3b82f6;margin-bottom:10px">Saves enrolled faces to the Railway server AND commits <code>face_encodings_preset.json</code> to GitHub so they survive every future deploy automatically.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-sm" id="github-backup-btn" onclick="backupFacesToGitHub()"
+                style="background:#1e40af;color:#fff;border-color:#1e40af;font-weight:700">
+                <i class="ti ti-brand-github"></i> Backup Faces to GitHub
+              </button>
+              <button class="btn btn-gray btn-sm" onclick="downloadFacePreset()" title="Manual download — commit this file yourself">
+                <i class="ti ti-download"></i> Download Preset File
+              </button>
+            </div>
+            <div id="github-backup-status" style="margin-top:8px;font-size:11px;display:none"></div>
+          </div>
+
           <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
-            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Individual Backup</div>
+            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Browser Backup (localStorage)</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-gray btn-sm" onclick="backupFaces()"><i class="ti ti-download"></i>Faces Only</button>
-              <button class="btn btn-gray btn-sm" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore Faces Only</button>
+              <button class="btn btn-gray btn-sm" onclick="backupFaces()"><i class="ti ti-download"></i>Faces to Browser</button>
+              <button class="btn btn-gray btn-sm" onclick="restoreFaces()"><i class="ti ti-upload"></i>Restore from Browser</button>
             </div>
           </div>
           <div id="face-backup-info" style="margin-top:8px;font-size:11px;color:var(--muted)"></div>
@@ -526,6 +548,39 @@ tr:hover td{background:#f8fafc}
             </label>
           </div>
         </div>
+        <!-- ── ERP Sync ─────────────────────────────────────── -->
+        <div class="card" id="erp-sync-card">
+          <div class="ct"><i class="ti ti-building-skyscraper" style="color:#3b82f6"></i>ERP Integration — Sync Sites
+            <span class="ct-action">
+              <button class="btn btn-gray btn-sm" onclick="testErpConnection()"><i class="ti ti-plug"></i>Test</button>
+            </span>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            Push all sites from this Attendance system directly into the <strong>HSE ERP</strong> with one click.
+            Sites already in ERP will be skipped automatically.
+          </p>
+          <div style="display:grid;gap:10px;margin-bottom:14px">
+            <div class="fg" style="margin:0">
+              <label>ERP API URL</label>
+              <input id="erp-api-url" placeholder="https://hse-erp-api.ansariaaman99.workers.dev"
+                     value="https://hse-erp-api.ansariaaman99.workers.dev"
+                     style="font-family:'JetBrains Mono',monospace;font-size:12px">
+            </div>
+            <div class="fg" style="margin:0">
+              <label>ERP Session Token <span class="hint">(copy from ERP → browser localStorage: hse_erp_session_token)</span></label>
+              <input id="erp-token" type="password" placeholder="Paste your ERP session token here"
+                     style="font-family:'JetBrains Mono',monospace;font-size:12px">
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-blue" onclick="syncSitesToERP()" id="erp-sync-btn">
+              <i class="ti ti-refresh"></i>Sync Sites → ERP
+            </button>
+            <button class="btn btn-gray" onclick="saveErpConfig()"><i class="ti ti-device-floppy"></i>Save Config</button>
+          </div>
+          <div id="erp-sync-log" style="margin-top:12px;font-size:12px;line-height:1.9;display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;max-height:200px;overflow-y:auto"></div>
+        </div>
+
         <div class="card">
           <div class="ct"><i class="ti ti-info-circle"></i>System Info</div>
           <div id="sys-info" style="font-size:13px;color:var(--muted)">Loading…</div>
@@ -582,6 +637,78 @@ tr:hover td{background:#f8fafc}
   </div>
 </div>
 
+<!-- ── Edit Site Modal ──────────────────────────────────────────── -->
+<div id="edit-site-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeEditSite()">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a2e"><i class="ti ti-building" style="margin-right:8px;color:var(--or)"></i>Edit Site</div>
+      <button onclick="closeEditSite()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+    </div>
+    <input type="hidden" id="edit-site-id">
+    <div class="fr">
+      <div class="fg"><label>Site Name *</label><input id="edit-site-name" placeholder="Al Ain Pipeline Project"></div>
+      <div class="fg"><label>Site Code *</label><input id="edit-site-code" placeholder="AIN-01"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Location / Address</label><input id="edit-site-loc" placeholder="Al Ain, Abu Dhabi"></div>
+      <div class="fg"><label>Latitude *</label><input type="number" id="edit-site-lat" placeholder="24.4539" step="0.00001"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Longitude *</label><input type="number" id="edit-site-lng" placeholder="54.3773" step="0.00001"></div>
+      <div class="fg">
+        <label>Geo-Zone Radius: <span id="edit-srad-v" style="color:var(--or);font-weight:700">2.0 km</span></label>
+        <input type="range" min="0.5" max="20" step="0.5" value="2" id="edit-site-radius"
+               oninput="document.getElementById('edit-srad-v').textContent=parseFloat(this.value).toFixed(1)+' km'"
+               style="accent-color:var(--or);width:100%;margin-top:6px">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeEditSite()">Cancel</button>
+      <button class="btn btn-or" style="flex:2" onclick="saveSiteEdit()"><i class="ti ti-device-floppy"></i>Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit App Supervisor Modal ─────────────────────────────── -->
+<div id="edit-sup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeEditSup()">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:700;color:#1a1a2e"><i class="ti ti-hard-hat" style="margin-right:8px;color:var(--or)"></i>Edit Supervisor</div>
+      <button onclick="closeEditSup()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+    </div>
+    <input type="hidden" id="esup-device-id">
+    <div class="fr">
+      <div class="fg"><label>Name *</label><input id="esup-name" placeholder="Ahmed Hassan"></div>
+      <div class="fg"><label>Phone</label><input id="esup-phone" placeholder="+971501234567"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Role</label>
+        <select id="esup-role">
+          <option>Supervisor</option><option>Site Supervisor</option>
+          <option>Site Engineer</option><option>HSE Officer</option><option>Admin</option>
+        </select>
+      </div>
+      <div class="fg"><label>Assigned Sites</label>
+        <select id="esup-sites" multiple style="height:80px"></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;margin:12px 0">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="esup-approved" style="width:16px;height:16px;accent-color:#22c55e">
+        <span>Approved</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="esup-can-enroll" style="width:16px;height:16px;accent-color:var(--blue)">
+        <span>Can Enroll Faces</span>
+      </label>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeEditSup()">Cancel</button>
+      <button class="btn btn-or" style="flex:2" onclick="saveSupEdit()"><i class="ti ti-device-floppy"></i>Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -595,6 +722,7 @@ const SERVER = ''; // relative URLs — works whether local or Railway
 ══════════════════════════════════════════════════════════════ */
 let EMPS = [], SITES = [], SUPS = [], RECS = [];
 let _reportRecs = []; // full unfiltered report records
+let FACES = {};        // { empId: sampleCount } — loaded from /faces/export
 
 /* ══════════════════════════════════════════════════════════════
    UTILS
@@ -691,6 +819,18 @@ async function checkServer() {
 /* ══════════════════════════════════════════════════════════════
    LOAD ALL DATA FROM SERVER
 ══════════════════════════════════════════════════════════════ */
+async function loadFaces() {
+  try {
+    const d = await fetch('/faces/export').then(r=>r.json());
+    if (d.ok && d.encodings) {
+      FACES = {};
+      for (const [id, encs] of Object.entries(d.encodings)) {
+        FACES[id] = Array.isArray(encs) ? encs.length : 0;
+      }
+    }
+  } catch(e) { /* silent — face server might not be reachable */ }
+}
+
 async function loadAll() {
   try {
     const d = await api('/data');
@@ -699,21 +839,58 @@ async function loadAll() {
     if (d.sites      && d.sites.length)        SITES = d.sites;
     if (d.supervisors&& d.supervisors.length)  SUPS  = d.supervisors;
     if (d.records    && d.records.length)      RECS  = d.records;
+    loadFaces().then(() => renderEmps()); // refresh face badges after faces load
     renderEmps(); renderSups(); renderSites(); renderDash();
     populateSiteSelects();
-    // Auto-restore from localStorage if server empty
+    // Auto-restore from localStorage if server returned empty data
+    let restored = false;
     if (!d.employees || d.employees.length === 0) {
       const cached = localStorage.getItem('bdi_emp_backup');
-      if (cached) {
-        const emps = JSON.parse(cached);
-        if (emps.length) { EMPS = emps; await pushAll(); toast(`Restored ${emps.length} employees from cache`); renderEmps(); }
+      if (cached) { try { const emps = JSON.parse(cached); if (emps.length) { EMPS = emps; restored = true; } } catch{} }
+    }
+    if (!d.sites || d.sites.length === 0) {
+      // Try full backup first (has all sites), then the simple sites backup
+      const fullBk = localStorage.getItem('bdi_full_backup');
+      if (fullBk) {
+        try {
+          const snap = JSON.parse(fullBk);
+          if ((snap.sites||[]).length) { SITES = snap.sites; restored = true; }
+          if (!EMPS.length && (snap.employees||[]).length) { EMPS = snap.employees; restored = true; }
+          if (!SUPS.length  && (snap.supervisors||[]).length) { SUPS = snap.supervisors; restored = true; }
+        } catch{}
       }
+      if (!SITES.length) {
+        const cached = localStorage.getItem('bdi_sites_backup');
+        if (cached) { try { const sites = JSON.parse(cached); if (sites.length) { SITES = sites; restored = true; } } catch{} }
+      }
+    }
+    if (!d.supervisors || d.supervisors.length === 0) {
+      if (!SUPS.length) {
+        const cached = localStorage.getItem('bdi_sups_backup');
+        if (cached) { try { const sups = JSON.parse(cached); if (sups.length) { SUPS = sups; restored = true; } } catch{} }
+      }
+    }
+    if (restored) {
+      renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+      await pushAll();
+      toast(`Restored ${EMPS.length} employees, ${SITES.length} sites from local backup`);
     }
   } catch(e) {
     // Load from localStorage fallback
-    const cached = localStorage.getItem('bdi_emp_backup');
-    if (cached) { try { EMPS = JSON.parse(cached); renderEmps(); } catch{} }
-    toast('Could not reach server — loaded from cache', false);
+    const fullBk = localStorage.getItem('bdi_full_backup');
+    if (fullBk) {
+      try {
+        const snap = JSON.parse(fullBk);
+        if ((snap.employees||[]).length)   EMPS = snap.employees;
+        if ((snap.sites||[]).length)       SITES = snap.sites;
+        if ((snap.supervisors||[]).length) SUPS  = snap.supervisors;
+        renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+      } catch{}
+    } else {
+      const cached = localStorage.getItem('bdi_emp_backup');
+      if (cached) { try { EMPS = JSON.parse(cached); renderEmps(); } catch{} }
+    }
+    toast('Could not reach server — loaded from local backup', false);
   }
 }
 
@@ -743,6 +920,7 @@ async function initAdmin() {
   loadBackupInfo();
   loadSysInfo();
   loadReport();
+  loadErpConfig();
   // Auto-backup face every 5 min
   setInterval(backupAllData, 5*60*1000);
 }
@@ -862,22 +1040,149 @@ function renderEmps() {
   if (!list.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>${EMPS.length?'No match':'No employees yet — add one above'}</div></td></tr>`; return; }
   tb.innerHTML = list.map(e => {
     const siteNames = (e.sites||[]).map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    const empId = e.id || e.uid;
+    const faceCount = FACES[empId] ?? FACES[(empId||'').toUpperCase()] ?? FACES[(empId||'').toLowerCase()] ?? null;
+    const faceBadge = faceCount != null
+      ? `<span class="bdg" style="background:#dcfce7;color:#16a34a;font-size:10px"><i class="ti ti-scan" style="font-size:11px"></i> ${faceCount} sample${faceCount!==1?'s':''}</span>`
+      : `<span class="bdg bdg-gy" style="font-size:10px"><i class="ti ti-scan-eye" style="font-size:11px"></i> Not enrolled</span>`;
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:32px;height:32px;border-radius:50%;background:rgba(232,119,34,.15);color:var(--or);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(e.name)}</div>
         <div><div style="font-weight:600;color:var(--text)">${esc(e.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(e.phone||'')}</div></div>
       </div></td>
-      <td><span class="bdg bdg-or">${esc(e.id||e.uid)}</span></td>
+      <td><span class="bdg bdg-or">${esc(empId)}</span></td>
       <td><span class="bdg bdg-b">${esc(e.dept||'—')}</span></td>
       <td style="font-size:12px">${esc(e.role||'—')}</td>
       <td style="font-size:11px;color:var(--muted)">${esc(siteNames)}</td>
       <td><span class="bdg bdg-gy">Registered</span></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-gray btn-sm" onclick="openEditEmp('${esc(e.uid)}')" style="margin-right:4px"><i class="ti ti-edit"></i></button>
-        <button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')"><i class="ti ti-trash"></i></button>
+      <td>${faceBadge}</td>
+      <td style="white-space:nowrap;display:flex;gap:3px;align-items:center">
+        <button class="btn btn-gray btn-sm" onclick="openEditEmp('${esc(e.uid)}')" title="Edit employee"><i class="ti ti-edit"></i></button>
+        ${faceCount != null ? `<button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe" onclick="exportEmpFace('${esc(empId)}','${esc(e.name)}')" title="Export face encodings"><i class="ti ti-download"></i></button>` : ''}
+        <label class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;cursor:pointer;margin:0" title="Import face encodings from file">
+          <i class="ti ti-upload"></i>
+          <input type="file" accept=".json" style="display:none" onchange="importEmpFace(this,'${esc(empId)}','${esc(e.name)}')">
+        </label>
+        ${faceCount != null ? `<button class="btn btn-sm" style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa" onclick="deleteEmpFace('${esc(empId)}','${esc(e.name)}')" title="Delete face enrollment"><i class="ti ti-face-id-error"></i></button>` : ''}
+        <button class="btn btn-red btn-sm" onclick="delEmp('${esc(e.uid)}')" title="Delete employee"><i class="ti ti-trash"></i></button>
       </td>
     </tr>`;
   }).join('');
+}
+
+/* ── Per-employee face export ──────────────────────────────────────────────── */
+async function exportEmpFace(empId, empName) {
+  try {
+    const d = await fetch('/faces/export').then(r => r.json());
+    if (!d.ok || !d.encodings) { toast('Could not load face data from server', false); return; }
+
+    // Try exact match, then case-insensitive
+    const encodings = d.encodings[empId]
+                   ?? d.encodings[empId.toUpperCase()]
+                   ?? d.encodings[empId.toLowerCase()];
+
+    if (!encodings || encodings.length === 0) {
+      toast(`${empName} has no face encodings on server`, false);
+      return;
+    }
+
+    const payload = {
+      type: 'face_enrollment',
+      employee_id: empId,
+      employee_name: empName,
+      exported_at: new Date().toISOString(),
+      sample_count: encodings.length,
+      encodings: encodings
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `face-${(empId||'').replace(/[^a-z0-9]/gi,'_')}-${(empName||'').replace(/\s+/g,'_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Face encodings exported for ${empName} (${encodings.length} sample${encodings.length!==1?'s':''})`);
+  } catch(e) {
+    toast('Export failed: ' + e.message, false);
+  }
+}
+
+/* ── Per-employee face import ──────────────────────────────────────────────── */
+async function importEmpFace(input, empId, empName) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    let encodings = null;
+
+    // Format 1: { type:'face_enrollment', employee_id, encodings: [[...], ...] }
+    if (data.type === 'face_enrollment' && Array.isArray(data.encodings)) {
+      encodings = data.encodings;
+    }
+    // Format 2: { "EMP001": [[...], ...] }  (exported from /faces/export)
+    else if (data.encodings && typeof data.encodings === 'object') {
+      encodings = data.encodings[empId]
+               ?? data.encodings[empId.toUpperCase()]
+               ?? data.encodings[empId.toLowerCase()]
+               ?? Object.values(data.encodings)[0]; // fallback: first key in file
+    }
+    // Format 3: raw object { "EMP001": [[...]] }
+    else if (typeof data === 'object' && !Array.isArray(data)) {
+      const val = data[empId] ?? data[empId.toUpperCase()] ?? data[empId.toLowerCase()];
+      if (val) encodings = val;
+    }
+
+    if (!encodings || !encodings.length) {
+      toast(`No face encodings found in file for ${empName}`, false);
+      return;
+    }
+
+    if (!confirm(`Import ${encodings.length} face sample${encodings.length!==1?'s':''} for ${empName} (${empId})?\n\nThis will replace any existing enrollment for this employee.`)) return;
+
+    // POST to /import-faces  { "empId": [[...], ...] }
+    const payload = {};
+    payload[empId] = encodings;
+    const res = await fetch('/import-faces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json());
+
+    if (res.ok) {
+      FACES[empId] = encodings.length;
+      renderEmps();
+      toast(`Face enrollment imported for ${empName} — ${encodings.length} sample${encodings.length!==1?'s':''} ✓`);
+    } else {
+      toast('Import failed: ' + (res.error || 'Server error'), false);
+    }
+  } catch(e) {
+    toast('Import failed: ' + e.message, false);
+  }
+}
+
+/* ── Per-employee face delete ─────────────────────────────────────────────── */
+async function deleteEmpFace(empId, empName) {
+  if (!confirm(`Delete face enrollment for ${empName} (${empId})?\n\nThey will need to re-enroll via the mobile app.`)) return;
+  try {
+    const res = await fetch('/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: empId })
+    }).then(r => r.json());
+    if (res.ok) {
+      delete FACES[empId];
+      renderEmps();
+      toast(`Face enrollment deleted for ${empName}`, false);
+    } else {
+      toast('Delete failed: ' + (res.error || 'Unknown'), false);
+    }
+  } catch(e) {
+    toast('Delete failed: ' + e.message, false);
+  }
 }
 
 async function addEmp() {
@@ -1108,36 +1413,33 @@ async function loadAppSups() {
     // Always cache — keeps localStorage fresh for Railway restart restores
     localStorage.setItem('bdi_appsups_cache', JSON.stringify(d.supervisors));
     if (!el) return; // called silently from initAdmin — no UI to update
-    el.innerHTML = d.supervisors.map(s => `
+    el.innerHTML = d.supervisors.map(s => {
+      const siteNames = (s.sites||[]).map(id=>{ const st=SITES.find(x=>x.id===id); return st?esc(st.code||st.name):id; }).join(', ')||'<span style="color:#94a3b8">No sites assigned</span>';
+      return `
       <div style="border:1px solid ${s.approved?'#bbf7d0':'#fed7aa'};border-radius:12px;padding:14px 16px;margin-bottom:10px;background:${s.approved?'#f0fdf4':'#fff7ed'}">
-        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="width:44px;height:44px;border-radius:50%;background:${s.approved?'#22c55e':'#f97316'};color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
             ${(s.name||'?')[0].toUpperCase()}
           </div>
           <div style="flex:1;min-width:160px">
             <div style="font-weight:700;font-size:15px">${esc(s.name)}</div>
             <div style="font-size:12px;color:var(--muted)">${esc(s.role||'Supervisor')} · ${esc(s.phone||'No phone')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px"><i class="ti ti-building" style="font-size:11px"></i> ${siteNames}</div>
             <div style="font-size:10px;color:#94a3b8;margin-top:2px">Device: ${esc(s.deviceId)}</div>
-            <div style="font-size:10px;color:#94a3b8">${s.registeredAt?'Registered: '+new Date(s.registeredAt).toLocaleString():''}</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:7px;min-width:170px">
-            <input type="text" value="${esc(s.name)}" id="asn-${s.deviceId}" placeholder="Name"
-              style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:12px;width:100%">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
-              <input type="checkbox" ${s.approved?'checked':''} id="asp-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
-              <span style="color:${s.approved?'#22c55e':'#f97316'}">${s.approved?'✅ Approved':'⏳ Pending'}</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:600">
-              <input type="checkbox" ${s.canEnroll?'checked':''} id="ase-${s.deviceId}" onchange="updateAppSup('${s.deviceId}')">
-              <span style="color:${s.canEnroll?'var(--blue)':'#94a3b8'}">${s.canEnroll?'🎭 Can Enroll':'🔒 No Enroll'}</span>
-            </label>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-            <button class="btn btn-blue btn-sm" onclick="updateAppSup('${s.deviceId}')"><i class="ti ti-check"></i>Save</button>
-            <button class="btn btn-red btn-sm" onclick="deleteAppSup('${s.deviceId}')"><i class="ti ti-trash"></i>Remove</button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:${s.approved?'#dcfce7':'#ffedd5'};color:${s.approved?'#16a34a':'#f97316'}">${s.approved?'✅ Approved':'⏳ Pending'}</span>
+              ${s.canEnroll?'<span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:#dbeafe;color:#2563eb">🎭 Can Enroll</span>':''}
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-blue btn-sm" onclick="openEditSup('${s.deviceId}')"><i class="ti ti-edit"></i>Edit</button>
+              <button class="btn btn-red btn-sm" onclick="deleteAppSup('${s.deviceId}')"><i class="ti ti-trash"></i></button>
+            </div>
           </div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
     el.innerHTML = `<div class="empty"><i class="ti ti-wifi-off"></i>Error: ${esc(e.message)}</div>`;
   }
@@ -1171,6 +1473,42 @@ async function restoreAppSupsIfEmpty() {
   } catch {}
 }
 
+function openEditSup(deviceId) {
+  const cached = localStorage.getItem('bdi_appsups_cache');
+  const list = cached ? JSON.parse(cached) : [];
+  const s = list.find(x=>x.deviceId===deviceId);
+  if (!s) return;
+  document.getElementById('esup-device-id').value = s.deviceId;
+  document.getElementById('esup-name').value       = s.name||'';
+  document.getElementById('esup-phone').value      = s.phone||'';
+  document.getElementById('esup-approved').checked   = !!s.approved;
+  document.getElementById('esup-can-enroll').checked = !!s.canEnroll;
+  // Set role
+  const roleEl = document.getElementById('esup-role');
+  for (let i=0;i<roleEl.options.length;i++) {
+    if (roleEl.options[i].value===(s.role||'Supervisor')) { roleEl.selectedIndex=i; break; }
+  }
+  // Populate sites multi-select
+  const sel = document.getElementById('esup-sites');
+  sel.innerHTML = SITES.map(st=>`<option value="${esc(st.id)}" ${(s.sites||[]).includes(st.id)?'selected':''}>${esc(st.code||st.name)}</option>`).join('');
+  document.getElementById('edit-sup-modal').style.display='flex';
+}
+function closeEditSup() { document.getElementById('edit-sup-modal').style.display='none'; }
+
+async function saveSupEdit() {
+  const deviceId  = document.getElementById('esup-device-id').value;
+  const name      = document.getElementById('esup-name').value.trim();
+  const phone     = document.getElementById('esup-phone').value.trim();
+  const role      = document.getElementById('esup-role').value;
+  const approved  = document.getElementById('esup-approved').checked;
+  const canEnroll = document.getElementById('esup-can-enroll').checked;
+  const sites     = [...document.getElementById('esup-sites').selectedOptions].map(o=>o.value);
+  if (!name) { toast('Name is required', false); return; }
+  const d = await api('/supervisor/update','POST',{deviceId,name,phone,role,approved,canEnroll,sites});
+  if (d.ok) { closeEditSup(); loadAppSups(); toast(`${name} updated ✓`); }
+  else toast('Update failed', false);
+}
+
 /* ══════════════════════════════════════════════════════════════
    SITES
 ══════════════════════════════════════════════════════════════ */
@@ -1202,6 +1540,7 @@ function renderSites() {
         </div>
         <div style="display:flex;gap:7px;flex-shrink:0;align-items:flex-start">
           <a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" class="btn btn-gray btn-sm"><i class="ti ti-map"></i>Map</a>
+          <button class="btn btn-blue btn-sm" onclick="editSite('${esc(s.id)}')"><i class="ti ti-edit"></i>Edit</button>
           <button class="btn btn-red btn-sm" onclick="delSite('${esc(s.id)}')"><i class="ti ti-trash"></i></button>
         </div>
       </div>
@@ -1227,12 +1566,197 @@ async function addSite() {
   await pushAll();
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ERP SYNC
+══════════════════════════════════════════════════════════════ */
+const ERP_URL_KEY   = 'bdi_erp_api_url';
+const ERP_TOKEN_KEY = 'bdi_erp_token';
+
+function loadErpConfig() {
+  const url   = localStorage.getItem(ERP_URL_KEY)   || 'https://hse-erp-api.ansariaaman99.workers.dev';
+  const token = localStorage.getItem(ERP_TOKEN_KEY) || '';
+  document.getElementById('erp-api-url').value = url;
+  document.getElementById('erp-token').value   = token;
+}
+
+function saveErpConfig() {
+  const url   = document.getElementById('erp-api-url').value.trim().replace(/\/$/, '');
+  const token = document.getElementById('erp-token').value.trim();
+  localStorage.setItem(ERP_URL_KEY,   url);
+  localStorage.setItem(ERP_TOKEN_KEY, token);
+  toast('ERP config saved ✓');
+}
+
+function getErpCreds() {
+  return {
+    url:   (document.getElementById('erp-api-url')?.value || localStorage.getItem(ERP_URL_KEY) || '').trim().replace(/\/$/,''),
+    token: (document.getElementById('erp-token')?.value   || localStorage.getItem(ERP_TOKEN_KEY) || '').trim()
+  };
+}
+
+function erpLog(msg, ok=true) {
+  const el = document.getElementById('erp-sync-log');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML += `<div style="color:${ok?'#16a34a':'#dc2626'}">${ok?'✅':'❌'} ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function testErpConnection() {
+  const { url, token } = getErpCreds();
+  if (!url)   { toast('Enter ERP API URL first', false); return; }
+  if (!token) { toast('Enter ERP Session Token first', false); return; }
+  const el = document.getElementById('erp-sync-log');
+  if (el) { el.style.display='block'; el.innerHTML=''; }
+  erpLog('Testing connection…', true);
+  try {
+    const r = await fetch(`${url}/api/sites`, { headers:{ Authorization:`Bearer ${token}` } });
+    if (r.ok) {
+      const sites = await r.json();
+      erpLog(`Connected ✓ — ERP has ${sites.length} site(s) currently`, true);
+    } else {
+      erpLog(`HTTP ${r.status} — check token or API URL`, false);
+    }
+  } catch(e) {
+    erpLog(`Network error: ${e.message}`, false);
+  }
+}
+
+async function syncSitesToERP() {
+  if (!SITES.length) { toast('No sites to sync', false); return; }
+  const { url, token } = getErpCreds();
+  if (!url)   { toast('Enter ERP API URL in Settings → ERP Integration', false); go('settings'); return; }
+  if (!token) { toast('Enter ERP Session Token in Settings → ERP Integration', false); go('settings'); return; }
+
+  const btn = document.getElementById('erp-sync-btn');
+  if (btn) btn.disabled = true;
+  const el = document.getElementById('erp-sync-log');
+  if (el) { el.style.display='block'; el.innerHTML=''; }
+
+  erpLog(`Starting sync of ${SITES.length} site(s)…`);
+
+  // 1. Fetch existing ERP sites
+  let erpExisting = [];
+  try {
+    const r = await fetch(`${url}/api/sites`, { headers:{ Authorization:`Bearer ${token}` } });
+    if (!r.ok) { erpLog(`Cannot reach ERP API (HTTP ${r.status}) — save config and try again`, false); if(btn) btn.disabled=false; return; }
+    erpExisting = await r.json();
+    erpLog(`ERP currently has ${erpExisting.length} site(s)`);
+  } catch(e) {
+    erpLog(`Connection failed: ${e.message}`, false); if(btn) btn.disabled=false; return;
+  }
+
+  const existingNames = new Set(erpExisting.map(s => (s.ProjectName||'').toLowerCase()));
+  const existingIDs   = new Set(erpExisting.map(s => (s.SiteID||'').toLowerCase()));
+
+  let added=0, skipped=0, failed=0;
+
+  for (const s of SITES) {
+    const workerCount = EMPS.filter(e => (e.sites||[]).includes(s.id)).length;
+    const siteID      = 'SITE-' + (s.code||('ATT'+Date.now())).replace(/[^A-Z0-9]/gi,'').toUpperCase();
+    const name        = s.name || s.code;
+
+    if (existingIDs.has(siteID.toLowerCase()) || existingNames.has(name.toLowerCase())) {
+      erpLog(`⏭ Skipped "${name}" — already in ERP`); skipped++; continue;
+    }
+
+    const payload = {
+      SiteID:           siteID,
+      ProjectName:      name,
+      Location:         (s.loc || s.address || 'UAE') + (s.code ? ` (${s.code})` : ''),
+      ProjectManagerID: 'USR-004',
+      Status:           'Active',
+      SafetyScore:      85,
+      WorkerCount:      workerCount
+    };
+
+    try {
+      const r = await fetch(`${url}/api/sites`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) { erpLog(`Added "${name}" (${siteID})`); added++; }
+      else      { const d=await r.json().catch(()=>({})); erpLog(`Failed "${name}": ${d.error||'HTTP '+r.status}`, false); failed++; }
+    } catch(e) { erpLog(`Error "${name}": ${e.message}`, false); failed++; }
+  }
+
+  erpLog(`Done — ${added} added · ${skipped} skipped · ${failed} failed`, failed===0);
+  toast(failed===0 ? `Synced ${added} site(s) to ERP ✓` : `Sync done with ${failed} error(s)`, failed===0);
+  if (btn) btn.disabled = false;
+}
+
+function exportSitesToERP() {
+  if (!SITES.length) { toast('No sites to export', false); return; }
+  const erpSites = SITES.map((s, i) => {
+    const workerCount = EMPS.filter(e => (e.sites || []).includes(s.id)).length;
+    // Build a clean SiteID from the site code (e.g. AIN-01 → SITE-AIN01)
+    const siteId = 'SITE-' + (s.code || ('ATT' + String(i + 1).padStart(3, '0'))).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    return {
+      SiteID:           siteId,
+      ProjectName:      s.name || s.code,
+      Location:         (s.loc || s.address || 'UAE') + (s.code ? ' (' + s.code + ')' : ''),
+      ProjectManagerID: 'USR-004',
+      Status:           'Active',
+      SafetyScore:      85,
+      WorkerCount:      workerCount,
+      _source:          'attendance-admin',
+      _originalCode:    s.code,
+      _lat:             s.lat,
+      _lng:             s.lng,
+      _radius:          s.radius
+    };
+  });
+  const blob = new Blob([JSON.stringify(erpSites, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'bdi_sites_erp_import.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`Exported ${erpSites.length} sites → bdi_sites_erp_import.json ✓`);
+}
+
 async function delSite(siteId) {
   const s = SITES.find(x=>x.id===siteId);
   if (!s||!confirm(`Delete site "${s.name}"?`)) return;
   SITES = SITES.filter(x=>x.id!==siteId);
   renderSites(); populateSiteSelects(); renderDash();
   toast(`${s.name} deleted`, false);
+  await pushAll();
+}
+
+function editSite(siteId) {
+  const s = SITES.find(x=>x.id===siteId);
+  if (!s) return;
+  document.getElementById('edit-site-id').value   = s.id;
+  document.getElementById('edit-site-name').value = s.name||'';
+  document.getElementById('edit-site-code').value = s.code||'';
+  document.getElementById('edit-site-loc').value  = s.loc||s.address||'';
+  document.getElementById('edit-site-lat').value  = s.lat||'';
+  document.getElementById('edit-site-lng').value  = s.lng||'';
+  const r = parseFloat(s.radius||s.radiusMeters||2);
+  document.getElementById('edit-site-radius').value = r;
+  document.getElementById('edit-srad-v').textContent = r.toFixed(1)+' km';
+  document.getElementById('edit-site-modal').style.display = 'flex';
+}
+function closeEditSite() { document.getElementById('edit-site-modal').style.display='none'; }
+
+async function saveSiteEdit() {
+  const id     = document.getElementById('edit-site-id').value;
+  const name   = document.getElementById('edit-site-name').value.trim();
+  const code   = document.getElementById('edit-site-code').value.trim().toUpperCase();
+  const loc    = document.getElementById('edit-site-loc').value.trim();
+  const lat    = parseFloat(document.getElementById('edit-site-lat').value);
+  const lng    = parseFloat(document.getElementById('edit-site-lng').value);
+  const radius = parseFloat(document.getElementById('edit-site-radius').value);
+  if (!name||!code||isNaN(lat)||isNaN(lng)) { toast('Fill all required fields', false); return; }
+  const idx = SITES.findIndex(s=>s.id===id);
+  if (idx<0) return;
+  SITES[idx] = {...SITES[idx], name, code, loc:loc||'UAE', lat, lng, radius};
+  closeEditSite();
+  renderSites(); populateSiteSelects(); renderDash();
+  toast(`${name} updated ✓`);
   await pushAll();
 }
 
@@ -1574,6 +2098,115 @@ function exportManhours() {
   a.click();
 }
 
+function exportPDF() {
+  const from = document.getElementById('r-from')?.value||'';
+  const to   = document.getElementById('r-to')?.value||'';
+  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-site')?.value||'';
+  const type = document.getElementById('r-type')?.value||'';
+  let list = _reportRecs.filter(r=>
+    (!q||(r.empName||'').toLowerCase().includes(q)||(r.empId||'').toLowerCase().includes(q))&&(!site||r.siteId===site)
+  );
+  let pairs = pairPunches(list);
+  if (type==='in')  pairs = pairs.filter(p=>!p.outR);
+  if (type==='out') pairs = pairs.filter(p=> p.outR);
+  const fmtT = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+  const fmtD = iso => iso ? new Date(iso).toLocaleDateString([],{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const rows = pairs.map(({inR,outR})=>{
+    const durMins = (outR&&inR.time&&outR.time) ? Math.round((new Date(outR.time)-new Date(inR.time))/60000) : null;
+    const dur = durMins!=null ? `${Math.floor(durMins/60)}h ${String(durMins%60).padStart(2,'0')}m` : '—';
+    return `<tr>
+      <td>${esc(inR.empName||'—')}</td><td>${esc(inR.empId||'—')}</td>
+      <td>${fmtD(inR.time)}</td>
+      <td style="color:#16a34a;font-weight:700">${fmtT(inR.time)}</td>
+      <td style="color:#ea580c;font-weight:700">${outR?fmtT(outR.time):'⏳ Active'}</td>
+      <td style="font-weight:600">${dur}</td>
+      <td>${esc(inR.siteName||'—')}</td>
+      <td>${esc(inR.supervisorName||'—')}</td>
+    </tr>`;
+  }).join('');
+  const period = from ? (from+(to&&to!==from?' → '+to:'')) : 'All Dates';
+  const w = window.open('','_blank','width=1100,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>BDI Attendance Report — ${period}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;padding:20px}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e87722}
+    .header h1{font-size:20px;font-weight:800;color:#0f172a}
+    .header p{font-size:11px;color:#64748b;margin-top:3px}
+    .meta{font-size:11px;color:#64748b;text-align:right}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th{background:#0f172a;color:#fff;padding:7px 9px;text-align:left;font-size:10px;letter-spacing:.3px;white-space:nowrap}
+    td{padding:6px 9px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+    tr:nth-child(even) td{background:#f8fafc}
+    .total{font-size:11px;color:#64748b;margin-top:10px;text-align:right}
+    @media print{@page{size:A4 landscape;margin:10mm} button{display:none!important}}
+  </style></head><body>
+  <div class="header">
+    <div><h1>BDI Attendance Report</h1><p>Period: ${period}</p></div>
+    <div class="meta">Generated: ${new Date().toLocaleString()}<br>${pairs.length} record(s)</div>
+  </div>
+  <table>
+    <thead><tr><th>Employee</th><th>ID</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Duration</th><th>Site</th><th>Supervisor</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="total">${pairs.length} total sessions</div>
+  <div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="background:#e87722;color:#fff;border:none;padding:8px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save as PDF</button></div>
+  </body></html>`);
+  w.document.close();
+}
+
+function exportManHoursPDF() {
+  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site = document.getElementById('r-hrs-site')?.value||'';
+  let recs = _reportRecs;
+  if (site) recs = recs.filter(r=>r.siteId===site);
+  const data = calcManhours(recs).filter(e=>!q||e.name.toLowerCase().includes(q)||(e.empId||'').toLowerCase().includes(q));
+  const rows = data.map(e=>{
+    const siteNames = e.sites.map(id=>SITES.find(s=>s.id===id)?.code||id).join(', ')||'—';
+    const empObj = EMPS.find(x=>x.uid===e.uid);
+    const hrs = Math.floor(e.totalMins/60), mins = e.totalMins%60;
+    return `<tr>
+      <td style="font-weight:600">${esc(empObj?.name||e.name)}</td>
+      <td>${esc(empObj?.id||e.empId||'—')}</td>
+      <td>${esc(empObj?.dept||e.dept||'—')}</td>
+      <td>${esc(siteNames)}</td>
+      <td style="text-align:center">${e.days}</td>
+      <td style="font-weight:700;color:#0f172a">${hrs}h ${String(mins).padStart(2,'0')}m</td>
+      <td style="text-align:center">${e.sessions.length}</td>
+    </tr>`;
+  }).join('');
+  const from = document.getElementById('r-from')?.value||'';
+  const to   = document.getElementById('r-to')?.value||'';
+  const period = from ? (from+(to&&to!==from?' → '+to:'')) : 'All Dates';
+  const w = window.open('','_blank','width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>BDI Man-Hours Report — ${period}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;padding:20px}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e87722}
+    .header h1{font-size:20px;font-weight:800;color:#0f172a}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th{background:#0f172a;color:#fff;padding:7px 9px;text-align:left;font-size:10px;letter-spacing:.3px}
+    td{padding:6px 9px;border-bottom:1px solid #e2e8f0}
+    tr:nth-child(even) td{background:#f8fafc}
+    @media print{@page{size:A4 portrait;margin:10mm} button{display:none!important}}
+  </style></head><body>
+  <div class="header">
+    <div><h1>BDI Man-Hours Summary</h1><p>Period: ${period}</p></div>
+    <div style="font-size:11px;color:#64748b;text-align:right">Generated: ${new Date().toLocaleString()}<br>${data.length} employee(s)</div>
+  </div>
+  <table>
+    <thead><tr><th>Employee</th><th>ID</th><th>Department</th><th>Sites</th><th>Days</th><th>Total Hours</th><th>Sessions</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="background:#e87722;color:#fff;border:none;padding:8px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save as PDF</button></div>
+  </body></html>`);
+  w.document.close();
+}
+
 /* ══════════════════════════════════════════════════════════════
    MANUAL REQUESTS
 ══════════════════════════════════════════════════════════════ */
@@ -1598,6 +2231,13 @@ async function loadManReqs(status='pending') {
               &nbsp; ${esc(req.siteName||'—')} &nbsp;·&nbsp; ${esc(req.supervisorName||'—')}
             </div>
             <div style="font-size:11px;color:#94a3b8;margin-top:4px">${ts}</div>
+            ${(req.lat!=null&&req.lng!=null)?`<div style="font-size:11px;margin-top:4px;display:flex;align-items:center;gap:4px">
+              <span style="color:#16a34a">📍</span>
+              <a href="https://www.google.com/maps?q=${req.lat},${req.lng}" target="_blank"
+                 style="color:#2563eb;text-decoration:none;font-family:monospace">
+                ${req.lat.toFixed(6)}, ${req.lng.toFixed(6)}
+              </a>
+            </div>`:'<div style="font-size:11px;color:#94a3b8;margin-top:2px">📍 No GPS</div>'}
             ${req.reviewNote?`<div style="font-size:11px;color:var(--muted);margin-top:4px">Note: ${esc(req.reviewNote)}</div>`:''}
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
@@ -1665,8 +2305,21 @@ async function loadEnrolledFaces() {
     }
   });
 
-  // Merge: all unique UIDs from both sources
-  const allUids = [...new Set([...Object.keys(serverEnrolled), ...Object.keys(browserEnrolled)])];
+  // Backup faces: from bdi_face_backup localStorage (uid → encoding arrays)
+  const backupEnrolled = {}; // uid → sampleCount
+  try {
+    const bk = localStorage.getItem('bdi_face_backup');
+    if (bk) {
+      const bkData = JSON.parse(bk);
+      Object.keys(bkData).forEach(uid => {
+        const encs = bkData[uid];
+        backupEnrolled[uid] = Array.isArray(encs) ? encs.length : 1;
+      });
+    }
+  } catch(e) { /* invalid backup data */ }
+
+  // Merge: all unique UIDs from all three sources
+  const allUids = [...new Set([...Object.keys(serverEnrolled), ...Object.keys(browserEnrolled), ...Object.keys(backupEnrolled)])];
 
   if (allUids.length === 0) {
     wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center"><i class="ti ti-face-id-error" style="font-size:24px;display:block;margin-bottom:6px"></i>No faces enrolled yet.</div>`;
@@ -1684,9 +2337,11 @@ async function loadEnrolledFaces() {
     const dept  = emp ? (emp.dept||'')      : (browser ? browser.dept : '');
     const onServer  = uid in serverEnrolled;
     const onBrowser = uid in browserEnrolled;
-    const samples   = onServer ? serverEnrolled[uid] : (browser ? browser.samples : '—');
+    const onBackup  = uid in backupEnrolled;
+    const samples   = onServer ? serverEnrolled[uid] : onBackup ? backupEnrolled[uid] : (browser ? browser.samples : '—');
     const source    = onServer && onBrowser ? 'Server + Browser'
                     : onServer  ? 'Server'
+                    : onBackup  ? 'Backup only'
                     : 'Browser only';
     const srcColor  = onServer ? 'var(--green)' : '#f59e0b';
 
@@ -1720,9 +2375,10 @@ async function loadEnrolledFaces() {
 
   const serverCount  = Object.keys(serverEnrolled).length;
   const browserCount = Object.keys(browserEnrolled).length;
+  const backupCount  = Object.keys(backupEnrolled).length;
   const statusLine = serverOnline
-    ? `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;·&nbsp; <span style="color:var(--green)">${serverCount} on server</span> &nbsp;·&nbsp; <span style="color:#f59e0b">${browserCount} in browser</span>`
-    : `<strong style="color:var(--text)">${allUids.length}</strong> in browser &nbsp;<span style="color:var(--red);font-size:11px">(server offline — showing local only)</span>`;
+    ? `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;·&nbsp; <span style="color:var(--green)">${serverCount} on server</span> &nbsp;·&nbsp; <span style="color:#f59e0b">${backupCount} in backup</span>`
+    : `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;<span style="color:var(--red);font-size:11px">(server offline)</span>&nbsp;·&nbsp; <span style="color:#f59e0b">${backupCount} in backup</span>`;
 
   wrap.innerHTML = `
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;padding:4px 0">${statusLine}</div>
@@ -1868,10 +2524,31 @@ async function restoreAllIfEmpty() {
     const d = await api('/status');
     if (!d.ok) return;
     const dataD = await api('/data');
-    const isEmpty = (dataD.sites||[]).length === 0 && d.enrolled === 0;
-    if (isEmpty) {
+    const sitesEmpty = (dataD.sites||[]).length === 0;
+    const empsEmpty  = (dataD.employees||[]).length === 0;
+    const facesEmpty = d.enrolled === 0;
+    // Restore if app data is missing (sites/employees gone), even if faces still exist
+    if (sitesEmpty || empsEmpty) {
       const hasBk = localStorage.getItem('bdi_full_backup') || localStorage.getItem('bdi_face_backup');
-      if (hasBk) { await restoreAllData(); toast('Auto-restored data after server restart'); }
+      if (hasBk) {
+        const snap = localStorage.getItem('bdi_full_backup');
+        if (snap) {
+          const s = JSON.parse(snap);
+          await api('/data', 'POST', s);
+          if ((s.sites||[]).length)       SITES = s.sites;
+          if ((s.employees||[]).length)   EMPS  = s.employees;
+          if ((s.supervisors||[]).length) SUPS  = s.supervisors;
+          renderEmps(); renderSups(); renderSites(); renderDash(); populateSiteSelects();
+          toast(`Auto-restored: ${(s.employees||[]).length} employees, ${(s.sites||[]).length} sites after server restart`);
+        }
+        if (facesEmpty) {
+          const fBk = localStorage.getItem('bdi_face_backup');
+          if (fBk) {
+            const encodings = JSON.parse(fBk);
+            await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+          }
+        }
+      }
     } else {
       // Server has data — take a fresh backup
       backupAllData();
@@ -1940,6 +2617,47 @@ async function restoreFacesIfEmpty() {
     const r = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
     if (r.ok) toast(`Auto-restored ${r.imported} face encoding(s) after server restart`);
   } catch {}
+}
+
+async function backupFacesToGitHub() {
+  const btn = document.getElementById('github-backup-btn');
+  const status = document.getElementById('github-backup-status');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Backing up…';
+  status.style.display = 'none';
+  try {
+    const d = await api('/faces/backup', 'POST');
+    status.style.display = 'block';
+    if (d.github) {
+      status.innerHTML = `<span style="color:#16a34a;font-weight:700">✅ ${d.count} enrollment(s) saved to Railway + committed to GitHub</span>`
+        + (d.commit_url ? ` <a href="${d.commit_url}" target="_blank" style="color:#2563eb;font-size:11px">View commit →</a>` : '');
+    } else if (d.local) {
+      status.innerHTML = `<span style="color:#f97316;font-weight:700">⚠ Saved to Railway server but GitHub push skipped</span><br>`
+        + `<span style="color:#64748b">${d.github_reason||''}</span><br>`
+        + `<span style="color:#64748b;font-size:10px">Add <strong>GITHUB_TOKEN</strong> and <strong>GITHUB_REPO</strong> env vars in Railway to enable GitHub push.</span>`;
+    } else {
+      status.innerHTML = `<span style="color:#ef4444">❌ Backup failed</span>`;
+    }
+  } catch(e) {
+    status.style.display = 'block';
+    status.innerHTML = `<span style="color:#ef4444">❌ Error: ${esc(e.message)}</span>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-brand-github"></i> Backup Faces to GitHub';
+}
+
+async function downloadFacePreset() {
+  try {
+    const d = await api('/faces/export');
+    if (!d.ok || !d.count) { toast('No enrolled faces to save as preset', false); return; }
+    const json = JSON.stringify(d.encodings, null, 2);
+    const a = Object.assign(document.createElement('a'), {
+      href: 'data:application/json;charset=utf-8,' + encodeURIComponent(json),
+      download: 'face_encodings_preset.json'
+    });
+    a.click();
+    toast(`Downloaded preset with ${d.count} employee(s) — commit this file to GitHub to persist faces across deploys ✓`);
+  } catch(e) { toast('Export failed: '+e.message, false); }
 }
 
 // loadFaceBackupInfo kept for compatibility
