@@ -2939,6 +2939,9 @@ document.head.appendChild(style);
       <span style="color:var(--muted)">Current UID:</span>
       <strong id="link-face-uid-display" style="font-family:monospace;color:var(--text);margin-left:6px"></strong>
     </div>
+    <!-- Already-linked notice (shown/hidden by JS) -->
+    <div id="link-already-notice" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.5"></div>
+
     <div style="margin-bottom:18px">
       <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Select Employee to Link</label>
       <select id="link-emp-select" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:#fff;outline:none;box-sizing:border-box"
@@ -2950,8 +2953,11 @@ document.head.appendChild(style);
       </div>
     </div>
     <div style="display:flex;gap:8px">
-      <button onclick="saveLinkFace()" style="flex:1;padding:10px;background:#7c3aed;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+      <button id="link-save-btn" onclick="saveLinkFace()" style="flex:1;padding:10px;background:#7c3aed;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
         <i class="ti ti-link"></i> Link Employee
+      </button>
+      <button id="link-restore-btn" style="display:none;flex:1;padding:10px;background:#ea580c;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+        <i class="ti ti-cloud-upload"></i> Restore to Server
       </button>
       <button onclick="closeLinkModal()" style="padding:10px 16px;background:var(--light);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer">
         Cancel
@@ -2969,13 +2975,41 @@ function openLinkModal(uid, currentName, onServer) {
   document.getElementById('link-face-on-server').value = onServer ? '1' : '0';
   document.getElementById('link-face-uid-display').textContent = uid;
 
-  // Populate employee dropdown — exclude employees already correctly linked
+  // Check if this face UID already matches an employee exactly
+  const matchedEmp = EMPS.find(e => e.uid === uid);
+
+  // Populate employee dropdown — pre-select the matched employee if found
   const sel = document.getElementById('link-emp-select');
   sel.innerHTML = '<option value="">— Choose employee —</option>' +
-    EMPS.map(e => `<option value="${esc(e.uid)}">${esc(e.name)} (${esc(e.id||e.uid)})</option>`).join('');
+    EMPS.map(e => `<option value="${esc(e.uid)}" ${e.uid === uid ? 'selected' : ''}>${esc(e.name)} (${esc(e.id||e.uid)})</option>`).join('');
+
+  // Show/hide already-linked notice
+  const notice  = document.getElementById('link-already-notice');
+  const linkBtn = document.getElementById('link-save-btn');
+  const restBtn = document.getElementById('link-restore-btn');
+
+  if (matchedEmp && !onServer) {
+    // Face is correctly linked locally but missing from server
+    notice.innerHTML = `<i class="ti ti-check" style="color:#16a34a"></i> <strong style="color:#15803d">Already linked to ${esc(matchedEmp.name)}</strong> — but this face is <strong style="color:#ea580c">not on the server yet</strong>. Click Restore to push it.`;
+    notice.style.display = 'block';
+    linkBtn.style.display = 'none';
+    restBtn.style.display = 'block';
+    restBtn.onclick = () => { closeLinkModal(); restoreFaces().then(()=>loadEnrolledFaces()); };
+  } else if (matchedEmp && onServer) {
+    // Already linked and on server — nothing to do
+    notice.innerHTML = `<i class="ti ti-check" style="color:#16a34a"></i> <strong style="color:#15803d">Already linked to ${esc(matchedEmp.name)}</strong> and enrolled on the server. Use <em>Edit</em> to rename, or <em>Delete</em> to remove.`;
+    notice.style.display = 'block';
+    linkBtn.style.display = 'none';
+    restBtn.style.display = 'none';
+  } else {
+    // No match — allow linking
+    notice.style.display = 'none';
+    linkBtn.style.display = 'block';
+    restBtn.style.display = 'none';
+  }
 
   document.getElementById('link-face-modal').style.display = 'flex';
-  sel.focus();
+  if (!matchedEmp) sel.focus();
 }
 
 function closeLinkModal() {
