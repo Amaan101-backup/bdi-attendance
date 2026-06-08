@@ -488,12 +488,14 @@ tr:hover td{background:#f8fafc}
         <div class="card">
           <div class="ct">
             <i class="ti ti-face-id"></i>Enrolled Faces
-            <span class="ct-action">
+            <span class="ct-action" style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-gray btn-sm" onclick="loadEnrolledFaces()"><i class="ti ti-refresh"></i>Refresh</button>
+              <button class="btn btn-gray btn-sm" onclick="bulkDownloadFacesJSON()" title="Download all face encodings + employee info as JSON"><i class="ti ti-download"></i>Download JSON</button>
+              <button class="btn btn-gray btn-sm" onclick="bulkDownloadFacesCSV()" title="Download face enrollment summary as CSV"><i class="ti ti-table-export"></i>Download CSV</button>
             </span>
           </div>
           <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
-            View and manage all employees whose faces are enrolled for recognition. Click <strong>Edit</strong> to update name/ID, or <strong>Delete</strong> to remove a face enrollment.
+            View and manage all employees whose faces are enrolled for recognition. Click <strong>Edit</strong> to update name/ID, or <strong>Delete</strong> to remove a face enrollment. Use <strong>Download JSON</strong> to export all encodings (reimportable) or <strong>Download CSV</strong> for a summary report.
           </p>
           <div id="enrolled-faces-wrap">
             <div style="color:var(--muted);font-size:13px;padding:12px 0">Loading enrolled faces…</div>
@@ -2662,6 +2664,133 @@ async function downloadFacePreset() {
     a.click();
     toast(`Downloaded preset with ${d.count} employee(s) — commit this file to GitHub to persist faces across deploys ✓`);
   } catch(e) { toast('Export failed: '+e.message, false); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BULK DOWNLOAD — All enrolled faces
+══════════════════════════════════════════════════════════════ */
+
+/** Merge encodings from all sources (server → backup → empty) */
+async function _getAllEncodings() {
+  // 1. Try live server
+  try {
+    const d = await api('/faces/export');
+    if (d && d.ok && d.count > 0) return d.encodings;
+  } catch(e) {}
+
+  // 2. Fall back to browser backup
+  try {
+    const bk = localStorage.getItem('bdi_face_backup');
+    if (bk) {
+      const parsed = JSON.parse(bk);
+      if (Object.keys(parsed).length > 0) return parsed;
+    }
+  } catch(e) {}
+
+  return null;
+}
+
+/**
+ * Bulk Download JSON
+ * Exports: { exported_at, count, employees: [{uid, name, id, dept, sample_count, encodings}] }
+ * The 'encodings' field is included so the file can be re-imported to the server.
+ */
+async function bulkDownloadFacesJSON() {
+  toast('Preparing JSON export…');
+  const encodings = await _getAllEncodings();
+  if (!encodings || Object.keys(encodings).length === 0) {
+    toast('No enrolled faces found to download', false); return;
+  }
+
+  const empMap = {};
+  EMPS.forEach(e => { empMap[e.uid] = e; });
+
+  const employees = Object.entries(encodings).map(([uid, encs]) => {
+    const emp = empMap[uid];
+    return {
+      uid,
+      name:         emp ? (emp.name  || uid)        : uid,
+      employee_id:  emp ? (emp.id    || emp.uid)     : uid,
+      department:   emp ? (emp.dept  || '')          : '',
+      sample_count: Array.isArray(encs) ? encs.length : 1,
+      encodings:    encs   // raw vectors — needed for re-import
+    };
+  });
+
+  // Sort by name
+  employees.sort((a, b) => a.name.localeCompare(b.name));
+
+  const payload = {
+    exported_at:  new Date().toISOString(),
+    exported_by:  'BDI Admin Panel',
+    count:        employees.length,
+    employees
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href:     url,
+    download: `face-enrollments-${new Date().toISOString().slice(0,10)}.json`
+  });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`✓ Downloaded ${employees.length} face enrollment(s) as JSON`);
+}
+
+/**
+ * Bulk Download CSV
+ * Columns: Employee Name, Employee ID, Department, UID, Samples, Source
+ */
+async function bulkDownloadFacesCSV() {
+  toast('Preparing CSV export…');
+  const encodings = await _getAllEncodings();
+
+  const empMap = {};
+  EMPS.forEach(e => { empMap[e.uid] = e; });
+
+  // Also include browser-EMPS entries with faceReg even if not on server
+  const allUids = new Set(encodings ? Object.keys(encodings) : []);
+  EMPS.forEach(e => { if (e.faceReg && e.descriptor) allUids.add(e.uid); });
+
+  if (allUids.size === 0) {
+    toast('No enrolled faces found to download', false); return;
+  }
+
+  const rows = [['Employee Name', 'Employee ID', 'Department', 'UID (face key)', 'Samples', 'Source']];
+
+  [...allUids].sort((a, b) => {
+    const na = empMap[a]?.name || a;
+    const nb = empMap[b]?.name || b;
+    return na.localeCompare(nb);
+  }).forEach(uid => {
+    const emp  = empMap[uid];
+    const name = emp ? (emp.name || uid) : uid;
+    const id   = emp ? (emp.id   || emp.uid || uid) : uid;
+    const dept = emp ? (emp.dept || '') : '';
+    const encs = encodings ? encodings[uid] : null;
+    const samples = encs ? (Array.isArray(encs) ? encs.length : 1)
+                         : (emp?.descriptors ? emp.descriptors.length : (emp?.descriptor ? 1 : '—'));
+    const onServer  = !!(encodings && uid in encodings);
+    const onBrowser = !!(emp && emp.faceReg && emp.descriptor);
+    const source    = onServer && onBrowser ? 'Server + Browser'
+                    : onServer  ? 'Server'
+                    : 'Browser only';
+    // Escape CSV fields
+    const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    rows.push([esc(name), esc(id), esc(dept), esc(uid), samples, esc(source)]);
+  });
+
+  const csv  = rows.map(r => r.join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href:     url,
+    download: `face-enrollments-${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`✓ Downloaded ${allUids.size} face enrollment(s) as CSV`);
 }
 
 // loadFaceBackupInfo kept for compatibility
