@@ -116,10 +116,68 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
 
-# ── Security: read secrets from environment (never hard-code) ─────────────────
-IMPORT_SECRET = os.environ.get('IMPORT_SECRET', 'bdi-import-2024')
-RESET_SECRET  = os.environ.get('RESET_SECRET',  'bdi-reset-2024')
-ADMIN_API_KEY = os.environ.get('ADMIN_API_KEY',  '')   # empty = disabled locally
+# ── Security: read secrets from environment ────────────────────────────────────
+IMPORT_SECRET  = os.environ.get('IMPORT_SECRET', 'bdi-import-2024')
+RESET_SECRET   = os.environ.get('RESET_SECRET',  'bdi-reset-2024')
+ADMIN_API_KEY  = os.environ.get('ADMIN_API_KEY', '')
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'bdi2026')
+
+# Token secret — generated once at startup and stored in DB so it survives restarts
+import secrets as _secrets, hmac as _hmac, hashlib as _hashlib, time as _time
+from functools import wraps
+
+_TOKEN_SECRET = None   # loaded after DB is ready
+_ADMIN_SESSIONS: dict = {}   # token → expiry epoch
+_SESSION_TTL = 8 * 3600      # 8 hours
+
+def _load_token_secret():
+    global _TOKEN_SECRET
+    stored = _db_load('_admin_token_secret', None) if USE_DB else None
+    if stored:
+        _TOKEN_SECRET = stored
+    else:
+        _TOKEN_SECRET = _secrets.token_hex(32)
+        if USE_DB:
+            _db_save('_admin_token_secret', _TOKEN_SECRET)
+
+def _create_session() -> str:
+    token = _secrets.token_urlsafe(40)
+    _ADMIN_SESSIONS[token] = _time.time() + _SESSION_TTL
+    # Prune stale sessions
+    now = _time.time()
+    expired = [t for t, exp in _ADMIN_SESSIONS.items() if exp < now]
+    for t in expired:
+        del _ADMIN_SESSIONS[t]
+    return token
+
+def _verify_session(token: str) -> bool:
+    if not token:
+        return False
+    exp = _ADMIN_SESSIONS.get(token)
+    if not exp:
+        return False
+    if _time.time() > exp:
+        del _ADMIN_SESSIONS[token]
+        return False
+    return True
+
+def _get_token_from_request() -> str:
+    auth = request.headers.get('X-Admin-Token', '')
+    if not auth:
+        auth = request.headers.get('Authorization', '')
+        if auth.startswith('Bearer '):
+            auth = auth[7:]
+    return auth
+
+def require_admin(f):
+    """Decorator: requires a valid admin session token on X-Admin-Token header."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not _verify_session(_get_token_from_request()):
+            return jsonify({'ok': False, 'error': 'Unauthorized — admin login required'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 # ── CORS: restrict origins in production ─────────────────────────────────────
 _ALLOWED_ORIGINS_ENV = os.environ.get('ALLOWED_ORIGINS', '')
@@ -208,6 +266,35 @@ def service_worker():
     resp.headers['Service-Worker-Allowed'] = '/'
     return resp
 
+@app.route('/admin/login', methods=['POST'])
+@limiter.limit('10 per hour')
+def admin_login():
+    """Server-side admin login — returns a session token."""
+    data = request.json or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    # Constant-time comparison to prevent timing attacks
+    u_ok = _hmac.compare_digest(username.lower(), ADMIN_USERNAME.lower())
+    p_ok = _hmac.compare_digest(password, ADMIN_PASSWORD)
+    if u_ok and p_ok:
+        token = _create_session()
+        log.info(f'Admin login from {request.remote_addr}')
+        return jsonify({'ok': True, 'token': token, 'ttl': _SESSION_TTL})
+    log.warning(f'Failed admin login attempt from {request.remote_addr}')
+    return jsonify({'ok': False, 'error': 'Invalid username or password'}), 401
+
+@app.route('/admin/logout', methods=['POST'])
+def admin_logout():
+    token = _get_token_from_request()
+    if token in _ADMIN_SESSIONS:
+        del _ADMIN_SESSIONS[token]
+    return jsonify({'ok': True})
+
+@app.route('/admin/verify', methods=['GET'])
+def admin_verify():
+    """Check if the current session token is still valid."""
+    return jsonify({'ok': _verify_session(_get_token_from_request())})
+
 @app.route('/attendance-bridge.js')
 def attendance_bridge():
     resp = send_from_directory(BASE_DIR, 'attendance-bridge.js')
@@ -218,7 +305,23 @@ def attendance_bridge():
 # ── Storage ─────────────────────────────────────────────────────────────────
 ENCODINGS_FILE = os.path.join(DATA_DIR, 'face_encodings.json')
 PRESET_FILE    = os.path.join(BASE_DIR, 'face_encodings_preset.json')
-face_db = {}   # uid → list of 128-dim encodings (numpy arrays)
+face_db = {}           # uid → list of 128-dim encodings (numpy arrays)
+face_enroll_dates = {} # uid → ISO timestamp of first enrollment
+
+def _load_enroll_dates():
+    global face_enroll_dates
+    face_enroll_dates = _db_load('face_enroll_dates', {}) if USE_DB else {}
+
+def _save_enroll_dates():
+    if USE_DB:
+        _db_save('face_enroll_dates', face_enroll_dates)
+
+def _touch_enroll_date(uid):
+    """Set enrollment date for uid if not already recorded."""
+    if uid not in face_enroll_dates:
+        from datetime import datetime as _dt
+        face_enroll_dates[uid] = _dt.now().isoformat()
+        _save_enroll_dates()
 
 def load_db():
     global face_db
@@ -390,6 +493,7 @@ def enroll():
         if len(face_db[uid]) > 5:
             face_db[uid] = face_db[uid][-5:]
 
+        _touch_enroll_date(uid)
         save_db()
         log.info(f'Enrolled {name} ({uid}) — {len(face_db[uid])} sample(s) total')
         # Auto-save preset + GitHub backup so enrollment survives next deploy
@@ -531,6 +635,8 @@ def verify():
 
 
 @app.route('/import-faces', methods=['POST'])
+@require_admin
+@limiter.limit('30 per hour')
 def import_faces():
     """
     Per-employee face import from admin panel.
@@ -552,6 +658,7 @@ def import_faces():
 
         # Replace existing encodings for this employee
         face_db[uid] = numpy_encs[-5:]   # keep max 5 samples
+        _touch_enroll_date(uid)
         count_new += 1
 
     if count_new == 0:
@@ -564,7 +671,8 @@ def import_faces():
 
 
 @app.route('/import-encodings', methods=['POST'])
-@limiter.limit('10 per hour')            # bulk import — very infrequent
+@require_admin
+@limiter.limit('10 per hour')
 def import_encodings():
     """
     Bulk-import face encodings from face_encodings.json format.
@@ -572,9 +680,6 @@ def import_encodings():
     Used to upload local Python encodings to the cloud server.
     """
     data = request.json
-    if data.get('secret') != IMPORT_SECRET:
-        return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
-
     incoming = data.get('encodings', {})
     if not incoming:
         return jsonify({'ok': False, 'error': 'No encodings provided'}), 400
@@ -588,6 +693,7 @@ def import_encodings():
         else:
             # Merge — keep existing + add new ones, cap at 5
             face_db[uid] = (face_db[uid] + numpy_encs)[-5:]
+        _touch_enroll_date(uid)
 
     save_db()
     log.info(f'Imported encodings: {len(incoming)} employees ({count_new} new)')
@@ -595,22 +701,22 @@ def import_encodings():
 
 
 @app.route('/export-encodings', methods=['GET'])
+@require_admin
 @limiter.limit('10 per hour')
 def export_encodings():
     """Export all face encodings as JSON (for backup/migration)."""
-    secret = request.args.get('secret', '')
-    if secret != IMPORT_SECRET:
-        return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
     raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
     return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
 
 @app.route('/faces/export', methods=['GET'])
+@require_admin
 def faces_export():
     """Admin: export current face encodings for preset/backup download."""
     raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
     return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
 
 @app.route('/faces/backup', methods=['POST'])
+@require_admin
 def faces_backup():
     """Save current encodings as preset on server AND commit to GitHub."""
     raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
@@ -715,6 +821,7 @@ def backup_full():
     }})
 
 @app.route('/backup/restore', methods=['POST'])
+@require_admin
 def backup_restore():
     """Restore all server data from a /backup/full snapshot."""
     global app_data, app_supervisors, schedule_by_date, app_punches, manual_requests, face_db
@@ -775,6 +882,7 @@ def backup_restore():
     })
 
 @app.route('/backup/github', methods=['POST'])
+@require_admin
 def backup_github():
     """Commit full backup JSON to GitHub repo."""
     data     = request.json or {}
@@ -849,6 +957,8 @@ def backup_github():
 
 
 @app.route('/delete', methods=['POST'])
+@require_admin
+@limiter.limit('60 per hour')
 def delete():
     """Remove a person's encodings from the database."""
     uid = request.json.get('uid')
@@ -862,11 +972,18 @@ def delete():
 
 
 @app.route('/list', methods=['GET'])
+@require_admin
 def list_enrolled():
-    return jsonify({'ok': True, 'enrolled': {uid: len(encs) for uid, encs in face_db.items()}})
+    return jsonify({
+        'ok': True,
+        'enrolled':      {uid: len(encs) for uid, encs in face_db.items()},
+        'enroll_dates':  face_enroll_dates,
+    })
 
 
 @app.route('/rename-face', methods=['POST'])
+@require_admin
+@limiter.limit('60 per hour')
 def rename_face():
     """Re-key a face encoding from old_uid to new_uid (used to link faces to employees)."""
     old_uid = request.json.get('old_uid', '').strip()
@@ -930,6 +1047,7 @@ def get_employees():
     return jsonify({'ok': True, 'employees': emp_db, 'count': len(emp_db)})
 
 @app.route('/employees', methods=['POST'])
+@require_admin
 def set_employees():
     global emp_db
     data = request.json
@@ -1021,6 +1139,8 @@ def get_records():
     return jsonify({'ok': True, 'records': py_recs, 'count': len(py_recs)})
 
 @app.route('/records/clear', methods=['POST'])
+@require_admin
+@limiter.limit('5 per hour')
 def clear_records():
     global py_recs
     py_recs = []
@@ -1063,6 +1183,7 @@ def save_app_data():
             log.error(f'Failed to save app_data.json: {e}')
 
 @app.route('/data', methods=['GET'])
+@require_admin
 def get_app_data():
     """Device fetches full app state on load."""
     # Merge ALL attendance sources: app_data records + python cam + flutter app punches
@@ -1094,6 +1215,7 @@ def get_app_data():
     })
 
 @app.route('/data', methods=['POST'])
+@require_admin
 def set_app_data():
     """Device pushes updated app state to server (on any save)."""
     global app_data, app_supervisors
@@ -1132,7 +1254,8 @@ def get_data_version():
 
 # ── Full system reset (wipe all employees, sites, faces, punches) ─────────────
 @app.route('/sys/reset-all', methods=['POST'])
-@limiter.limit('5 per hour')             # reset — nuclear option, strict limit
+@require_admin
+@limiter.limit('5 per hour')
 def reset_all():
     """
     Wipe ALL data: employees, sites, face encodings, attendance records, schedules.
@@ -1502,10 +1625,23 @@ def app_punch():
 
     auto_checked_out = False
 
-    # ── Auto-checkout: if employee checks IN while already checked IN ──
-    # Silently closes the previous open session before recording the new check-in.
-    # Works same-day and across days.
+    from datetime import datetime as _dt
+    _today = _dt.now().strftime('%Y-%m-%d')
+
+    # ── Guard: never allow a checkout unless the employee checked in today ──
+    if punch_type == 'out':
+        today_recs = sorted(
+            [p for p in app_punches if p.get('empUid') == emp_uid and p.get('time', '').startswith(_today)],
+            key=lambda x: x.get('time', '')
+        )
+        if not today_recs or today_recs[-1].get('type') != 'in':
+            return jsonify({'ok': False, 'error': 'no_checkin', 'message': 'Employee has not checked in today'}), 400
+
+    # ── Auto-checkout: close any open check-in before recording a new one ──
+    # Same-day open IN → auto-checkout 1 second before the new IN timestamp.
+    # Previous-day open IN → auto-checkout at 23:59:59 of that day.
     if punch_type == 'in':
+        from datetime import datetime as _dt2, timedelta as _td
         emp_recs = sorted(
             [p for p in app_punches if p.get('empUid') == emp_uid],
             key=lambda x: x.get('time', '')
@@ -1514,11 +1650,16 @@ def app_punch():
             last = emp_recs[-1]
             if last.get('type') == 'in':
                 last_date = last.get('time', '')[:10]   # YYYY-MM-DD
-                from datetime import datetime as _dt
-                today = _dt.now().strftime('%Y-%m-%d')
-                # Stamp auto-checkout at end of that day if it was a previous day,
-                # otherwise use the current timestamp
-                auto_time = (last_date + 'T23:59:59') if last_date < today else timestamp
+                if last_date < _today:
+                    # Previous day — stamp at end of that day
+                    auto_time = last_date + 'T23:59:59'
+                else:
+                    # Same day — stamp 1 second before the new IN so records are distinct
+                    try:
+                        ts_dt = _dt2.fromisoformat(timestamp.replace('Z',''))
+                        auto_time = (ts_dt - _td(seconds=1)).isoformat()
+                    except Exception:
+                        auto_time = timestamp
                 auto_out = {
                     'empUid':             emp_uid,
                     'empName':            emp_name,
@@ -1613,6 +1754,8 @@ def get_manhours():
 # ── Boot ─────────────────────────────────────────────────────────────────────
 _db_init()          # create kv_store table if using PostgreSQL
 load_db()
+_load_enroll_dates()
+_load_token_secret()
 load_employees()
 load_py_recs()
 load_app_data()
@@ -1793,18 +1936,23 @@ def get_report():
 # ── Last punch type for a user (face-kiosk) ───────────────────────────────────
 @app.route('/app/last-punch-type', methods=['GET'])
 def last_punch_type():
-    """Return the last punch type ('in' or 'out') for an employee UID."""
+    """Return the last punch type ('in' or 'out') for an employee UID — today only.
+    If no punch today, return 'out' so the next scan becomes a check-in.
+    """
     uid = request.args.get('uid', '')
     if not uid:
         return jsonify({'ok': False, 'error': 'Missing uid'}), 400
 
-    emp_recs = sorted(
-        [p for p in app_punches if p.get('empUid') == uid],
+    from datetime import datetime as _dt
+    today = _dt.now().strftime('%Y-%m-%d')
+
+    today_recs = sorted(
+        [p for p in app_punches if p.get('empUid') == uid and p.get('time', '').startswith(today)],
         key=lambda x: x.get('time', '')
     )
-    if emp_recs:
-        return jsonify({'ok': True, 'type': emp_recs[-1].get('type', 'out'), 'uid': uid})
-    return jsonify({'ok': True, 'type': 'out', 'uid': uid})   # no history → default 'out' so next = 'in'
+    if today_recs:
+        return jsonify({'ok': True, 'type': today_recs[-1].get('type', 'out'), 'uid': uid})
+    return jsonify({'ok': True, 'type': 'out', 'uid': uid})   # no punch today → default 'out' so next = 'in'
 
 
 # ── Live dashboard ─────────────────────────────────────────────────────────────

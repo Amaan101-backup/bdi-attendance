@@ -174,6 +174,7 @@ tr:hover td{background:#f8fafc}
   .fr{grid-template-columns:1fr}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -229,6 +230,9 @@ tr:hover td{background:#f8fafc}
       <div class="sb-sec">Attendance</div>
       <button class="nb" data-pg="report" onclick="go('report');loadReport()"><i class="ti ti-chart-bar"></i>Reports</button>
       <button class="nb" data-pg="manreq" onclick="go('manreq');loadManReqs()"><i class="ti ti-camera"></i>Manual Requests</button>
+
+      <div class="sb-sec">Payroll</div>
+      <button class="nb" data-pg="payroll" onclick="go('payroll');loadPayroll()"><i class="ti ti-cash"></i>Payroll & OT</button>
 
       <div class="sb-sec">System</div>
       <button class="nb" data-pg="settings" onclick="go('settings');loadEnrolledFaces();loadSysInfo()"><i class="ti ti-settings"></i>Settings</button>
@@ -307,6 +311,7 @@ tr:hover td{background:#f8fafc}
               <span style="font-size:12px;font-weight:400;color:var(--muted)" id="emp-count"></span>
               <button class="btn btn-gray btn-sm" onclick="loadFaces().then(()=>renderEmps())" title="Refresh face enrollment status"><i class="ti ti-refresh"></i>Face Status</button>
               <button class="btn btn-gray btn-sm" onclick="exportEmps()"><i class="ti ti-download"></i>Export CSV</button>
+              <button class="btn btn-gray btn-sm" onclick="exportIDCards()" title="Export printable ID cards with QR code"><i class="ti ti-id"></i>Export ID Cards</button>
               <button class="btn btn-gray btn-sm" onclick="downloadEmpTemplate()"><i class="ti ti-file-spreadsheet"></i>Template</button>
               <label class="btn btn-or btn-sm" style="cursor:pointer;margin:0"><i class="ti ti-upload"></i>Import CSV
                 <input type="file" accept=".csv" style="display:none" onchange="importEmps(this)">
@@ -485,15 +490,42 @@ tr:hover td{background:#f8fafc}
         <div class="card">
           <div class="ct">
             <i class="ti ti-face-id"></i>Enrolled Faces
-            <span class="ct-action">
+            <span class="ct-action" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
               <button class="btn btn-gray btn-sm" onclick="loadEnrolledFaces()"><i class="ti ti-refresh"></i>Refresh</button>
-              <button class="btn btn-gray btn-sm" onclick="bulkDownloadFacesJSON()" title="Download all face encodings + employee info as JSON"><i class="ti ti-download"></i>Download JSON</button>
-              <button class="btn btn-gray btn-sm" onclick="bulkDownloadFacesCSV()" title="Download face enrollment summary as CSV"><i class="ti ti-table-export"></i>Download CSV</button>
+              <select id="faces-sort" onchange="loadEnrolledFaces()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer">
+                <option value="latest">Latest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="name_az">Name A→Z</option>
+                <option value="name_za">Name Z→A</option>
+              </select>
+              <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none" onclick="bulkImportFaces()" title="Import multiple face enrollment JSON files at once">
+                <i class="ti ti-file-import"></i>Bulk Import
+              </button>
+              <div style="position:relative;display:inline-block" id="dl-all-wrap">
+                <button class="btn btn-gray btn-sm" onclick="toggleDlMenu(event)" title="Download all face enrollments">
+                  <i class="ti ti-download"></i>Download All <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i>
+                </button>
+                <div id="dl-all-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:200;min-width:220px;overflow:hidden">
+                  <button onclick="bulkDownloadFacesJSON();closeDlMenu()" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text);text-align:left" onmouseover="this.style.background='var(--light)'" onmouseout="this.style.background='none'">
+                    <i class="ti ti-file-type-json" style="color:#2563eb;font-size:15px"></i>
+                    <div><div style="font-weight:600">One JSON File</div><div style="font-size:11px;color:var(--muted)">All employees in a single file</div></div>
+                  </button>
+                  <button onclick="bulkDownloadFacesZip();closeDlMenu()" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text);text-align:left" onmouseover="this.style.background='var(--light)'" onmouseout="this.style.background='none'">
+                    <i class="ti ti-file-zip" style="color:#7c3aed;font-size:15px"></i>
+                    <div><div style="font-weight:600">Separate Files (ZIP)</div><div style="font-size:11px;color:var(--muted)">One JSON per employee, zipped</div></div>
+                  </button>
+                  <button onclick="bulkDownloadFacesCSV();closeDlMenu()" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--text);text-align:left" onmouseover="this.style.background='var(--light)'" onmouseout="this.style.background='none'">
+                    <i class="ti ti-table-export" style="color:#059669;font-size:15px"></i>
+                    <div><div style="font-weight:600">CSV Summary</div><div style="font-size:11px;color:var(--muted)">Enrollment list (no encodings)</div></div>
+                  </button>
+                </div>
+              </div>
             </span>
           </div>
           <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
-            View and manage all employees whose faces are enrolled for recognition. Click <strong>Edit</strong> to update name/ID, or <strong>Delete</strong> to remove a face enrollment. Use <strong>Download JSON</strong> to export all encodings (reimportable) or <strong>Download CSV</strong> for a summary report.
+            View and manage all employees whose faces are enrolled. Use <strong>Sort</strong> to order by enrollment date or name. Click <strong>Download</strong> per row to save an individual employee's encodings, or <strong>Bulk Import</strong> to load multiple JSON files at once.
           </p>
+          <input type="file" id="bulk-import-input" accept=".json" multiple style="display:none" onchange="handleBulkImportFiles(this.files)">
           <div id="enrolled-faces-wrap">
             <div style="color:var(--muted);font-size:13px;padding:12px 0">Loading enrolled faces…</div>
           </div>
@@ -741,36 +773,64 @@ function toast(msg, ok=true) {
 }
 function uid(prefix) { return prefix + Date.now() + Math.floor(Math.random()*1000); }
 async function api(path, method='GET', body=null) {
-  const opts = { method, headers: {'Content-Type':'application/json'} };
+  const token = sessionStorage.getItem('_bdi_admin_token') || '';
+  const opts = { method, headers: {'Content-Type':'application/json', 'X-Admin-Token': token} };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(SERVER + path, opts);
+  if (r.status === 401) { doLogout(); return {ok:false, error:'Session expired — please log in again'}; }
   return r.json();
 }
 
 /* ══════════════════════════════════════════════════════════════
    LOGIN
 ══════════════════════════════════════════════════════════════ */
-function doLogin() {
+async function doLogin() {
   const u = document.getElementById('l-user').value.trim();
   const p = document.getElementById('l-pass').value;
   const err = document.getElementById('l-err');
-  if (u === 'admin' && p === 'bdi2026') {
-    document.getElementById('scr-login').style.display = 'none';
-    document.getElementById('scr-admin').classList.add('show');
-    initAdmin();
-  } else {
+  const btn = document.querySelector('.lbtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(SERVER + '/admin/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username: u, password: p})
+    });
+    const d = await res.json();
+    if (d.ok && d.token) {
+      sessionStorage.setItem('_bdi_admin_token', d.token);
+      document.getElementById('scr-login').style.display = 'none';
+      document.getElementById('scr-admin').classList.add('show');
+      initAdmin();
+    } else {
+      err.textContent = d.error || 'Invalid username or password';
+      err.style.display = 'block';
+      setTimeout(() => err.style.display='none', 3000);
+    }
+  } catch(e) {
+    err.textContent = 'Connection error — check server';
     err.style.display = 'block';
     setTimeout(() => err.style.display='none', 3000);
+  } finally {
+    btn.disabled = false;
   }
 }
 document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('l-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-function logout() {
+async function doLogout() {
+  const token = sessionStorage.getItem('_bdi_admin_token') || '';
+  if (token) {
+    try { await fetch(SERVER + '/admin/logout', {method:'POST', headers:{'X-Admin-Token': token}}); } catch(_){}
+  }
+  sessionStorage.removeItem('_bdi_admin_token');
   document.getElementById('scr-admin').classList.remove('show');
   document.getElementById('scr-login').style.display = 'flex';
   document.getElementById('l-pass').value = '';
+  document.getElementById('l-user').value = '';
 }
+
+function logout() { doLogout(); }
 
 /* ══════════════════════════════════════════════════════════════
    PAGE NAVIGATION
@@ -783,6 +843,7 @@ const PAGE_META = {
   sites:   ['Sites',             'Geo-fenced Locations'],
   report:  ['Reports',           'Attendance Records'],
   manreq:  ['Manual Requests',   'Review & Approve'],
+  payroll: ['Payroll & OT',      'Overtime · Special Duty · Overview'],
   settings:['Settings',          'System'],
 };
 function go(id) {
@@ -1799,7 +1860,7 @@ async function loadReport() {
     const seen = new Set();
     const all = [];
     for (const r of [...appPunches, ...dataRecs]) {
-      const key = (r.empUid||'')+(r.time||r.timestamp||'');
+      const key = (r.empUid||'')+(r.time||r.timestamp||'')+(r.type||'');
       if (!seen.has(key)) { seen.add(key); all.push(r); }
     }
     all.sort((a,b)=>(b.time||b.timestamp||'').localeCompare(a.time||a.timestamp||''));
@@ -1878,8 +1939,7 @@ function filterReport() {
   };
   const punchCell = (r, color, label) => {
     if (!r) return `<div style="color:#94a3b8;font-size:12px">⏳ Active</div>`;
-    const autoTag = r.source==='auto-checkout' ? `<span style="font-size:9px;background:#e2e8f0;color:#64748b;padding:1px 5px;border-radius:4px;margin-left:4px">auto</span>` : '';
-    return `<div style="color:${color};font-weight:700;font-size:14px">${fmtTime(r.time)||'—'}${autoTag}</div>
+    return `<div style="color:${color};font-weight:700;font-size:14px">${fmtTime(r.time)||'—'}</div>
             ${gpsCell(r)}`;
   };
 
@@ -2290,16 +2350,19 @@ async function loadEnrolledFaces() {
   wrap.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:12px 0"><i class="ti ti-loader" style="animation:spin 1s linear infinite;margin-right:6px"></i>Loading…</div>`;
 
   // ── Merge server faces + browser-enrolled faces from localStorage ──
-  // Server faces: { uid → sampleCount }
   let serverEnrolled = {};
-  let serverOnline = false;
+  let enrollDates    = {};
+  let serverOnline   = false;
   try {
     const d = await api('/list');
-    if (d && d.ok) { serverEnrolled = d.enrolled || {}; serverOnline = true; }
+    if (d && d.ok) {
+      serverEnrolled = d.enrolled || {};
+      enrollDates    = d.enroll_dates || {};
+      serverOnline   = true;
+    }
   } catch(e) { /* server offline */ }
 
-  // Browser faces: EMPS entries with faceReg=true and a descriptor
-  const browserEnrolled = {}; // uid → { name, id, dept, samples }
+  const browserEnrolled = {};
   EMPS.forEach(e => {
     if (e.faceReg && e.descriptor) {
       const sampleCount = e.descriptors ? e.descriptors.length : 1;
@@ -2307,8 +2370,7 @@ async function loadEnrolledFaces() {
     }
   });
 
-  // Backup faces: from bdi_face_backup localStorage (uid → encoding arrays)
-  const backupEnrolled = {}; // uid → sampleCount
+  const backupEnrolled = {};
   try {
     const bk = localStorage.getItem('bdi_face_backup');
     if (bk) {
@@ -2318,12 +2380,11 @@ async function loadEnrolledFaces() {
         backupEnrolled[uid] = Array.isArray(encs) ? encs.length : 1;
       });
     }
-  } catch(e) { /* invalid backup data */ }
+  } catch(e) {}
 
-  // Merge: all unique UIDs from all three sources
   const allUids = [...new Set([...Object.keys(serverEnrolled), ...Object.keys(browserEnrolled), ...Object.keys(backupEnrolled)])];
 
-  // ── Show restore banner if server has no faces but backup has some ──
+  // ── Show restore banner ──
   const serverCount0 = Object.keys(serverEnrolled).length;
   const backupCount0 = Object.keys(backupEnrolled).length;
   let restoreBanner  = '';
@@ -2333,7 +2394,7 @@ async function loadEnrolledFaces() {
         <i class="ti ti-alert-triangle" style="color:#f97316;font-size:20px;flex-shrink:0"></i>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;color:#9a3412;font-size:13px">Server has 0 face encodings — ${backupCount0} faces are in your browser backup</div>
-          <div style="font-size:12px;color:#c2410c;margin-top:2px">Face recognition will not work until you restore. Click the button to push your backup to the server.</div>
+          <div style="font-size:12px;color:#c2410c;margin-top:2px">Face recognition will not work until you restore.</div>
         </div>
         <button class="btn" style="background:#ea580c;color:#fff;border:none;white-space:nowrap;flex-shrink:0" onclick="restoreFaces().then(()=>loadEnrolledFaces())">
           <i class="ti ti-cloud-upload"></i> Restore ${backupCount0} Faces to Server
@@ -2349,22 +2410,41 @@ async function loadEnrolledFaces() {
   const empMap = {};
   EMPS.forEach(e => { empMap[e.uid] = e; });
 
-  let rows = allUids.map(uid => {
+  // ── Build row data ──
+  let rowData = allUids.map(uid => {
     const emp = empMap[uid];
     const browser = browserEnrolled[uid];
-    const name  = emp ? emp.name  : (browser ? browser.name  : `Unknown (${uid})`);
-    const empId = emp ? (emp.id || emp.uid) : (browser ? browser.id : '—');
-    const dept  = emp ? (emp.dept||'')      : (browser ? browser.dept : '');
+    const name    = emp ? emp.name  : (browser ? browser.name  : `Unknown (${uid})`);
+    const empId   = emp ? (emp.id || emp.uid) : (browser ? browser.id : '—');
+    const dept    = emp ? (emp.dept||'') : (browser ? browser.dept : '');
     const onServer  = uid in serverEnrolled;
     const onBrowser = uid in browserEnrolled;
     const onBackup  = uid in backupEnrolled;
-    const samples   = onServer ? serverEnrolled[uid] : onBackup ? backupEnrolled[uid] : (browser ? browser.samples : '—');
-    const source    = onServer && onBrowser ? 'Server + Browser'
-                    : onServer  ? 'Server'
-                    : onBackup  ? 'Backup only'
-                    : 'Browser only';
-    const srcColor  = onServer ? 'var(--green)' : '#f59e0b';
+    const samples   = onServer ? serverEnrolled[uid] : onBackup ? backupEnrolled[uid] : (browser ? browser.samples : 0);
+    const enrolledAt = enrollDates[uid] || '';
+    return { uid, name, empId, dept, onServer, onBrowser, onBackup, samples, enrolledAt };
+  });
 
+  // ── Sort ──
+  const sortOrder = (document.getElementById('faces-sort') || {}).value || 'latest';
+  rowData.sort((a, b) => {
+    if (sortOrder === 'latest') return (b.enrolledAt || '0') > (a.enrolledAt || '0') ? 1 : -1;
+    if (sortOrder === 'oldest') return (a.enrolledAt || '9') > (b.enrolledAt || '9') ? 1 : -1;
+    if (sortOrder === 'name_az') return a.name.localeCompare(b.name);
+    if (sortOrder === 'name_za') return b.name.localeCompare(a.name);
+    return 0;
+  });
+
+  const fmtEnrolledAt = iso => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d) ? '—' : d.toLocaleDateString(undefined, {day:'2-digit',month:'short',year:'numeric'});
+  };
+
+  const rows = rowData.map(({ uid, name, empId, dept, onServer, onBrowser, onBackup, samples, enrolledAt }) => {
+    const source   = onServer && onBrowser ? 'Server + Browser' : onServer ? 'Server' : onBackup ? 'Backup only' : 'Browser only';
+    const srcColor = onServer ? 'var(--green)' : '#f59e0b';
+    const safeName = name.replace(/'/g,"\\'"); const safeId = empId.replace(/'/g,"\\'");
     return `
       <tr style="border-bottom:1px solid var(--border)">
         <td style="padding:10px 8px">
@@ -2376,17 +2456,21 @@ async function loadEnrolledFaces() {
         <td style="padding:10px 8px;text-align:center">
           <span style="background:rgba(22,163,74,.1);color:var(--green);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${samples} sample${samples!==1?'s':''}</span>
         </td>
+        <td style="padding:10px 8px;font-size:11px;color:var(--muted);text-align:center;white-space:nowrap">${fmtEnrolledAt(enrolledAt)}</td>
         <td style="padding:10px 8px;text-align:center">
           <span style="font-size:11px;font-weight:500;color:${srcColor}">${source}</span>
         </td>
-        <td style="padding:10px 8px;text-align:right;white-space:nowrap">
-          <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:4px" onclick="openEditFaceModal('${uid}','${name.replace(/'/g,"\\'")}','${empId.replace(/'/g,"\\'")}')">
+        <td style="padding:10px 8px;text-align:right;white-space:nowrap;min-width:220px">
+          <button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.25);margin-right:3px" onclick="openEditFaceModal('${uid}','${safeName}','${safeId}')">
             <i class="ti ti-pencil"></i>Edit
           </button>
-          <button class="btn btn-sm" style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);margin-right:4px" onclick="openLinkModal('${uid}','${name.replace(/'/g,"\'")}',${ onServer})">
+          <button class="btn btn-sm" style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);margin-right:3px" onclick="openLinkModal('${uid}','${safeName}',${onServer})">
             <i class="ti ti-link"></i>Link
           </button>
-          ${onServer ? `<button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${name.replace(/'/g,"\\'")}')">
+          <button class="btn btn-sm" style="background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.25);margin-right:3px" onclick="downloadSingleFace('${uid}','${safeName}','${safeId}')" title="Download this employee's face encodings as JSON">
+            <i class="ti ti-download"></i>Download
+          </button>
+          ${onServer ? `<button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)" onclick="deleteFace('${uid}','${safeName}')">
             <i class="ti ti-trash"></i>Delete
           </button>` : ''}
         </td>
@@ -2394,7 +2478,6 @@ async function loadEnrolledFaces() {
   }).join('');
 
   const serverCount  = Object.keys(serverEnrolled).length;
-  const browserCount = Object.keys(browserEnrolled).length;
   const backupCount  = Object.keys(backupEnrolled).length;
   const statusLine = serverOnline
     ? `<strong style="color:var(--text)">${allUids.length}</strong> total &nbsp;·&nbsp; <span style="color:var(--green)">${serverCount} on server</span> &nbsp;·&nbsp; <span style="color:#f59e0b">${backupCount} in backup</span>`
@@ -2410,6 +2493,7 @@ async function loadEnrolledFaces() {
             <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">ID</th>
             <th style="padding:9px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">UID</th>
             <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Samples</th>
+            <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Enrolled</th>
             <th style="padding:9px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Source</th>
             <th style="padding:9px 8px;text-align:right;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Action</th>
           </tr>
@@ -2481,7 +2565,7 @@ async function backupAllData() {
   let faceCount = 0, siteCount = 0, empCount = 0;
   // Backup face encodings
   try {
-    const d = await api('/export-encodings?secret=bdi-import-2024');
+    const d = await api('/export-encodings');
     if (d.ok && d.encodings) {
       localStorage.setItem('bdi_face_backup', JSON.stringify(d.encodings));
       localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
@@ -2573,13 +2657,13 @@ async function restoreAllIfEmpty() {
           const encodings = JSON.parse(fBk);
           const count = Object.keys(encodings).length;
           if (count > 0) {
-            const r = await api('/import-encodings', 'POST', { encodings, secret: 'bdi-import-2024' });
+            const r = await api('/import-encodings', 'POST', { encodings, secret: '' });
             if (r.ok) {
               toast(`✓ Auto-restored ${r.imported} face encoding(s) to server`);
-              loadEnrolledFaces();
+              loadEnrolledFaces(); // refresh the list
             }
           }
-        } catch(e) {}
+        } catch(e) { /* ignore parse errors */ }
       }
     }
   } catch {}
@@ -2612,7 +2696,7 @@ function loadBackupInfo() {
 
 async function backupFaces() {
   try {
-    const d = await api('/export-encodings?secret=bdi-import-2024');
+    const d = await api('/export-encodings');
     if (d.ok && d.encodings && Object.keys(d.encodings).length > 0) {
       localStorage.setItem('bdi_face_backup', JSON.stringify(d.encodings));
       localStorage.setItem('bdi_face_backup_time', new Date().toISOString());
@@ -2693,11 +2777,131 @@ async function downloadFacePreset() {
    BULK DOWNLOAD — All enrolled faces
 ══════════════════════════════════════════════════════════════ */
 
+/* ── Download a single employee's face encodings as JSON ── */
+async function downloadSingleFace(uid, name, empId) {
+  let encodings = null;
+
+  // Try server first
+  try {
+    const d = await api('/faces/export');
+    if (d && d.ok && d.encodings && d.encodings[uid]) {
+      encodings = d.encodings[uid];
+    }
+  } catch(e) {}
+
+  // Fall back to localStorage backup
+  if (!encodings) {
+    try {
+      const bk = localStorage.getItem('bdi_face_backup');
+      if (bk) {
+        const bkData = JSON.parse(bk);
+        if (bkData[uid]) encodings = bkData[uid];
+      }
+    } catch(e) {}
+  }
+
+  if (!encodings || encodings.length === 0) {
+    toast(`No encodings found for ${name}`, false);
+    return;
+  }
+
+  const payload = {
+    type: 'face_enrollment',
+    employee_id: empId,
+    employee_uid: uid,
+    name: name,
+    encodings: encodings,
+    exported_at: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const safeFilename = (name || uid).replace(/[^a-z0-9_\-]/gi, '_');
+  a.download = `face_${safeFilename}_${empId}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`Downloaded face encodings for ${name}`);
+}
+
+/* ── Bulk Import: open file picker for multiple JSON files ── */
+function bulkImportFaces() {
+  document.getElementById('bulk-import-input').value = '';
+  document.getElementById('bulk-import-input').click();
+}
+
+async function handleBulkImportFiles(files) {
+  if (!files || files.length === 0) return;
+
+  const results = [];
+  let failed = 0;
+
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Support two formats:
+      // Format A: { type:'face_enrollment', employee_uid, encodings: [[...], ...] }
+      // Format B: { uid: [[...], ...] }  (raw map, single or multi)
+      let uid, name, encodings;
+
+      if (data.type === 'face_enrollment') {
+        uid       = data.employee_uid || data.employee_id;
+        name      = data.name || uid;
+        encodings = data.encodings;
+      } else if (typeof data === 'object' && !Array.isArray(data)) {
+        // Raw map — could be one uid or many
+        const keys = Object.keys(data).filter(k => k !== 'type' && k !== 'name' && k !== 'exported_at');
+        for (const k of keys) {
+          if (Array.isArray(data[k]) && data[k].length > 0) {
+            results.push({ uid: k, encodings: data[k], name: k });
+          }
+        }
+        continue; // handled above via inner loop
+      }
+
+      if (!uid || !Array.isArray(encodings) || encodings.length === 0) {
+        failed++;
+        continue;
+      }
+      results.push({ uid, name, encodings });
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  if (results.length === 0) {
+    toast(`No valid face encodings found in ${failed} file(s)`, false);
+    return;
+  }
+
+  // Build combined encodings map and import
+  const combined = {};
+  results.forEach(({ uid, encodings }) => { combined[uid] = encodings; });
+
+  try {
+    const r = await api('/import-encodings', 'POST', { encodings: combined, secret: '' });
+    if (r.ok) {
+      const msg = `Imported ${r.imported} face enrollment(s)` + (failed > 0 ? ` (${failed} file(s) skipped)` : '');
+      toast(msg);
+      loadEnrolledFaces();
+    } else {
+      toast('Import failed: ' + (r.error || 'Unknown error'), false);
+    }
+  } catch(e) {
+    toast('Import failed: ' + e.message, false);
+  }
+}
+
+/** Merge encodings from all sources (server → backup → empty) */
 async function _getAllEncodings() {
+  // 1. Try live server
   try {
     const d = await api('/faces/export');
     if (d && d.ok && d.count > 0) return d.encodings;
   } catch(e) {}
+
+  // 2. Fall back to browser backup
   try {
     const bk = localStorage.getItem('bdi_face_backup');
     if (bk) {
@@ -2705,7 +2909,73 @@ async function _getAllEncodings() {
       if (Object.keys(parsed).length > 0) return parsed;
     }
   } catch(e) {}
+
   return null;
+}
+
+/**
+ * Bulk Download JSON
+ * Exports: { exported_at, count, employees: [{uid, name, id, dept, sample_count, encodings}] }
+ * The 'encodings' field is included so the file can be re-imported to the server.
+ */
+function toggleDlMenu(e) {
+  e.stopPropagation();
+  const m = document.getElementById('dl-all-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  if (m.style.display === 'block') {
+    const close = ev => { if (!document.getElementById('dl-all-wrap').contains(ev.target)) { m.style.display='none'; document.removeEventListener('click',close); }};
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+function closeDlMenu() { document.getElementById('dl-all-menu').style.display = 'none'; }
+
+async function bulkDownloadFacesZip() {
+  toast('Building ZIP…');
+  const encodings = await _getAllEncodings();
+  if (!encodings || Object.keys(encodings).length === 0) {
+    toast('No enrolled faces found to download', false); return;
+  }
+
+  if (typeof JSZip === 'undefined') {
+    toast('ZIP library not loaded — try refreshing the page', false); return;
+  }
+
+  const empMap = {};
+  EMPS.forEach(e => { empMap[e.uid] = e; });
+
+  const zip = new JSZip();
+  const folder = zip.folder('face_enrollments');
+  let count = 0;
+
+  for (const [uid, encs] of Object.entries(encodings)) {
+    const emp = empMap[uid];
+    const name   = emp ? (emp.name || uid) : uid;
+    const empId  = emp ? (emp.id  || emp.uid) : uid;
+    const dept   = emp ? (emp.dept || '') : '';
+
+    const payload = {
+      type:         'face_enrollment',
+      employee_uid: uid,
+      employee_id:  empId,
+      name,
+      department:   dept,
+      sample_count: Array.isArray(encs) ? encs.length : 1,
+      encodings:    encs,
+      exported_at:  new Date().toISOString(),
+    };
+
+    const safeFilename = name.replace(/[^a-z0-9_\-]/gi, '_');
+    folder.file(`face_${safeFilename}_${empId}.json`, JSON.stringify(payload, null, 2));
+    count++;
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `face-enrollments-${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(`✓ Downloaded ${count} face enrollment(s) as separate files in ZIP`);
 }
 
 async function bulkDownloadFacesJSON() {
@@ -2714,55 +2984,93 @@ async function bulkDownloadFacesJSON() {
   if (!encodings || Object.keys(encodings).length === 0) {
     toast('No enrolled faces found to download', false); return;
   }
+
   const empMap = {};
   EMPS.forEach(e => { empMap[e.uid] = e; });
+
   const employees = Object.entries(encodings).map(([uid, encs]) => {
     const emp = empMap[uid];
     return {
       uid,
-      name:         emp ? (emp.name  || uid)    : uid,
-      employee_id:  emp ? (emp.id    || emp.uid) : uid,
-      department:   emp ? (emp.dept  || '')      : '',
+      name:         emp ? (emp.name  || uid)        : uid,
+      employee_id:  emp ? (emp.id    || emp.uid)     : uid,
+      department:   emp ? (emp.dept  || '')          : '',
       sample_count: Array.isArray(encs) ? encs.length : 1,
-      encodings:    encs
+      encodings:    encs   // raw vectors — needed for re-import
     };
   });
+
+  // Sort by name
   employees.sort((a, b) => a.name.localeCompare(b.name));
-  const payload = { exported_at: new Date().toISOString(), exported_by: 'BDI Admin Panel', count: employees.length, employees };
+
+  const payload = {
+    exported_at:  new Date().toISOString(),
+    exported_by:  'BDI Admin Panel',
+    count:        employees.length,
+    employees
+  };
+
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: `face-enrollments-${new Date().toISOString().slice(0,10)}.json` });
+  const a    = Object.assign(document.createElement('a'), {
+    href:     url,
+    download: `face-enrollments-${new Date().toISOString().slice(0,10)}.json`
+  });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   toast(`✓ Downloaded ${employees.length} face enrollment(s) as JSON`);
 }
 
+/**
+ * Bulk Download CSV
+ * Columns: Employee Name, Employee ID, Department, UID, Samples, Source
+ */
 async function bulkDownloadFacesCSV() {
   toast('Preparing CSV export…');
   const encodings = await _getAllEncodings();
+
   const empMap = {};
   EMPS.forEach(e => { empMap[e.uid] = e; });
+
+  // Also include browser-EMPS entries with faceReg even if not on server
   const allUids = new Set(encodings ? Object.keys(encodings) : []);
   EMPS.forEach(e => { if (e.faceReg && e.descriptor) allUids.add(e.uid); });
-  if (allUids.size === 0) { toast('No enrolled faces found to download', false); return; }
+
+  if (allUids.size === 0) {
+    toast('No enrolled faces found to download', false); return;
+  }
+
   const rows = [['Employee Name', 'Employee ID', 'Department', 'UID (face key)', 'Samples', 'Source']];
-  [...allUids].sort((a, b) => (empMap[a]?.name || a).localeCompare(empMap[b]?.name || b)).forEach(uid => {
+
+  [...allUids].sort((a, b) => {
+    const na = empMap[a]?.name || a;
+    const nb = empMap[b]?.name || b;
+    return na.localeCompare(nb);
+  }).forEach(uid => {
     const emp  = empMap[uid];
     const name = emp ? (emp.name || uid) : uid;
     const id   = emp ? (emp.id   || emp.uid || uid) : uid;
     const dept = emp ? (emp.dept || '') : '';
     const encs = encodings ? encodings[uid] : null;
-    const samples = encs ? (Array.isArray(encs) ? encs.length : 1) : (emp?.descriptors ? emp.descriptors.length : (emp?.descriptor ? 1 : '—'));
+    const samples = encs ? (Array.isArray(encs) ? encs.length : 1)
+                         : (emp?.descriptors ? emp.descriptors.length : (emp?.descriptor ? 1 : '—'));
     const onServer  = !!(encodings && uid in encodings);
     const onBrowser = !!(emp && emp.faceReg && emp.descriptor);
-    const source    = onServer && onBrowser ? 'Server + Browser' : onServer ? 'Server' : 'Browser only';
+    const source    = onServer && onBrowser ? 'Server + Browser'
+                    : onServer  ? 'Server'
+                    : 'Browser only';
+    // Escape CSV fields
     const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
     rows.push([esc(name), esc(id), esc(dept), esc(uid), samples, esc(source)]);
   });
+
   const csv  = rows.map(r => r.join(',')).join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: `face-enrollments-${new Date().toISOString().slice(0,10)}.csv` });
+  const a    = Object.assign(document.createElement('a'), {
+    href:     url,
+    download: `face-enrollments-${new Date().toISOString().slice(0,10)}.csv`
+  });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   toast(`✓ Downloaded ${allUids.size} face enrollment(s) as CSV`);
@@ -2923,28 +3231,34 @@ function openLinkModal(uid, currentName, onServer) {
   document.getElementById('link-face-on-server').value = onServer ? '1' : '0';
   document.getElementById('link-face-uid-display').textContent = uid;
 
+  // Check if this face UID already matches an employee exactly
   const matchedEmp = EMPS.find(e => e.uid === uid);
 
+  // Populate employee dropdown — pre-select the matched employee if found
   const sel = document.getElementById('link-emp-select');
   sel.innerHTML = '<option value="">— Choose employee —</option>' +
     EMPS.map(e => `<option value="${esc(e.uid)}" ${e.uid === uid ? 'selected' : ''}>${esc(e.name)} (${esc(e.id||e.uid)})</option>`).join('');
 
+  // Show/hide already-linked notice
   const notice  = document.getElementById('link-already-notice');
   const linkBtn = document.getElementById('link-save-btn');
   const restBtn = document.getElementById('link-restore-btn');
 
   if (matchedEmp && !onServer) {
+    // Face is correctly linked locally but missing from server
     notice.innerHTML = `<i class="ti ti-check" style="color:#16a34a"></i> <strong style="color:#15803d">Already linked to ${esc(matchedEmp.name)}</strong> — but this face is <strong style="color:#ea580c">not on the server yet</strong>. Click Restore to push it.`;
     notice.style.display = 'block';
     linkBtn.style.display = 'none';
     restBtn.style.display = 'block';
     restBtn.onclick = () => { closeLinkModal(); restoreFaces().then(()=>loadEnrolledFaces()); };
   } else if (matchedEmp && onServer) {
+    // Already linked and on server — nothing to do
     notice.innerHTML = `<i class="ti ti-check" style="color:#16a34a"></i> <strong style="color:#15803d">Already linked to ${esc(matchedEmp.name)}</strong> and enrolled on the server. Use <em>Edit</em> to rename, or <em>Delete</em> to remove.`;
     notice.style.display = 'block';
     linkBtn.style.display = 'none';
     restBtn.style.display = 'none';
   } else {
+    // No match — allow linking
     notice.style.display = 'none';
     linkBtn.style.display = 'block';
     restBtn.style.display = 'none';
