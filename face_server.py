@@ -14,6 +14,8 @@ RUN:
 
 from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import numpy as np
 import base64
 import json
@@ -34,7 +36,76 @@ except ImportError as e:
     logging.warning(f'face_recognition not available: {e}')
     FACE_RECOGNITION_AVAILABLE = False
 
-# Serve static files from same directory as this script
+# ── PostgreSQL persistence ────────────────────────────────────────────────────
+# When DATABASE_URL is set (Railway PostgreSQL), all data is saved to Postgres.
+# Without it, falls back to JSON files (local dev unchanged).
+
+_DB_URL = os.environ.get('DATABASE_URL', '')
+if _DB_URL.startswith('postgres://'):          # Railway uses postgres:// prefix
+    _DB_URL = _DB_URL.replace('postgres://', 'postgresql://', 1)
+USE_DB = bool(_DB_URL)
+
+def _db_connect():
+    import psycopg2
+    return psycopg2.connect(_DB_URL, connect_timeout=5)
+
+def _db_init():
+    """Create kv_store table once on startup."""
+    if not USE_DB:
+        return
+    try:
+        conn = _db_connect()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS kv_store (
+                    key        TEXT PRIMARY KEY,
+                    value      TEXT NOT NULL,
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+        conn.commit()
+        conn.close()
+        log.info('✅ PostgreSQL connected — data will persist across restarts')
+    except Exception as e:
+        log.error(f'❌ DB init failed: {e}')
+
+def _db_load(key, default):
+    """Load a value from PostgreSQL by key, return default if not found."""
+    if not USE_DB:
+        return default
+    try:
+        conn = _db_connect()
+        with conn.cursor() as cur:
+            cur.execute("SELECT value FROM kv_store WHERE key = %s", (key,))
+            row = cur.fetchone()
+        conn.close()
+        if row:
+            return json.loads(row[0])
+        return default
+    except Exception as e:
+        log.error(f'DB load [{key}] failed: {e}')
+        return default
+
+def _db_save(key, data):
+    """Save a value to PostgreSQL by key (upsert)."""
+    if not USE_DB:
+        return
+    try:
+        conn = _db_connect()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO kv_store (key, value, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (key) DO UPDATE
+                    SET value = EXCLUDED.value,
+                        updated_at = NOW()
+            """, (key, json.dumps(data, default=str)))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.error(f'DB save [{key}] failed: {e}')
+
+# ── Serve static files from same directory as this script ─────────────────────
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 
 # Data directory — /app/data by default so Railway volume mount persists JSON files
@@ -44,16 +115,49 @@ PORT      = int(os.environ.get('PORT', 5000))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
-CORS(app, origins='*', supports_credentials=False,
+
+# ── Security: read secrets from environment (never hard-code) ─────────────────
+IMPORT_SECRET = os.environ.get('IMPORT_SECRET', 'bdi-import-2024')
+RESET_SECRET  = os.environ.get('RESET_SECRET',  'bdi-reset-2024')
+ADMIN_API_KEY = os.environ.get('ADMIN_API_KEY',  '')   # empty = disabled locally
+
+# ── CORS: restrict origins in production ─────────────────────────────────────
+_ALLOWED_ORIGINS_ENV = os.environ.get('ALLOWED_ORIGINS', '')
+if _ALLOWED_ORIGINS_ENV:
+    _CORS_ORIGINS = [o.strip() for o in _ALLOWED_ORIGINS_ENV.split(',') if o.strip()]
+else:
+    # Default: allow Railway + Netlify + localhost for dev
+    _CORS_ORIGINS = [
+        'https://bdi-attendance-production-d7e9.up.railway.app',
+        'https://admirable-empanada-6f089e.netlify.app',
+        'https://neon-mooncake-e6a0c5.netlify.app',
+        'http://localhost:5000',
+        'http://localhost:8080',
+        'http://127.0.0.1:5000',
+    ]
+
+CORS(app, origins=_CORS_ORIGINS, supports_credentials=False,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    origin = request.headers.get('Origin', '')
+    if origin in _CORS_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     return response
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],          # No blanket limit; apply per-route below
+    storage_uri='memory://',    # In-memory (resets on restart — good enough)
+)
 
 # Trust Cloudflare proxy headers (so camera HTTPS detection works)
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -118,27 +222,29 @@ face_db = {}   # uid → list of 128-dim encodings (numpy arrays)
 
 def load_db():
     global face_db
-    if os.path.exists(ENCODINGS_FILE):
+    raw = {}
+    if USE_DB:
+        raw = _db_load('face_encodings', {})
+        if raw:
+            log.info(f'Loaded {len(raw)} enrolled employee(s) from PostgreSQL')
+    if not raw and os.path.exists(ENCODINGS_FILE):
         try:
             with open(ENCODINGS_FILE, 'r') as f:
                 raw = json.load(f)
-            face_db = {uid: [np.array(enc) for enc in encs] for uid, encs in raw.items()}
-            log.info(f'Loaded {len(face_db)} enrolled employee(s) from disk')
+            log.info(f'Loaded {len(raw)} enrolled employee(s) from disk')
         except Exception as e:
             log.error(f'Failed to load encodings: {e}')
-            face_db = {}
-    elif os.path.exists(PRESET_FILE):
-        # No live data — load from preset baked into Docker image
+    if not raw and os.path.exists(PRESET_FILE):
         try:
             with open(PRESET_FILE, 'r') as f:
                 raw = json.load(f)
             if raw:
-                face_db = {uid: [np.array(enc) for enc in encs] for uid, encs in raw.items()}
-                save_db()  # persist to DATA_DIR so it becomes the live copy
-                log.info(f'Loaded {len(face_db)} enrolled employee(s) from PRESET')
+                log.info(f'Loaded {len(raw)} enrolled employee(s) from PRESET')
         except Exception as e:
             log.error(f'Failed to load preset: {e}')
-            face_db = {}
+    face_db = {uid: [np.array(enc) for enc in encs] for uid, encs in raw.items()} if raw else {}
+    if raw:
+        save_db()  # ensure DB and file are both up to date
 
 def save_preset_and_github():
     """Save face encodings to preset file locally, then commit to GitHub if configured.
@@ -193,12 +299,14 @@ def save_preset_and_github():
 
 
 def save_db():
+    raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
+    _db_save('face_encodings', raw)
     try:
-        raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
         with open(ENCODINGS_FILE, 'w') as f:
             json.dump(raw, f)
     except Exception as e:
-        log.error(f'Failed to save encodings: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save encodings: {e}')
 
 def b64_to_image(b64_string):
     """Convert base64 image string to numpy RGB array.
@@ -242,6 +350,7 @@ def status():
 
 
 @app.route('/enroll', methods=['POST'])
+@limiter.limit('60 per hour')            # enroll — one-time per employee
 def enroll():
     """
     Enroll an employee face.
@@ -293,6 +402,7 @@ def enroll():
 
 
 @app.route('/recognize', methods=['POST'])
+@limiter.limit('30 per minute')          # max 30 face scans/min per IP
 def recognize():
     """
     Identify a face from image.
@@ -420,7 +530,41 @@ def verify():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/import-faces', methods=['POST'])
+def import_faces():
+    """
+    Per-employee face import from admin panel.
+    Body: { "uid_or_empId": [[...128 floats...], ...], ... }
+    No secret required — called from trusted admin UI.
+    """
+    data = request.json
+    if not data or not isinstance(data, dict):
+        return jsonify({'ok': False, 'error': 'Expected JSON object { uid: [[...encodings...]] }'}), 400
+
+    count_new = 0
+    for uid, encs in data.items():
+        if not isinstance(encs, list) or not encs:
+            continue
+        try:
+            numpy_encs = [np.array(e) for e in encs]
+        except Exception as e:
+            return jsonify({'ok': False, 'error': f'Invalid encoding for {uid}: {e}'}), 400
+
+        # Replace existing encodings for this employee
+        face_db[uid] = numpy_encs[-5:]   # keep max 5 samples
+        count_new += 1
+
+    if count_new == 0:
+        return jsonify({'ok': False, 'error': 'No valid encodings found in payload'}), 400
+
+    save_db()
+    log.info(f'Imported faces via /import-faces: {count_new} employee(s)')
+    threading.Thread(target=save_preset_and_github, daemon=True).start()
+    return jsonify({'ok': True, 'imported': count_new, 'total': len(face_db)})
+
+
 @app.route('/import-encodings', methods=['POST'])
+@limiter.limit('10 per hour')            # bulk import — very infrequent
 def import_encodings():
     """
     Bulk-import face encodings from face_encodings.json format.
@@ -428,7 +572,7 @@ def import_encodings():
     Used to upload local Python encodings to the cloud server.
     """
     data = request.json
-    if data.get('secret') != 'bdi-import-2024':
+    if data.get('secret') != IMPORT_SECRET:
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
 
     incoming = data.get('encodings', {})
@@ -451,10 +595,11 @@ def import_encodings():
 
 
 @app.route('/export-encodings', methods=['GET'])
+@limiter.limit('10 per hour')
 def export_encodings():
     """Export all face encodings as JSON (for backup/migration)."""
     secret = request.args.get('secret', '')
-    if secret != 'bdi-import-2024':
+    if secret != IMPORT_SECRET:
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
     raw = {uid: [enc.tolist() for enc in encs] for uid, encs in face_db.items()}
     return jsonify({'ok': True, 'encodings': raw, 'count': len(raw)})
@@ -749,20 +894,27 @@ emp_db = []   # list of employee dicts from HTML system
 
 def load_employees():
     global emp_db
+    if USE_DB:
+        emp_db = _db_load('employees', [])
+        if emp_db:
+            log.info(f'Loaded {len(emp_db)} employees from PostgreSQL')
+            return
     if os.path.exists(EMPLOYEES_FILE):
         try:
             with open(EMPLOYEES_FILE, 'r') as f:
                 emp_db = json.load(f)
-            log.info(f'Loaded {len(emp_db)} employee profiles from employees.json')
+            log.info(f'Loaded {len(emp_db)} employees from disk')
         except Exception as e:
             log.error(f'Failed to load employees.json: {e}')
 
 def save_employees():
+    _db_save('employees', emp_db)
     try:
         with open(EMPLOYEES_FILE, 'w') as f:
             json.dump(emp_db, f, indent=2)
     except Exception as e:
-        log.error(f'Failed to save employees.json: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save employees.json: {e}')
 
 @app.route('/employees', methods=['GET'])
 def get_employees():
@@ -796,21 +948,28 @@ py_recs = []   # list of attendance record dicts
 
 def load_py_recs():
     global py_recs
+    if USE_DB:
+        py_recs = _db_load('py_recs', [])
+        if py_recs:
+            log.info(f'Loaded {len(py_recs)} python attendance record(s) from PostgreSQL')
+            return
     if os.path.exists(PY_RECS_FILE):
         try:
             with open(PY_RECS_FILE, 'r') as f:
                 py_recs = json.load(f)
-            log.info(f'Loaded {len(py_recs)} python attendance record(s)')
+            log.info(f'Loaded {len(py_recs)} python attendance record(s) from disk')
         except Exception as e:
             log.error(f'Failed to load python_attendance.json: {e}')
             py_recs = []
 
 def save_py_recs():
+    _db_save('py_recs', py_recs)
     try:
         with open(PY_RECS_FILE, 'w') as f:
             json.dump(py_recs, f, indent=2)
     except Exception as e:
-        log.error(f'Failed to save python_attendance.json: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save python_attendance.json: {e}')
 
 @app.route('/punch', methods=['POST'])
 def punch():
@@ -877,22 +1036,31 @@ app_data = {}
 
 def load_app_data():
     global app_data
+    if USE_DB:
+        app_data = _db_load('app_data', {})
+        if app_data:
+            log.info(f'Loaded app data from PostgreSQL '
+                     f'({len(app_data.get("employees",[]))} employees, '
+                     f'{len(app_data.get("records",[]))} records)')
+            return
     if os.path.exists(APP_DATA_FILE):
         try:
             with open(APP_DATA_FILE, 'r') as f:
                 app_data = json.load(f)
-            log.info(f'Loaded central app data ({len(app_data.get("employees",[]))} employees, '
-                     f'{len(app_data.get("records",[]))} records)')
+            log.info(f'Loaded app data from disk '
+                     f'({len(app_data.get("employees",[]))} employees)')
         except Exception as e:
             log.error(f'Failed to load app_data.json: {e}')
             app_data = {}
 
 def save_app_data():
+    _db_save('app_data', app_data)
     try:
         with open(APP_DATA_FILE, 'w') as f:
             json.dump(app_data, f)
     except Exception as e:
-        log.error(f'Failed to save app_data.json: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save app_data.json: {e}')
 
 @app.route('/data', methods=['GET'])
 def get_app_data():
@@ -964,6 +1132,7 @@ def get_data_version():
 
 # ── Full system reset (wipe all employees, sites, faces, punches) ─────────────
 @app.route('/sys/reset-all', methods=['POST'])
+@limiter.limit('5 per hour')             # reset — nuclear option, strict limit
 def reset_all():
     """
     Wipe ALL data: employees, sites, face encodings, attendance records, schedules.
@@ -972,7 +1141,7 @@ def reset_all():
     global face_db, emp_db, app_data, app_punches, schedule_by_date
 
     secret = request.json.get('secret', '') if request.json else ''
-    if secret != 'bdi-reset-2024':
+    if secret != RESET_SECRET:
         return jsonify({'ok': False, 'error': 'Invalid secret'}), 403
 
     # 1. Clear face encodings (in-memory + disk)
@@ -1027,6 +1196,11 @@ manual_requests = []
 
 def load_manual_requests():
     global manual_requests
+    if USE_DB:
+        manual_requests = _db_load('manual_requests', [])
+        if manual_requests:
+            log.info(f'Loaded {len(manual_requests)} manual request(s) from PostgreSQL')
+            return
     if os.path.exists(MANUAL_REQS_FILE):
         try:
             with open(MANUAL_REQS_FILE, 'r') as f:
@@ -1035,11 +1209,13 @@ def load_manual_requests():
             log.error(f'Failed to load manual_requests: {e}')
 
 def save_manual_requests():
+    _db_save('manual_requests', manual_requests)
     try:
         with open(MANUAL_REQS_FILE, 'w') as f:
             json.dump(manual_requests, f, indent=2)
     except Exception as e:
-        log.error(f'Failed to save manual_requests: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save manual_requests: {e}')
 
 @app.route('/manual-request', methods=['POST'])
 def submit_manual_request():
@@ -1052,6 +1228,8 @@ def submit_manual_request():
     data = request.json
     req_id = f"MR-{int(dt.datetime.now().timestamp()*1000)}"
 
+    lat = data.get('lat')
+    lng = data.get('lng')
     req = {
         'id':                 req_id,
         'empUid':             data.get('empUid', ''),
@@ -1063,6 +1241,8 @@ def submit_manual_request():
         'supervisorName':     data.get('supervisorName', ''),
         'timestamp':          data.get('timestamp', dt.datetime.now().isoformat()),
         'photo_b64':          data.get('photo_b64', ''),
+        'lat':                round(float(lat), 6) if lat is not None else None,
+        'lng':                round(float(lng), 6) if lng is not None else None,
         'status':             'pending',   # pending | approved | rejected
         'submittedAt':        dt.datetime.now().isoformat(),
         'reviewedAt':         None,
@@ -1145,20 +1325,27 @@ app_supervisors = []   # list of supervisor device registrations
 
 def load_supervisors():
     global app_supervisors
+    if USE_DB:
+        app_supervisors = _db_load('supervisors', [])
+        if app_supervisors:
+            log.info(f'Loaded {len(app_supervisors)} supervisor(s) from PostgreSQL')
+            return
     if os.path.exists(SUP_FILE):
         try:
             with open(SUP_FILE, 'r') as f:
                 app_supervisors = json.load(f)
-            log.info(f'Loaded {len(app_supervisors)} supervisor(s)')
+            log.info(f'Loaded {len(app_supervisors)} supervisor(s) from disk')
         except Exception as e:
             log.error(f'Failed to load supervisors: {e}')
 
 def save_supervisors():
+    _db_save('supervisors', app_supervisors)
     try:
         with open(SUP_FILE, 'w') as f:
             json.dump(app_supervisors, f, indent=2)
     except Exception as e:
-        log.error(f'Failed to save supervisors: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save supervisors: {e}')
 
 @app.route('/supervisor/register', methods=['POST'])
 def supervisor_register():
@@ -1272,20 +1459,27 @@ app_punches = []
 
 def load_app_punches():
     global app_punches
+    if USE_DB:
+        app_punches = _db_load('app_punches', [])
+        if app_punches:
+            log.info(f'Loaded {len(app_punches)} app punch record(s) from PostgreSQL')
+            return
     if os.path.exists(APP_PUNCHES_FILE):
         try:
             with open(APP_PUNCHES_FILE, 'r') as f:
                 app_punches = json.load(f)
-            log.info(f'Loaded {len(app_punches)} app punch record(s)')
+            log.info(f'Loaded {len(app_punches)} app punch record(s) from disk')
         except Exception as e:
             log.error(f'Failed to load app_punches: {e}')
 
 def save_app_punches():
+    _db_save('app_punches', app_punches)
     try:
         with open(APP_PUNCHES_FILE, 'w') as f:
             json.dump(app_punches, f, indent=2)
     except Exception as e:
-        log.error(f'Failed to save app_punches: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save app_punches: {e}')
 
 @app.route('/app/punch', methods=['POST'])
 def app_punch():
@@ -1308,31 +1502,37 @@ def app_punch():
 
     auto_checked_out = False
 
-    # ── Auto-checkout: if new punch is CHECK IN and employee still has an open IN ──
+    # ── Auto-checkout: only if open IN is from a PREVIOUS day (forgot to check out) ──
+    # Same-day repeated check-ins never trigger auto-checkout.
     if punch_type == 'in':
+        from datetime import datetime as _dt
+        today = _dt.now().strftime('%Y-%m-%d')
         emp_recs = sorted(
             [p for p in app_punches if p.get('empUid') == emp_uid],
             key=lambda x: x.get('time', '')
         )
-        if emp_recs and emp_recs[-1].get('type') == 'in':
-            # Create automatic checkout with same timestamp as the new check-in
-            prev = emp_recs[-1]
-            auto_out = {
-                'empUid':             emp_uid,
-                'empName':            emp_name,
-                'type':               'out',
-                'time':               timestamp,
-                'siteId':             prev.get('siteId', site_id),
-                'siteName':           prev.get('siteName', site_name),
-                'supervisorDeviceId': sup_id,
-                'supervisorName':     sup_name,
-                'source':             'auto-checkout',
-            }
-            if lat is not None: auto_out['lat'] = round(float(lat), 6)
-            if lng is not None: auto_out['lng'] = round(float(lng), 6)
-            app_punches.append(auto_out)
-            auto_checked_out = True
-            log.info(f'Auto-checkout: {emp_name} (was open IN from {prev.get("time","")})')
+        if emp_recs:
+            last = emp_recs[-1]
+            last_date = last.get('time', '')[:10]   # YYYY-MM-DD
+            last_type = last.get('type', 'out')
+            # Only auto-checkout if last punch was 'in' AND it was on a previous day
+            if last_type == 'in' and last_date and last_date < today:
+                auto_out = {
+                    'empUid':             emp_uid,
+                    'empName':            emp_name,
+                    'type':               'out',
+                    'time':               last_date + 'T23:59:59',  # end of that day
+                    'siteId':             last.get('siteId', site_id),
+                    'siteName':           last.get('siteName', site_name),
+                    'supervisorDeviceId': sup_id,
+                    'supervisorName':     sup_name,
+                    'source':             'auto-checkout',
+                }
+                if lat is not None: auto_out['lat'] = round(float(lat), 6)
+                if lng is not None: auto_out['lng'] = round(float(lng), 6)
+                app_punches.append(auto_out)
+                auto_checked_out = True
+                log.info(f'Auto-checkout: {emp_name} (open IN from {last.get("time","")} — previous day)')
 
     rec = {
         'empUid':             emp_uid,
@@ -1409,6 +1609,7 @@ def get_manhours():
 
 
 # ── Boot ─────────────────────────────────────────────────────────────────────
+_db_init()          # create kv_store table if using PostgreSQL
 load_db()
 load_employees()
 load_py_recs()
@@ -1457,20 +1658,27 @@ schedule_by_date = {}  # date -> { siteId -> [{uid, name, empId, designation}, .
 
 def load_schedule():
     global schedule_by_date
+    if USE_DB:
+        schedule_by_date = _db_load('schedule', {})
+        if schedule_by_date:
+            log.info(f'Loaded schedule for {len(schedule_by_date)} date(s) from PostgreSQL')
+            return
     if os.path.exists(SCHEDULE_FILE):
         try:
             with open(SCHEDULE_FILE, 'r') as f:
                 schedule_by_date = json.load(f)
-            log.info(f'Loaded schedule for {len(schedule_by_date)} date(s)')
+            log.info(f'Loaded schedule for {len(schedule_by_date)} date(s) from disk')
         except Exception as e:
             log.error(f'Failed to load schedule: {e}')
 
 def save_schedule():
+    _db_save('schedule', schedule_by_date)
     try:
         with open(SCHEDULE_FILE, 'w') as f:
             json.dump(schedule_by_date, f)
     except Exception as e:
-        log.error(f'Failed to save schedule: {e}')
+        if not USE_DB:
+            log.error(f'Failed to save schedule: {e}')
 
 load_schedule()  # must be called after function definition above
 
@@ -1578,6 +1786,134 @@ def get_report():
 
     result.sort(key=lambda x: x['empName'])
     return jsonify({'ok': True, 'report': result, 'count': len(result)})
+
+
+# ── Last punch type for a user (face-kiosk) ───────────────────────────────────
+@app.route('/app/last-punch-type', methods=['GET'])
+def last_punch_type():
+    """Return the last punch type ('in' or 'out') for an employee UID."""
+    uid = request.args.get('uid', '')
+    if not uid:
+        return jsonify({'ok': False, 'error': 'Missing uid'}), 400
+
+    emp_recs = sorted(
+        [p for p in app_punches if p.get('empUid') == uid],
+        key=lambda x: x.get('time', '')
+    )
+    if emp_recs:
+        return jsonify({'ok': True, 'type': emp_recs[-1].get('type', 'out'), 'uid': uid})
+    return jsonify({'ok': True, 'type': 'out', 'uid': uid})   # no history → default 'out' so next = 'in'
+
+
+# ── Live dashboard ─────────────────────────────────────────────────────────────
+@app.route('/app/dashboard', methods=['GET'])
+def get_dashboard():
+    """Real-time IN/OUT status per site for today."""
+    from datetime import datetime as _dt
+    today = _dt.now().strftime('%Y-%m-%d')
+
+    today_punches = [p for p in app_punches if p.get('time', '').startswith(today)]
+
+    # Build last-punch-type per employee
+    last_punch = {}   # empUid → latest punch record
+    for p in sorted(today_punches, key=lambda x: x.get('time', '')):
+        last_punch[p.get('empUid', '')] = p
+
+    # Group by site
+    site_stats = {}
+    for uid, punch in last_punch.items():
+        site_id   = punch.get('siteId', 'unknown')
+        site_name = punch.get('siteName', site_id)
+        ptype     = punch.get('type', 'out')
+        emp_name  = punch.get('empName', uid)
+
+        if site_id not in site_stats:
+            site_stats[site_id] = {
+                'site_id': site_id, 'site_name': site_name,
+                'in_count': 0, 'out_count': 0, 'currently_in': [],
+                'last_activity': '',
+            }
+        s = site_stats[site_id]
+        if ptype == 'in':
+            s['in_count'] += 1
+            s['currently_in'].append(emp_name)
+        else:
+            s['out_count'] += 1
+        t = punch.get('time', '')
+        if t > s['last_activity']:
+            s['last_activity'] = t
+
+    return jsonify({
+        'ok': True,
+        'as_of': _dt.now().isoformat(),
+        'total_in':  sum(s['in_count']  for s in site_stats.values()),
+        'total_out': sum(s['out_count'] for s in site_stats.values()),
+        'sites': list(site_stats.values()),
+    })
+
+
+# ── Liveness detection (Android/iOS native path) ──────────────────────────────
+@app.route('/liveness', methods=['POST'])
+@limiter.limit('60 per minute')
+def liveness_check():
+    """
+    Accepts 2 JPEG frames (base64), checks eye-aspect-ratio change.
+    Returns {ok, live, reason}.
+    """
+    data   = request.json or {}
+    frames = data.get('frames', [])
+
+    if len(frames) < 2:
+        return jsonify({'ok': True, 'live': True, 'reason': 'Not enough frames — skipped'})
+
+    if not FACE_RECOGNITION_AVAILABLE:
+        return jsonify({'ok': True, 'live': True, 'reason': 'face_recognition not available'})
+
+    try:
+        from PIL import Image as _Image
+        import io as _io
+
+        def _decode(b64_str):
+            raw = b64_str.split(',')[-1]
+            img = _Image.open(_io.BytesIO(base64.b64decode(raw))).convert('RGB')
+            return np.array(img)
+
+        def _ear(eye_pts):
+            """Eye Aspect Ratio — lower when eye is closed."""
+            import numpy as _np
+            pts = _np.array(eye_pts)
+            # vertical distances
+            A = _np.linalg.norm(pts[1] - pts[5])
+            B = _np.linalg.norm(pts[2] - pts[4])
+            # horizontal distance
+            C = _np.linalg.norm(pts[0] - pts[3])
+            return (A + B) / (2.0 * C) if C > 0 else 0
+
+        ears = []
+        for b64 in frames[:2]:
+            arr       = _decode(b64)
+            landmarks = face_recognition.face_landmarks(arr)
+            if not landmarks:
+                return jsonify({'ok': True, 'live': False,
+                                'reason': 'No face detected — please face the camera directly'})
+            lm  = landmarks[0]
+            ear = (_ear(lm.get('left_eye', [])) + _ear(lm.get('right_eye', []))) / 2
+            ears.append(ear)
+
+        ear_diff = abs(ears[0] - ears[1])
+        log.info(f'Liveness EAR: {ears[0]:.3f} → {ears[1]:.3f}  diff={ear_diff:.3f}')
+
+        if ear_diff > 0.04:
+            return jsonify({'ok': True, 'live': True,
+                            'reason': f'Blink detected (EAR Δ={ear_diff:.3f})'})
+        else:
+            return jsonify({'ok': True, 'live': False,
+                            'reason': 'Please blink naturally and try again'})
+
+    except Exception as e:
+        log.warning(f'Liveness check error: {e}')
+        # Fail-open: don't block attendance on liveness error
+        return jsonify({'ok': True, 'live': True, 'reason': f'Check skipped: {e}'})
 
 
 if __name__ == '__main__':
