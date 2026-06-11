@@ -1502,26 +1502,28 @@ def app_punch():
 
     auto_checked_out = False
 
-    # ── Auto-checkout: only if open IN is from a PREVIOUS day (forgot to check out) ──
-    # Same-day repeated check-ins never trigger auto-checkout.
+    # ── Auto-checkout: if employee checks IN while already checked IN ──
+    # Silently closes the previous open session before recording the new check-in.
+    # Works same-day and across days.
     if punch_type == 'in':
-        from datetime import datetime as _dt
-        today = _dt.now().strftime('%Y-%m-%d')
         emp_recs = sorted(
             [p for p in app_punches if p.get('empUid') == emp_uid],
             key=lambda x: x.get('time', '')
         )
         if emp_recs:
             last = emp_recs[-1]
-            last_date = last.get('time', '')[:10]   # YYYY-MM-DD
-            last_type = last.get('type', 'out')
-            # Only auto-checkout if last punch was 'in' AND it was on a previous day
-            if last_type == 'in' and last_date and last_date < today:
+            if last.get('type') == 'in':
+                last_date = last.get('time', '')[:10]   # YYYY-MM-DD
+                from datetime import datetime as _dt
+                today = _dt.now().strftime('%Y-%m-%d')
+                # Stamp auto-checkout at end of that day if it was a previous day,
+                # otherwise use the current timestamp
+                auto_time = (last_date + 'T23:59:59') if last_date < today else timestamp
                 auto_out = {
                     'empUid':             emp_uid,
                     'empName':            emp_name,
                     'type':               'out',
-                    'time':               last_date + 'T23:59:59',  # end of that day
+                    'time':               auto_time,
                     'siteId':             last.get('siteId', site_id),
                     'siteName':           last.get('siteName', site_name),
                     'supervisorDeviceId': sup_id,
@@ -1532,7 +1534,7 @@ def app_punch():
                 if lng is not None: auto_out['lng'] = round(float(lng), 6)
                 app_punches.append(auto_out)
                 auto_checked_out = True
-                log.info(f'Auto-checkout: {emp_name} (open IN from {last.get("time","")} — previous day)')
+                log.info(f'Auto-checkout: {emp_name} (open IN from {last.get("time","")})')
 
     rec = {
         'empUid':             emp_uid,
