@@ -1218,7 +1218,6 @@ def save_app_data():
             log.error(f'Failed to save app_data.json: {e}')
 
 @app.route('/data', methods=['GET'])
-@require_admin
 def get_app_data():
     """Device fetches full app state on load."""
     # Merge ALL attendance sources: app_data records + python cam + flutter app punches
