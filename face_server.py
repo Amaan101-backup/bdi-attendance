@@ -132,7 +132,7 @@ _ADMIN_SESSIONS: dict = {}   # token → expiry epoch
 _SESSION_TTL = 8 * 3600      # 8 hours
 
 def _load_token_secret():
-    global _TOKEN_SECRET
+    global _TOKEN_SECRET, ADMIN_USERNAME, ADMIN_PASSWORD
     stored = _db_load('_admin_token_secret', None) if USE_DB else None
     if stored:
         _TOKEN_SECRET = stored
@@ -140,6 +140,14 @@ def _load_token_secret():
         _TOKEN_SECRET = _secrets.token_hex(32)
         if USE_DB:
             _db_save('_admin_token_secret', _TOKEN_SECRET)
+    # Load saved credentials from DB (overrides env vars if set via admin panel)
+    if USE_DB:
+        saved_user = _db_load('_admin_username', None)
+        saved_pass = _db_load('_admin_password', None)
+        if saved_user:
+            ADMIN_USERNAME = saved_user
+        if saved_pass:
+            ADMIN_PASSWORD = saved_pass
 
 def _create_session() -> str:
     token = _secrets.token_urlsafe(40)
@@ -298,6 +306,29 @@ def admin_logout():
 def admin_verify():
     """Check if the current session token is still valid."""
     return jsonify({'ok': _verify_session(_get_token_from_request())})
+
+@app.route('/admin/change-credentials', methods=['POST'])
+@require_admin
+@limiter.limit('10 per hour')
+def admin_change_credentials():
+    """Change admin username and password. Saves to DB so it persists across restarts."""
+    global ADMIN_USERNAME, ADMIN_PASSWORD
+    data = request.json or {}
+    new_username = data.get('username', '').strip()
+    new_password = data.get('password', '').strip()
+    if not new_username or not new_password:
+        return jsonify({'ok': False, 'error': 'Username and password are required'}), 400
+    if len(new_password) < 8:
+        return jsonify({'ok': False, 'error': 'Password must be at least 8 characters'}), 400
+    ADMIN_USERNAME = new_username
+    ADMIN_PASSWORD = new_password
+    if USE_DB:
+        _db_save('_admin_username', new_username)
+        _db_save('_admin_password', new_password)
+    # Invalidate all existing sessions so old credentials can't be reused
+    _ADMIN_SESSIONS.clear()
+    log.info('Admin credentials updated successfully')
+    return jsonify({'ok': True, 'message': 'Credentials updated — please log in again with new credentials'})
 
 @app.route('/attendance-bridge.js')
 def attendance_bridge():
