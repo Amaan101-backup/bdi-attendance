@@ -189,6 +189,7 @@ else:
         'https://bdi-attendance-production-d7e9.up.railway.app',
         'https://admirable-empanada-6f089e.netlify.app',
         'https://neon-mooncake-e6a0c5.netlify.app',
+        'https://attendance.bdiportals.com',
         'http://localhost:5000',
         'http://localhost:8080',
         'http://127.0.0.1:5000',
