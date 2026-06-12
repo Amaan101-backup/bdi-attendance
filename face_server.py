@@ -227,8 +227,11 @@ log = logging.getLogger('BDI-Server')
 
 # ── Page routes (clean URLs + .html aliases) ──────────────────────────────────
 @app.route('/')
-@app.route('/attendance.html')
 def home():
+    return redirect('/admin')
+
+@app.route('/attendance.html')
+def home_attendance():
     return send_from_directory(BASE_DIR, 'attendance.html')
 
 @app.route('/admin')
