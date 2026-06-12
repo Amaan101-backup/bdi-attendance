@@ -117,11 +117,11 @@ os.makedirs(DATA_DIR, exist_ok=True)
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
 
 # ── Security: read secrets from environment ────────────────────────────────────
-IMPORT_SECRET  = os.environ.get('IMPORT_SECRET', 'bdi-import-2024')
-RESET_SECRET   = os.environ.get('RESET_SECRET',  'bdi-reset-2024')
+IMPORT_SECRET  = os.environ.get('IMPORT_SECRET', '')
+RESET_SECRET   = os.environ.get('RESET_SECRET',  '')
 ADMIN_API_KEY  = os.environ.get('ADMIN_API_KEY', '')
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'bdi2026')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 
 # Token secret — generated once at startup and stored in DB so it survives restarts
 import secrets as _secrets, hmac as _hmac, hashlib as _hashlib, time as _time
