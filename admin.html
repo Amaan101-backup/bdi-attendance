@@ -2606,7 +2606,7 @@ async function restoreAllData() {
   if (fBacked) {
     try {
       const encodings = JSON.parse(fBacked);
-      const d = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+      const d = await api('/import-encodings','POST',{encodings, secret:''});
       if (d.ok) msg.push(`${d.imported} faces`);
     } catch {}
   }
@@ -2713,7 +2713,7 @@ async function restoreFaces() {
     const encodings = JSON.parse(backed);
     const count = Object.keys(encodings).length;
     if (!count) { toast('Backup is empty', false); return; }
-    const d = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+    const d = await api('/import-encodings','POST',{encodings, secret:''});
     if (d.ok) { toast(`Restored ${d.imported} face encoding(s)`); checkServer(); }
     else toast('Restore failed: '+(d.error||'unknown'), false);
   } catch(e) { toast('Restore error: '+e.message, false); }
@@ -2727,7 +2727,7 @@ async function restoreFacesIfEmpty() {
     if (!backed) return;
     const encodings = JSON.parse(backed);
     if (!Object.keys(encodings).length) return;
-    const r = await api('/import-encodings','POST',{encodings, secret:'bdi-import-2024'});
+    const r = await api('/import-encodings','POST',{encodings, secret:''});
     if (r.ok) toast(`Auto-restored ${r.imported} face encoding(s) after server restart`);
   } catch {}
 }
