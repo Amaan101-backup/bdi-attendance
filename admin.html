@@ -884,7 +884,7 @@ async function checkServer() {
 ══════════════════════════════════════════════════════════════ */
 async function loadFaces() {
   try {
-    const d = await fetch('/faces/export').then(r=>r.json());
+    const d = await api('/faces/export');
     if (d.ok && d.encodings) {
       FACES = {};
       for (const [id, encs] of Object.entries(d.encodings)) {
@@ -1136,7 +1136,7 @@ function renderEmps() {
 /* ── Per-employee face export ──────────────────────────────────────────────── */
 async function exportEmpFace(empId, empName) {
   try {
-    const d = await fetch('/faces/export').then(r => r.json());
+    const d = await api('/faces/export');
     if (!d.ok || !d.encodings) { toast('Could not load face data from server', false); return; }
 
     // Try exact match, then case-insensitive
@@ -1209,11 +1209,7 @@ async function importEmpFace(input, empId, empName) {
     // POST to /import-faces  { "empId": [[...], ...] }
     const payload = {};
     payload[empId] = encodings;
-    const res = await fetch('/import-faces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(r => r.json());
+    const res = await api('/import-faces', 'POST', payload);
 
     if (res.ok) {
       FACES[empId] = encodings.length;
@@ -1231,11 +1227,7 @@ async function importEmpFace(input, empId, empName) {
 async function deleteEmpFace(empId, empName) {
   if (!confirm(`Delete face enrollment for ${empName} (${empId})?\n\nThey will need to re-enroll via the mobile app.`)) return;
   try {
-    const res = await fetch('/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: empId })
-    }).then(r => r.json());
+    const res = await api('/delete', 'POST', { uid: empId });
     if (res.ok) {
       delete FACES[empId];
       renderEmps();
