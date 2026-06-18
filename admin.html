@@ -1042,14 +1042,20 @@ async function renderDash() {
 /* ══════════════════════════════════════════════════════════════
    SITE SELECTS (populate dropdowns)
 ══════════════════════════════════════════════════════════════ */
+function siteLabel(s) {
+  const name = s.name||''; const code = s.code||'';
+  if (name && name !== code) return `${name} (${code})`;
+  return code || name || s.id;
+}
+
 function populateSiteSelects() {
-  const opts = SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  const opts = SITES.map(s=>`<option value="${esc(s.id)}">${esc(siteLabel(s))}</option>`).join('');
   ['esites','ssites'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = opts || '<option value="">No sites yet</option>';
   });
   const rsite = document.getElementById('r-site');
-  if (rsite) rsite.innerHTML = '<option value="">All Sites</option>' + SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  if (rsite) rsite.innerHTML = '<option value="">All Sites</option>' + SITES.map(s=>`<option value="${esc(s.id)}">${esc(siteLabel(s))}</option>`).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1271,7 +1277,7 @@ function openEditEmp(empUid) {
   if (!e) return;
   // Populate edit-sites select with all sites
   const siteSel = document.getElementById('edit-sites');
-  siteSel.innerHTML = SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+  siteSel.innerHTML = SITES.map(s=>`<option value="${esc(s.id)}">${esc(siteLabel(s))}</option>`).join('');
   // Pre-select employee's sites
   [...siteSel.options].forEach(o => { o.selected = (e.sites||[]).includes(o.value); });
   // Fill fields
@@ -1860,7 +1866,7 @@ async function loadReport() {
     _reportRecs = all;
     // Populate site dropdowns for both views
     const siteOpts = '<option value="">All Sites</option>' +
-      SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+      SITES.map(s=>`<option value="${esc(s.id)}">${esc(siteLabel(s))}</option>`).join('');
     const rSite = document.getElementById('r-site'); if(rSite) rSite.innerHTML = siteOpts;
     const rHrsSite = document.getElementById('r-hrs-site'); if(rHrsSite) rHrsSite.innerHTML = siteOpts;
 
@@ -2005,7 +2011,7 @@ function populateHrsSiteSelect() {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">All Sites</option>' +
-    SITES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.code)})</option>`).join('');
+    SITES.map(s=>`<option value="${esc(s.id)}">${esc(siteLabel(s))}</option>`).join('');
   sel.value = cur;
 }
 
