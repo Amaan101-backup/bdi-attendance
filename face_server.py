@@ -1568,7 +1568,7 @@ def supervisor_update():
         return jsonify({'ok': False, 'error': 'Supervisor not found'})
 
     # Update fields if provided
-    for field in ['name', 'phone', 'role', 'sites', 'approved', 'canEnroll']:
+    for field in ['name', 'phone', 'role', 'sites', 'approved', 'canEnroll', 'allSites']:
         if field in data:
             sup[field] = data[field]
 

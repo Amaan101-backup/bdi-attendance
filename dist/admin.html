@@ -730,8 +730,24 @@ tr:hover td{background:#f8fafc}
           <option>Site Engineer</option><option>HSE Officer</option><option>Admin</option>
         </select>
       </div>
-      <div class="fg"><label>Assigned Sites</label>
-        <select id="esup-sites" multiple style="height:80px"></select>
+      <div class="fg" style="flex:1">
+        <label>Assigned Sites</label>
+        <div style="display:flex;gap:14px;margin:6px 0 8px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer">
+            <input type="radio" name="esup-site-mode" id="esup-sites-all-radio" value="all" onchange="toggleSupSiteMode()" style="accent-color:var(--or);width:15px;height:15px">
+            All Sites
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer">
+            <input type="radio" name="esup-site-mode" id="esup-sites-custom-radio" value="custom" onchange="toggleSupSiteMode()" checked style="accent-color:var(--blue);width:15px;height:15px">
+            Custom
+          </label>
+        </div>
+        <div id="esup-sites-custom-wrap">
+          <select id="esup-sites" multiple style="height:90px;width:100%"></select>
+        </div>
+        <div id="esup-sites-all-msg" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400e">
+          <i class="ti ti-building-check"></i> Supervisor will access <strong>all current &amp; future sites</strong> automatically.
+        </div>
       </div>
     </div>
     <div style="display:flex;gap:20px;margin:12px 0">
@@ -1542,24 +1558,35 @@ async function restoreAppSupsIfEmpty() {
   } catch {}
 }
 
+function toggleSupSiteMode() {
+  const isAll = document.getElementById('esup-sites-all-radio').checked;
+  document.getElementById('esup-sites-custom-wrap').style.display = isAll ? 'none' : '';
+  document.getElementById('esup-sites-all-msg').style.display     = isAll ? ''     : 'none';
+}
+
 function openEditSup(deviceId) {
   const cached = localStorage.getItem('bdi_appsups_cache');
   const list = cached ? JSON.parse(cached) : [];
   const s = list.find(x=>x.deviceId===deviceId);
   if (!s) return;
-  document.getElementById('esup-device-id').value = s.deviceId;
-  document.getElementById('esup-name').value       = s.name||'';
-  document.getElementById('esup-phone').value      = s.phone||'';
-  document.getElementById('esup-approved').checked   = !!s.approved;
-  document.getElementById('esup-can-enroll').checked = !!s.canEnroll;
+  document.getElementById('esup-device-id').value     = s.deviceId;
+  document.getElementById('esup-name').value          = s.name||'';
+  document.getElementById('esup-phone').value         = s.phone||'';
+  document.getElementById('esup-approved').checked    = !!s.approved;
+  document.getElementById('esup-can-enroll').checked  = !!s.canEnroll;
   // Set role
   const roleEl = document.getElementById('esup-role');
   for (let i=0;i<roleEl.options.length;i++) {
     if (roleEl.options[i].value===(s.role||'Supervisor')) { roleEl.selectedIndex=i; break; }
   }
-  // Populate sites multi-select
+  // Site mode: all vs custom
+  const isAll = !!s.allSites;
+  document.getElementById('esup-sites-all-radio').checked    = isAll;
+  document.getElementById('esup-sites-custom-radio').checked = !isAll;
+  toggleSupSiteMode();
+  // Populate custom site multi-select
   const sel = document.getElementById('esup-sites');
-  sel.innerHTML = SITES.map(st=>`<option value="${esc(st.id)}" ${(s.sites||[]).includes(st.id)?'selected':''}>${esc(st.code||st.name)}</option>`).join('');
+  sel.innerHTML = SITES.map(st=>`<option value="${esc(st.id)}" ${(s.sites||[]).includes(st.id)?'selected':''}>${esc(siteLabel(st))}</option>`).join('');
   document.getElementById('edit-sup-modal').style.display='flex';
 }
 function closeEditSup() { document.getElementById('edit-sup-modal').style.display='none'; }
@@ -1571,9 +1598,12 @@ async function saveSupEdit() {
   const role      = document.getElementById('esup-role').value;
   const approved  = document.getElementById('esup-approved').checked;
   const canEnroll = document.getElementById('esup-can-enroll').checked;
-  const sites     = [...document.getElementById('esup-sites').selectedOptions].map(o=>o.value);
+  const allSites  = document.getElementById('esup-sites-all-radio').checked;
+  const sites = allSites
+    ? SITES.map(s=>s.id)
+    : [...document.getElementById('esup-sites').selectedOptions].map(o=>o.value);
   if (!name) { toast('Name is required', false); return; }
-  const d = await api('/supervisor/update','POST',{deviceId,name,phone,role,approved,canEnroll,sites});
+  const d = await api('/supervisor/update','POST',{deviceId,name,phone,role,approved,canEnroll,sites,allSites});
   if (d.ok) { closeEditSup(); loadAppSups(); toast(`${name} updated ✓`); }
   else toast('Update failed', false);
 }
@@ -1631,13 +1661,23 @@ async function addSite() {
   const radius = parseFloat(document.getElementById('srad').value);
   if (!name||!code||isNaN(lat)||isNaN(lng)) { toast('Fill all required fields (Name, Code, Lat, Lng)', false); return; }
   if (SITES.find(s=>s.code===code)) { toast('Site code already exists', false); return; }
-  SITES.push({ id:'S'+Date.now(), code, name, loc:loc||'UAE', lat, lng, radius: radius||2 });
+  const newSite = { id:'S'+Date.now(), code, name, loc:loc||'UAE', lat, lng, radius: radius||2 };
+  SITES.push(newSite);
   ['sns','snc','snl','snlat','snlng'].forEach(x=>document.getElementById(x).value='');
   document.getElementById('srad').value=2;
   document.getElementById('srad-v').textContent='2.0 km';
   renderSites(); populateSiteSelects(); renderDash();
   toast(`${name} added ✓`);
   await pushAll();
+  // Auto-assign new site to any app supervisor with allSites: true
+  const cached = localStorage.getItem('bdi_appsups_cache');
+  const appsups = cached ? JSON.parse(cached) : [];
+  for (const sup of appsups) {
+    if (sup.allSites) {
+      const sites = [...(sup.sites||[]), newSite.id];
+      await api('/supervisor/update','POST',{deviceId:sup.deviceId,sites,allSites:true});
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
