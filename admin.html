@@ -414,6 +414,13 @@ tr:hover td{background:#f8fafc}
           </div>
           <div id="loc-msg" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
         </div>
+        <div style="margin:12px 0 4px;display:flex;align-items:center;gap:8px">
+          <div style="position:relative;flex:1">
+            <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none"></i>
+            <input type="text" id="site-search" placeholder="Search by name, code or location…" oninput="renderSites()" style="width:100%;padding:8px 10px 8px 32px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;box-sizing:border-box">
+          </div>
+          <span id="site-count" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
+        </div>
         <div id="sites-list"></div>
       </div>
 
@@ -1578,7 +1585,12 @@ function renderSites() {
   const el = document.getElementById('sites-list');
   if (!el) return;
   if (!SITES.length) { el.innerHTML='<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:13px;padding:40px"><i class="ti ti-building-off"></i>No sites yet — add one above</div>'; return; }
-  el.innerHTML = SITES.map(s => {
+  const q = (document.getElementById('site-search')?.value||'').toLowerCase().trim();
+  const filtered = q ? SITES.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.code||'').toLowerCase().includes(q)||(s.loc||'').toLowerCase().includes(q)) : SITES;
+  const countEl = document.getElementById('site-count');
+  if (countEl) countEl.textContent = q ? `${filtered.length} of ${SITES.length} sites` : `${SITES.length} site${SITES.length!==1?'s':''}`;
+  if (!filtered.length) { el.innerHTML='<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:13px;padding:40px"><i class="ti ti-building-search"></i>No sites match your search</div>'; return; }
+  el.innerHTML = filtered.map(s => {
     const assignedEmps = EMPS.filter(e=>(e.sites||[]).includes(s.id)).length;
     const assignedSups = SUPS.filter(x=>(x.sites||[]).includes(s.id));
     return `<div class="card" style="border-left:3px solid var(--or)">
