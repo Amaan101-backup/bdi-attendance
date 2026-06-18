@@ -3,7 +3,7 @@
    Face recognition still needs server connection.
 */
 
-const CACHE  = 'bdi-attendance-v1';
+const CACHE  = 'bdi-attendance-v2';
 const ASSETS = [
   '/',
   '/admin',

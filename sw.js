@@ -4,7 +4,7 @@
    API calls → network only (never cached)
 */
 
-const CACHE  = 'bdi-attendance-v5';
+const CACHE  = 'bdi-attendance-v6';
 const STATIC = [
   '/shared.js',
   '/shared.css',
