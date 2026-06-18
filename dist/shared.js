@@ -295,7 +295,7 @@ function populateAllSelects(){
 
 function populateRepFilter(){
   const rf=document.getElementById('rsiteF');
-  if(rf)rf.innerHTML='<option value="">All sites</option>'+SITES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  if(rf)rf.innerHTML='<option value="">All sites</option>'+SITES.map(s=>`<option value="${s.id}">${s.name} (${s.code})</option>`).join('');
 }
 
 function renderAStats(){
