@@ -441,6 +441,11 @@ tr:hover td{background:#f8fafc}
           <div id="r-log-filters" class="sr">
             <input id="r-srch" placeholder="Search employee…" oninput="filterReport()">
             <select id="r-site" onchange="filterReport()"><option value="">All Sites</option></select>
+            <select id="r-site-sort" onchange="filterReport()" title="Sort by site name">
+              <option value="">Site: Default</option>
+              <option value="az">Site: A → Z</option>
+              <option value="za">Site: Z → A</option>
+            </select>
             <select id="r-type" onchange="filterReport()">
               <option value="">All Sessions</option>
               <option value="in">⏳ Still Active (no checkout)</option>
@@ -453,6 +458,11 @@ tr:hover td{background:#f8fafc}
           <div id="r-hrs-filters" class="sr" style="display:none">
             <input id="r-hrs-srch" placeholder="Search employee…" oninput="renderManhours()">
             <select id="r-hrs-site" onchange="renderManhours()"><option value="">All Sites</option></select>
+            <select id="r-hrs-site-sort" onchange="renderManhours()" title="Sort by site name">
+              <option value="">Site: Default</option>
+              <option value="az">Site: A → Z</option>
+              <option value="za">Site: Z → A</option>
+            </select>
             <button class="btn btn-green btn-sm" onclick="exportManhours()"><i class="ti ti-download"></i>Export CSV</button>
             <button class="btn btn-red btn-sm" onclick="exportManHoursPDF()"><i class="ti ti-file-type-pdf"></i>Export PDF</button>
           </div>
@@ -1964,9 +1974,10 @@ function pairPunches(records) {
 }
 
 function filterReport() {
-  const q    = (document.getElementById('r-srch')?.value||'').toLowerCase();
-  const site = document.getElementById('r-site')?.value||'';
-  const type = document.getElementById('r-type')?.value||''; // 'in'=active, 'out'=completed
+  const q        = (document.getElementById('r-srch')?.value||'').toLowerCase();
+  const site     = document.getElementById('r-site')?.value||'';
+  const siteSort = document.getElementById('r-site-sort')?.value||'';
+  const type     = document.getElementById('r-type')?.value||''; // 'in'=active, 'out'=completed
   const list = _reportRecs.filter(r =>
     (!q || (r.empName||'').toLowerCase().includes(q) || (r.empId||'').toLowerCase().includes(q)) &&
     (!site || r.siteId===site)
@@ -1976,6 +1987,9 @@ function filterReport() {
   // Filter: 'in' = still active (no checkout), 'out' = completed
   if (type === 'in')  pairs = pairs.filter(p => !p.outR);
   if (type === 'out') pairs = pairs.filter(p =>  p.outR);
+  // Sort by site name A→Z or Z→A
+  if (siteSort === 'az') pairs.sort((a,b)=>(a.inR.siteName||'').localeCompare(b.inR.siteName||''));
+  if (siteSort === 'za') pairs.sort((a,b)=>(b.inR.siteName||'').localeCompare(a.inR.siteName||''));
   if (!pairs.length) { tb.innerHTML=`<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i>No records match</div></td></tr>`; return; }
 
   const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : null;
@@ -2124,18 +2138,23 @@ function fmtDur(mins) {
 }
 
 function renderManhours() {
-  const q    = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
-  const site = document.getElementById('r-hrs-site')?.value||'';
-  const tb   = document.getElementById('hrs-tbl');
+  const q        = (document.getElementById('r-hrs-srch')?.value||'').toLowerCase();
+  const site     = document.getElementById('r-hrs-site')?.value||'';
+  const siteSort = document.getElementById('r-hrs-site-sort')?.value||'';
+  const tb       = document.getElementById('hrs-tbl');
   if (!tb) return;
 
   // Filter raw records by site
   let recs = _reportRecs;
   if (site) recs = recs.filter(r=>r.siteId===site);
 
-  const data = calcManhours(recs).filter(e=>
+  let data = calcManhours(recs).filter(e=>
     !q || e.name.toLowerCase().includes(q) || (e.empId||'').toLowerCase().includes(q)
   );
+  // Sort by site name A→Z or Z→A
+  const _siteName = id => { const s = SITES.find(x=>x.id===id); return s ? (s.name||s.code||'') : ''; };
+  if (siteSort === 'az') data.sort((a,b)=>_siteName(a.sites?.[0]).localeCompare(_siteName(b.sites?.[0])));
+  if (siteSort === 'za') data.sort((a,b)=>_siteName(b.sites?.[0]).localeCompare(_siteName(a.sites?.[0])));
 
   if (!data.length) {
     tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-clock-off"></i>No man-hour data for selected period</div></td></tr>`;
