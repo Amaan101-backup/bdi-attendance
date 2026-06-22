@@ -1797,6 +1797,69 @@ load_supervisors()
 load_app_punches()
 load_manual_requests()
 
+# ── Auto-checkout background worker ──────────────────────────────────────────
+# Every 5 minutes, scan open check-ins older than 15 hours.
+# If found, auto-checkout at checkin_time + 9 hours.
+
+def _auto_checkout_worker():
+    import time as _time
+    from datetime import datetime as _dt, timedelta as _td
+    CHECK_INTERVAL = 300          # run every 5 minutes
+    CUTOFF_HOURS   = 15           # trigger auto-checkout after 15 h open
+    WORK_HOURS     = 9            # auto-checkout = check-in + 9 h
+
+    while True:
+        _time.sleep(CHECK_INTERVAL)
+        try:
+            now = _dt.now()
+            # Build latest punch type per employee
+            by_emp = {}
+            for p in app_punches:
+                uid = p.get('empUid')
+                if uid:
+                    if uid not in by_emp or p.get('time','') > by_emp[uid].get('time',''):
+                        by_emp[uid] = p
+
+            added = 0
+            for uid, last in by_emp.items():
+                if last.get('type') != 'in':
+                    continue          # already checked out
+                try:
+                    checkin_dt = _dt.fromisoformat(last['time'].replace('Z', ''))
+                except Exception:
+                    continue
+                hours_open = (now - checkin_dt).total_seconds() / 3600
+                if hours_open < CUTOFF_HOURS:
+                    continue          # not overdue yet
+
+                # Auto-checkout at checkin + 9 h
+                auto_time = (checkin_dt + _td(hours=WORK_HOURS)).isoformat()
+                auto_out = {
+                    'empUid':             uid,
+                    'empName':            last.get('empName', ''),
+                    'type':               'out',
+                    'time':               auto_time,
+                    'siteId':             last.get('siteId', ''),
+                    'siteName':           last.get('siteName', ''),
+                    'supervisorDeviceId': 'system',
+                    'supervisorName':     'Auto-Checkout',
+                    'source':             'auto-checkout-9h',
+                }
+                app_punches.append(auto_out)
+                added += 1
+                log.info(
+                    f'Auto-checkout (9h): {last.get("empName",uid)} '
+                    f'checked-in at {last["time"]}, auto-out at {auto_time}'
+                )
+
+            if added:
+                save_app_punches()
+        except Exception as e:
+            log.error(f'Auto-checkout worker error: {e}')
+
+threading.Thread(target=_auto_checkout_worker, daemon=True).start()
+log.info('Auto-checkout worker started (cutoff: 15 h, auto-out: check-in + 9 h)')
+
 # ── Sites API ────────────────────────────────────────────────────────────────
 @app.route('/app/sites', methods=['GET'])
 def get_sites():
